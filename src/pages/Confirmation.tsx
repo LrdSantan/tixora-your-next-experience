@@ -33,7 +33,7 @@ const ConfirmationPage = () => {
             <p className="text-sm font-mono text-primary">{orderId}</p>
           </div>
           <div className="p-6 flex items-center justify-center border-t sm:border-t-0 sm:border-l border-border">
-            <QRCode value={orderId} size={100} />
+            <QRCodeSVG value={orderId} size={100} />
           </div>
         </div>
       </div>
