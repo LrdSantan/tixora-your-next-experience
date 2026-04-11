@@ -1,7 +1,7 @@
 import { CheckCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import QRCode from "qrcode.react";
+import { QRCodeSVG } from "qrcode.react";
 
 const ConfirmationPage = () => {
   const orderId = `TXR-${Date.now().toString(36).toUpperCase()}`;
