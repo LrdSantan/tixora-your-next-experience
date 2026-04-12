@@ -1,0 +1,2 @@
+[functions.complete-paystack-payment]
+verify_jwt = false

@@ -2,27 +2,7 @@ import { Link } from "react-router-dom";
 import { MapPin, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatPrice, formatDate, type Event } from "@/lib/mock-data";
-
-// Image imports
-import concert1 from "@/assets/event-concert-1.jpg";
-import concert2 from "@/assets/event-concert-2.jpg";
-import sports1 from "@/assets/event-sports-1.jpg";
-import sports2 from "@/assets/event-sports-2.jpg";
-import comedy from "@/assets/event-comedy.jpg";
-import festival from "@/assets/event-festival.jpg";
-
-const EVENT_IMAGES: Record<string, string> = {
-  "1": concert1,
-  "2": concert2,
-  "3": sports1,
-  "4": sports2,
-  "5": comedy,
-  "6": festival,
-};
-
-export function getEventImage(eventId: string): string {
-  return EVENT_IMAGES[eventId] || concert1;
-}
+import { getEventImage } from "@/lib/event-image";
 
 interface EventCardProps {
   event: Event;
@@ -32,11 +12,11 @@ const EventCard = ({ event }: EventCardProps) => {
   const lowestPrice = Math.min(...event.ticket_tiers.map((t) => t.price));
 
   return (
-    <Link to={`/events/${event.id}`} className="group block">
-      <div className="bg-card rounded-xl overflow-hidden border border-border hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-        <div className="aspect-[16/10] overflow-hidden">
+    <Link to={`/events/${event.id}`} className="group block h-full">
+      <div className="bg-card rounded-xl overflow-hidden border border-border hover:shadow-lg transition-all duration-300 hover:-translate-y-1 h-full flex flex-col">
+        <div className="aspect-[16/10] overflow-hidden flex-shrink-0">
           <img
-            src={getEventImage(event.id)}
+            src={getEventImage(event)}
             alt={event.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             loading="lazy"
@@ -44,22 +24,24 @@ const EventCard = ({ event }: EventCardProps) => {
             height={512}
           />
         </div>
-        <div className="p-4 space-y-2">
-          <span className="inline-block text-[11px] font-semibold uppercase tracking-wider text-primary bg-accent px-2.5 py-1 rounded-full">
+        <div className="p-4 flex flex-col flex-1">
+          <span className="inline-block text-[11px] font-semibold uppercase tracking-wider text-primary bg-accent px-2.5 py-1 rounded-full w-fit">
             {event.category}
           </span>
-          <h3 className="font-bold text-foreground text-base leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+          {/* Title always takes exactly 2 lines worth of space */}
+          <h3 className="font-bold text-foreground text-base leading-tight line-clamp-2 group-hover:text-primary transition-colors mt-2 min-h-[2.5rem]">
             {event.title}
           </h3>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Calendar className="w-3.5 h-3.5" />
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2">
+            <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
             <span>{formatDate(event.date)}</span>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <MapPin className="w-3.5 h-3.5" />
-            <span>{event.venue}, {event.city}</span>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+            <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="line-clamp-1">{event.venue}, {event.city}</span>
           </div>
-          <div className="flex items-center justify-between pt-2">
+          {/* Push price + button to bottom of card always */}
+          <div className="flex items-center justify-between pt-3 mt-auto border-t border-border">
             <p className="text-sm font-bold text-primary">From {formatPrice(lowestPrice)}</p>
             <Button size="sm" className="bg-primary text-primary-foreground text-xs h-8 px-3">
               Get Tickets
@@ -71,4 +53,4 @@ const EventCard = ({ event }: EventCardProps) => {
   );
 };
 
-export default EventCard;
+export default EventCard; 

@@ -16,6 +16,8 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // Avoid bundling canvg (optional jsPDF dep) — pulls legacy core-js paths and breaks Rollup
+      canvg: path.resolve(__dirname, "./src/shims/canvg-stub.ts"),
     },
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
   },

@@ -1,47 +1,85 @@
-import { useParams, useNavigate } from "react-router-dom";
-import { MapPin, Calendar, Clock, ArrowLeft, Plus, Minus } from "lucide-react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { MapPin, Calendar, Clock, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { EVENTS, formatPrice, formatDate } from "@/lib/mock-data";
-import { getEventImage } from "@/components/EventCard";
+import { formatPrice, formatDate } from "@/lib/mock-data";
+import { getEventImage } from "@/lib/event-image";
 import { useCartStore } from "@/store/cart-store";
 import { useState } from "react";
+import { useEvents } from "@/hooks/use-events";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TicketTiersCarousel } from "@/components/TicketTiersCarousel";
+import type { TicketTier } from "@/lib/mock-data";
+import { cn } from "@/lib/utils";
 
 const EventDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const event = EVENTS.find((e) => e.id === id);
-  const { addItem } = useCartStore();
+  const { data: events, isLoading } = useEvents();
+  const event = events?.find((e) => e.id === id);
+  const { addItem, items: cartItems } = useCartStore();
+  const cartCountForEvent = cartItems
+    .filter((i) => i.eventId === id)
+    .reduce((sum, i) => sum + i.quantity, 0);
   const [addedTier, setAddedTier] = useState<string | null>(null);
+  const [hoveredTier, setHoveredTier] = useState<TicketTier | null>(null);
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8 space-y-6">
+        <Skeleton className="h-64 md:h-96 w-full rounded-none" />
+        <Skeleton className="h-10 w-2/3 max-w-lg" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    );
+  }
 
   if (!event) {
     return (
       <div className="container mx-auto px-4 py-20 text-center">
         <p className="text-muted-foreground">Event not found.</p>
-        <Button onClick={() => navigate("/")} variant="outline" className="mt-4 border-primary text-primary">Go Home</Button>
+        <Button onClick={() => navigate("/")} variant="outline" className="mt-4 border-primary text-primary">
+          Go Home
+        </Button>
       </div>
     );
   }
 
-  const handleAddToCart = (tier: typeof event.ticket_tiers[0]) => {
-    addItem({ eventId: event.id, eventTitle: event.title, tierId: tier.id, tierName: tier.name, unitPrice: tier.price });
+  const handleAddToCart = (tier: (typeof event.ticket_tiers)[0]) => {
+    addItem({
+      eventId: event.id,
+      eventTitle: event.title,
+      tierId: tier.id,
+      tierName: tier.name,
+      unitPrice: tier.price,
+    });
     setAddedTier(tier.id);
     setTimeout(() => setAddedTier(null), 1500);
   };
 
+  const lowestPrice = Math.min(...event.ticket_tiers.map((t) => t.price));
+
+  // What the sidebar shows — hovered tier takes priority, otherwise event defaults
+  const sidebarTier = hoveredTier;
+
   return (
     <div>
-      {/* Banner */}
+      {/* Banner image */}
       <div className="relative h-64 md:h-96 overflow-hidden">
-        <img src={getEventImage(event.id)} alt={event.title} className="w-full h-full object-cover" />
+        <img src={getEventImage(event)} alt={event.title} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-foreground/60 to-transparent" />
-        <button onClick={() => navigate(-1)} className="absolute top-4 left-4 bg-background/80 backdrop-blur rounded-full p-2">
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="absolute top-4 left-4 bg-background/80 backdrop-blur rounded-full p-2"
+        >
           <ArrowLeft className="w-5 h-5 text-foreground" />
         </button>
       </div>
 
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main content */}
+
+          {/* ── Left: main content ── */}
           <div className="lg:col-span-2 space-y-6">
             <div>
               <span className="inline-block text-xs font-semibold uppercase tracking-wider text-primary bg-accent px-3 py-1 rounded-full mb-3">
@@ -51,9 +89,18 @@ const EventDetailPage = () => {
             </div>
 
             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-primary" />{formatDate(event.date)}</span>
-              <span className="flex items-center gap-1.5"><Clock className="w-4 h-4 text-primary" />{event.time}</span>
-              <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-primary" />{event.venue}, {event.city}</span>
+              <span className="flex items-center gap-1.5">
+                <Calendar className="w-4 h-4 text-primary" />
+                {formatDate(event.date)}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-primary" />
+                {event.time}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-primary" />
+                {event.venue}, {event.city}
+              </span>
             </div>
 
             <div>
@@ -61,32 +108,32 @@ const EventDetailPage = () => {
               <p className="text-muted-foreground leading-relaxed">{event.description}</p>
             </div>
 
-            {/* Ticket Tiers */}
+            {/* Ticket carousel */}
             <div>
-              <h2 className="text-lg font-bold text-foreground mb-4">Select Tickets</h2>
-              <div className="space-y-4">
-                {event.ticket_tiers.map((tier) => (
-                  <div key={tier.id} className="bg-card border border-border rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <h3 className="font-bold text-foreground">{tier.name}</h3>
-                      <p className="text-sm text-muted-foreground">{tier.description}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{tier.remaining_quantity} remaining</p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <p className="text-xl font-bold text-primary">{formatPrice(tier.price)}</p>
-                      <Button
-                        onClick={() => handleAddToCart(tier)}
-                        className={addedTier === tier.id ? "bg-secondary text-secondary-foreground" : "bg-primary text-primary-foreground"}
-                      >
-                        {addedTier === tier.id ? "Added ✓" : "Add to Cart"}
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <h2 className="text-lg font-bold text-foreground mb-1">Select tickets</h2>
+              <p className="text-sm text-muted-foreground mb-5">
+                {event.ticket_tiers.length > 1
+                  ? "Hover a tier to preview it, then add to your cart."
+                  : "Review the ticket type below and add it to your cart."}
+              </p>
+              <TicketTiersCarousel
+                tiers={event.ticket_tiers}
+                onAddToCart={handleAddToCart}
+                addedTierId={addedTier}
+                onHover={setHoveredTier}
+              />
+              {cartCountForEvent > 0 && (
+                <div className="mt-6 flex justify-center sm:justify-start">
+                  <Button asChild className="bg-primary text-primary-foreground font-semibold">
+                    <Link to="/checkout">
+                      Continue to checkout · {cartCountForEvent} ticket{cartCountForEvent !== 1 ? "s" : ""}
+                    </Link>
+                  </Button>
+                </div>
+              )}
             </div>
 
-            {/* Map placeholder */}
+            {/* Venue */}
             <div>
               <h2 className="text-lg font-bold text-foreground mb-2">Venue</h2>
               <div className="bg-card border border-border rounded-xl h-48 flex items-center justify-center">
@@ -99,23 +146,80 @@ const EventDetailPage = () => {
             </div>
           </div>
 
-          {/* Sidebar - desktop sticky */}
+          {/* ── Right: sticky Quick Summary sidebar ── */}
           <div className="hidden lg:block">
-            <div className="sticky top-20 bg-card border border-border rounded-xl p-6 space-y-4">
-              <h3 className="font-bold text-foreground">Quick Summary</h3>
-              <div className="text-sm space-y-2 text-muted-foreground">
-                <p><span className="font-medium text-foreground">Date:</span> {formatDate(event.date)}</p>
-                <p><span className="font-medium text-foreground">Time:</span> {event.time}</p>
-                <p><span className="font-medium text-foreground">Venue:</span> {event.venue}</p>
+            <div className="sticky top-20 bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+
+              {/* Header — always shows event info */}
+              <div className="p-6 space-y-3">
+                <h3 className="font-bold text-foreground">Quick Summary</h3>
+                <div className="text-sm space-y-2 text-muted-foreground">
+                  <p>
+                    <span className="font-medium text-foreground">Date:</span> {formatDate(event.date)}
+                  </p>
+                  <p>
+                    <span className="font-medium text-foreground">Time:</span> {event.time}
+                  </p>
+                  <p>
+                    <span className="font-medium text-foreground">Venue:</span> {event.venue}
+                  </p>
+                </div>
               </div>
-              <div className="pt-2 border-t border-border">
+
+              {/* Tier preview — animates in when hovering a card */}
+              <div
+                className={cn(
+                  "transition-all duration-300 overflow-hidden",
+                  sidebarTier ? "max-h-64 opacity-100" : "max-h-0 opacity-0",
+                )}
+              >
+                {sidebarTier && (
+                  <div className="mx-4 mb-4 rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-primary">
+                        {sidebarTier.name}
+                      </span>
+                      {sidebarTier.remaining_quantity <= 0 ? (
+                        <span className="text-xs text-red-500 font-medium">Sold out</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {sidebarTier.remaining_quantity.toLocaleString()} left
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {sidebarTier.description}
+                    </p>
+                    <p className="text-xl font-extrabold text-primary tabular-nums">
+                      {formatPrice(sidebarTier.price)}
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={sidebarTier.remaining_quantity <= 0}
+                      onClick={() => handleAddToCart(sidebarTier)}
+                      className="w-full bg-primary text-primary-foreground text-xs mt-1"
+                    >
+                      {sidebarTier.remaining_quantity <= 0 ? "Unavailable" : "Add to cart"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Default price — hides when tier is hovered */}
+              <div
+                className={cn(
+                  "px-6 pb-6 border-t border-border pt-4 transition-all duration-300",
+                  sidebarTier ? "opacity-0 pointer-events-none" : "opacity-100",
+                )}
+              >
                 <p className="text-sm text-muted-foreground">Starting from</p>
-                <p className="text-2xl font-bold text-primary">
-                  {formatPrice(Math.min(...event.ticket_tiers.map((t) => t.price)))}
-                </p>
+                <p className="text-2xl font-bold text-primary">{formatPrice(lowestPrice)}</p>
               </div>
+
             </div>
           </div>
+
         </div>
       </div>
     </div>

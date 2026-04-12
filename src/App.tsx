@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/contexts/auth-context";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import CartDrawer from "@/components/CartDrawer";
@@ -28,22 +29,24 @@ const AppLayout = ({ children, showNav = true }: { children: React.ReactNode; sh
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<AppLayout><Index /></AppLayout>} />
-          <Route path="/events/:id" element={<AppLayout><EventDetail /></AppLayout>} />
-          <Route path="/checkout" element={<AppLayout><CheckoutPage /></AppLayout>} />
-          <Route path="/confirmation" element={<AppLayout><ConfirmationPage /></AppLayout>} />
-          <Route path="/my-tickets" element={<AppLayout><MyTicketsPage /></AppLayout>} />
-          <Route path="/login" element={<AppLayout showNav={false}><LoginPage /></AppLayout>} />
-          <Route path="/signup" element={<AppLayout showNav={false}><SignupPage /></AppLayout>} />
-          <Route path="*" element={<AppLayout><NotFound /></AppLayout>} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<AppLayout><Index /></AppLayout>} />
+            <Route path="/events/:id" element={<AppLayout><EventDetail /></AppLayout>} />
+            <Route path="/checkout" element={<AppLayout><CheckoutPage /></AppLayout>} />
+            <Route path="/confirmation" element={<AppLayout><ConfirmationPage /></AppLayout>} />
+            <Route path="/my-tickets" element={<AppLayout><MyTicketsPage /></AppLayout>} />
+            <Route path="/login" element={<AppLayout showNav={false}><LoginPage /></AppLayout>} />
+            <Route path="/signup" element={<AppLayout showNav={false}><SignupPage /></AppLayout>} />
+            <Route path="*" element={<AppLayout><NotFound /></AppLayout>} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

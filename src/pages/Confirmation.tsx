@@ -1,48 +1,76 @@
 import { CheckCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { QRCodeSVG } from "qrcode.react";
+import { TicketDownloadBlock } from "@/components/TicketDownloadBlock";
+import type { TicketVisualModel } from "@/components/TicketVisualCard";
+import type { ConfirmationLocationState, ConfirmationTicket } from "@/lib/confirmation-state";
+
+function toModel(
+  t: ConfirmationTicket,
+  buyerName: string,
+  buyerEmail: string,
+  purchasedAt: string,
+): TicketVisualModel {
+  return {
+    reference: t.reference,
+    eventTitle: t.eventTitle,
+    eventDate: t.date,
+    eventTime: t.time,
+    venue: t.venue,
+    city: t.city,
+    tierName: t.tierName,
+    quantity: t.quantity,
+    amountPaidKobo: t.amountPaidKobo,
+    buyerName,
+    buyerEmail,
+    purchasedAt,
+  };
+}
 
 const ConfirmationPage = () => {
-  const orderId = `TXR-${Date.now().toString(36).toUpperCase()}`;
+  const location = useLocation();
+  const state = location.state as ConfirmationLocationState | null;
+  const tickets = state?.tickets?.filter(Boolean) ?? [];
+  const buyerName = state?.buyerName?.trim() || "Guest";
+  const buyerEmail = state?.buyerEmail?.trim() || "";
+  const purchasedAt = state?.purchasedAt || new Date().toISOString();
+
+  if (tickets.length === 0) {
+    return (
+      <div className="container mx-auto max-w-lg px-4 py-16 text-center">
+        <p className="mb-6 text-muted-foreground">No ticket details here. Complete a purchase from checkout first.</p>
+        <Button asChild className="bg-primary text-primary-foreground">
+          <Link to="/">Browse events</Link>
+        </Button>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto px-4 py-16 max-w-2xl text-center">
-      <div className="animate-scale-in mb-6">
-        <CheckCircle className="w-20 h-20 text-primary mx-auto" strokeWidth={1.5} />
-      </div>
-      <h1 className="text-3xl font-extrabold text-primary mb-2" style={{ animation: "fade-in-up 0.6s ease-out 0.3s forwards", opacity: 0 }}>
-        Your tickets are on their way!
-      </h1>
-      <p className="text-muted-foreground mb-8" style={{ animation: "fade-in-up 0.6s ease-out 0.4s forwards", opacity: 0 }}>
-        A confirmation email has been sent to your inbox.
-      </p>
-
-      {/* Sample ticket card */}
-      <div className="bg-background border border-border rounded-xl overflow-hidden text-left mb-8" style={{ animation: "fade-in-up 0.6s ease-out 0.5s forwards", opacity: 0 }}>
-        <div className="bg-primary text-primary-foreground px-6 py-3">
-          <p className="font-bold text-sm">TIXORA E-TICKET</p>
+    <div className="container mx-auto max-w-3xl px-4 py-12">
+      <div className="mb-8 text-center">
+        <div className="animate-scale-in mb-4">
+          <CheckCircle className="mx-auto h-16 w-16 text-primary" strokeWidth={1.5} />
         </div>
-        <div className="flex flex-col sm:flex-row">
-          <div className="flex-1 p-6 border-l-4 border-primary space-y-2">
-            <p className="text-xs text-muted-foreground">Event</p>
-            <p className="font-bold text-foreground">Sample Event</p>
-            <p className="text-xs text-muted-foreground">Date & Venue</p>
-            <p className="text-sm text-foreground">TBD · Lagos, Nigeria</p>
-            <p className="text-xs text-muted-foreground">Order ID</p>
-            <p className="text-sm font-mono text-primary">{orderId}</p>
-          </div>
-          <div className="p-6 flex items-center justify-center border-t sm:border-t-0 sm:border-l border-border">
-            <QRCodeSVG value={orderId} size={100} />
-          </div>
-        </div>
+        <h1 className="text-3xl font-extrabold text-primary">Payment successful</h1>
+        <p className="mt-2 text-muted-foreground">Your tickets are confirmed. Save or print them below.</p>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 justify-center">
-        <Button className="bg-primary text-primary-foreground">Download Tickets (PDF)</Button>
+      <div className="space-y-8">
+        {tickets.map((t) => (
+          <TicketDownloadBlock key={t.id} model={toModel(t, buyerName, buyerEmail, purchasedAt)} />
+        ))}
+      </div>
+
+      <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
         <Link to="/my-tickets">
-          <Button variant="outline" className="border-primary text-primary w-full sm:w-auto">View My Tickets</Button>
+          <Button variant="outline" className="border-primary text-primary w-full sm:w-auto">
+            View My Tickets
+          </Button>
         </Link>
+        <Button asChild variant="ghost" className="w-full sm:w-auto">
+          <Link to="/">Browse more events</Link>
+        </Button>
       </div>
     </div>
   );
