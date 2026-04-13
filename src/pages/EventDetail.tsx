@@ -169,7 +169,7 @@ const EventDetailPage = () => {
             </div>
             
             {/* Reviews */}
-            <EventReviews eventId={event.id} />
+            <EventReviews eventId={event.id} eventTitle={event.title} />
           </div>
 
           {/* ── Right: sticky Quick Summary sidebar ── */}

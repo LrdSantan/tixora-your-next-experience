@@ -15,7 +15,7 @@ type Review = {
   created_at: string;
 };
 
-export function EventReviews({ eventId }: { eventId: string }) {
+export function EventReviews({ eventId, eventTitle }: { eventId: string; eventTitle: string }) {
   const { user } = useAuth();
   const supabase = getSupabaseClient();
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -95,6 +95,19 @@ export function EventReviews({ eventId }: { eventId: string }) {
         const { data } = await supabase.from("reviews").select("*").eq("event_id", eventId).order("created_at", { ascending: false });
         if (data) setReviews(data);
         setCanReview(false);
+
+        // Fire-and-forget notification to admin
+        supabase.functions.invoke("send-review-notification", {
+          body: {
+            reviewer_email: user.email,
+            event_title: eventTitle,
+            rating,
+            comment,
+            event_id: eventId
+          }
+        }).catch(err => {
+          console.error("Failed to send review notification", err);
+        });
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to submit review");
