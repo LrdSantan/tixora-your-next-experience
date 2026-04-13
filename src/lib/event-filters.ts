@@ -23,6 +23,8 @@ export function matchesDateFilter(dateStr: string, preset: DateFilterPreset): bo
   today.setHours(0, 0, 0, 0);
   d.setHours(0, 0, 0, 0);
 
+  if (d < today) return false;
+
   if (preset === "all") return true;
   if (preset === "upcoming") return d >= today;
   if (preset === "this_month") {

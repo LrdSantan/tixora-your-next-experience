@@ -17,11 +17,7 @@ function successResponse(data: unknown): Response {
   return new Response(JSON.stringify({ ok: true, data }), { status: 200, headers: jsonHeaders });
 }
 
-type EmailPayload = {
-  type: "ticket_confirmation";
-  buyerName: string;
-  buyerEmail: string;
-  eventTitle: string;
+type TicketItem = {
   tierName: string;
   quantity: number;
   amountPaid: string;
@@ -30,10 +26,76 @@ type EmailPayload = {
   date: string;
   time: string;
   reference: string;
+  ticketCode: string;
+};
+
+type EmailPayload = {
+  type: "ticket_confirmation";
+  buyerName: string;
+  buyerEmail: string;
+  eventTitle: string;
   purchasedAt: string;
+  tickets: TicketItem[];
 };
 
 function ticketEmailHtml(p: EmailPayload): string {
+  const showQRCodes = p.tickets.length <= 3;
+
+  const ticketsHtml = p.tickets.map((t, idx) => {
+    // encodeURIComponent is safe for URL params
+    const verifyUrl = `https://tixora-your-next-experience.vercel.app/verify/${t.ticketCode}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(verifyUrl)}`;
+
+    return `
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4faf6;border:1px solid #d0ead9;border-radius:12px;padding:24px;margin-bottom:16px;">
+        <tr><td>
+          <p style="margin:0 0 16px;font-size:18px;font-weight:700;color:#1a1a1a;">${p.eventTitle} - Ticket ${idx + 1}</p>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding:6px 0;font-size:13px;color:#888;width:140px;">Ticket code</td>
+              <td style="padding:6px 0;font-size:13px;color:#1a1a1a;font-weight:600;font-family:monospace;">${t.ticketCode}</td>
+            </tr>
+            <tr>
+              <td style="padding:6px 0;font-size:13px;color:#888;">Ticket type</td>
+              <td style="padding:6px 0;font-size:13px;color:#1a1a1a;font-weight:600;">${t.tierName}</td>
+            </tr>
+            <tr>
+              <td style="padding:6px 0;font-size:13px;color:#888;">Amount paid</td>
+              <td style="padding:6px 0;font-size:13px;color:#1A7A4A;font-weight:700;">${t.amountPaid}</td>
+            </tr>
+            <tr>
+              <td style="padding:6px 0;font-size:13px;color:#888;">Venue</td>
+              <td style="padding:6px 0;font-size:13px;color:#1a1a1a;font-weight:600;">${t.venue}, ${t.city}</td>
+            </tr>
+            <tr>
+              <td style="padding:6px 0;font-size:13px;color:#888;">Date</td>
+              <td style="padding:6px 0;font-size:13px;color:#1a1a1a;font-weight:600;">${t.date}</td>
+            </tr>
+            <tr>
+              <td style="padding:6px 0;font-size:13px;color:#888;">Time</td>
+              <td style="padding:6px 0;font-size:13px;color:#1a1a1a;font-weight:600;">${t.time}</td>
+            </tr>
+            <tr>
+              <td style="padding:6px 0;font-size:13px;color:#888;">Reference</td>
+              <td style="padding:6px 0;font-size:13px;color:#1a1a1a;font-family:monospace;">${t.reference}</td>
+            </tr>
+          </table>
+          
+          ${showQRCodes ? `
+            <div style="margin-top:24px;text-align:center;">
+              <img src="${qrUrl}" alt="QR Code" width="150" height="150" style="display:block;margin:0 auto;border:4px solid #fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);"/>
+            </div>
+          ` : (idx === 0 ? `
+            <div style="margin-top:24px;text-align:center;">
+              <img src="${qrUrl}" alt="QR Code" width="150" height="150" style="display:block;margin:0 auto;border:4px solid #fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);"/>
+              <p style="margin-top:16px;font-size:13px;color:#888;">View all your tickets at: <a href="https://tixora-your-next-experience.vercel.app/my-tickets" style="color:#1A7A4A;">My Tickets</a></p>
+            </div>
+          ` : ``)}
+        </td></tr>
+      </table>
+    `;
+  }).join('');
+
   return `
 <!DOCTYPE html>
 <html>
@@ -46,59 +108,25 @@ function ticketEmailHtml(p: EmailPayload): string {
         <!-- Header -->
         <tr><td style="background:#1A7A4A;padding:32px 40px;">
           <p style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">🎟 TIXORA</p>
-          <p style="margin:8px 0 0;color:#a8dfc0;font-size:14px;">Your ticket is confirmed</p>
+          <p style="margin:8px 0 0;color:#a8dfc0;font-size:14px;">Your order is confirmed</p>
         </td></tr>
 
         <!-- Greeting -->
         <tr><td style="padding:32px 40px 0;">
           <p style="margin:0;font-size:16px;color:#1a1a1a;">Hi <strong>${p.buyerName}</strong>,</p>
           <p style="margin:12px 0 0;font-size:15px;color:#555;line-height:1.6;">
-            Your payment was successful and your ticket is ready. Here are your booking details:
+            Your payment was successful and your tickets are ready. Here are your booking details:
           </p>
         </td></tr>
 
-        <!-- Ticket Card -->
+        <!-- Ticket Cards -->
         <tr><td style="padding:24px 40px;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4faf6;border:1px solid #d0ead9;border-radius:12px;padding:24px;">
-            <tr><td>
-              <p style="margin:0 0 16px;font-size:18px;font-weight:700;color:#1a1a1a;">${p.eventTitle}</p>
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="padding:6px 0;font-size:13px;color:#888;width:140px;">Ticket type</td>
-                  <td style="padding:6px 0;font-size:13px;color:#1a1a1a;font-weight:600;">${p.tierName}</td>
-                </tr>
-                <tr>
-                  <td style="padding:6px 0;font-size:13px;color:#888;">Quantity</td>
-                  <td style="padding:6px 0;font-size:13px;color:#1a1a1a;font-weight:600;">${p.quantity}</td>
-                </tr>
-                <tr>
-                  <td style="padding:6px 0;font-size:13px;color:#888;">Amount paid</td>
-                  <td style="padding:6px 0;font-size:13px;color:#1A7A4A;font-weight:700;">${p.amountPaid}</td>
-                </tr>
-                <tr>
-                  <td style="padding:6px 0;font-size:13px;color:#888;">Venue</td>
-                  <td style="padding:6px 0;font-size:13px;color:#1a1a1a;font-weight:600;">${p.venue}, ${p.city}</td>
-                </tr>
-                <tr>
-                  <td style="padding:6px 0;font-size:13px;color:#888;">Date</td>
-                  <td style="padding:6px 0;font-size:13px;color:#1a1a1a;font-weight:600;">${p.date}</td>
-                </tr>
-                <tr>
-                  <td style="padding:6px 0;font-size:13px;color:#888;">Time</td>
-                  <td style="padding:6px 0;font-size:13px;color:#1a1a1a;font-weight:600;">${p.time}</td>
-                </tr>
-                <tr>
-                  <td style="padding:6px 0;font-size:13px;color:#888;">Reference</td>
-                  <td style="padding:6px 0;font-size:13px;color:#1a1a1a;font-family:monospace;">${p.reference}</td>
-                </tr>
-              </table>
-            </td></tr>
-          </table>
+          ${ticketsHtml}
         </td></tr>
 
         <!-- CTA -->
         <tr><td style="padding:0 40px 32px;text-align:center;">
-          <p style="margin:0 0 16px;font-size:14px;color:#888;">You can view and download your ticket from your Tixora account.</p>
+          <p style="margin:0 0 16px;font-size:14px;color:#888;">You can view and download all your tickets from your Tixora account anytime.</p>
         </td></tr>
 
         <!-- Footer -->
@@ -124,7 +152,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const payload = await req.json() as EmailPayload;
 
-    if (!payload.buyerEmail || !payload.eventTitle) {
+    if (!payload.buyerEmail || !payload.eventTitle || !payload.tickets) {
       return errorResponse("Missing required fields");
     }
 

@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 export type TicketVisualModel = {
   reference: string;
+  ticketCode?: string;
   eventTitle: string;
   eventDate: string;
   eventTime: string;
@@ -19,6 +20,8 @@ export type TicketVisualModel = {
   buyerName: string;
   buyerEmail: string;
   purchasedAt: string;
+  isUsed?: boolean;
+  usedAt?: string | null;
 };
 
 type TicketVisualCardProps = {
@@ -36,7 +39,10 @@ export const TicketVisualCard = forwardRef<HTMLDivElement, TicketVisualCardProps
   { ticket, expired, download, className },
   ref,
 ) {
-  const qrValue = ticket.reference;
+  const BASE_URL = "https://tixora-your-next-experience.vercel.app";
+  const qrValue = ticket.ticketCode
+    ? `${BASE_URL}/verify/${ticket.ticketCode}`
+    : ticket.reference;
 
   return (
     <div className={cn("rounded-xl border border-border bg-card shadow-sm", className)}>
@@ -48,6 +54,11 @@ export const TicketVisualCard = forwardRef<HTMLDivElement, TicketVisualCardProps
         {expired && (
           <div className="mb-4 rounded-lg bg-red-600 px-3 py-2 text-center text-sm font-bold tracking-wide text-white">
             Expired — this event date has passed
+          </div>
+        )}
+        {ticket.isUsed && (
+          <div className="mb-4 rounded-lg bg-neutral-600 px-3 py-2 text-center text-sm font-bold tracking-wide text-white">
+            ✓ Ticket Used{ticket.usedAt ? ` · ${new Date(ticket.usedAt).toLocaleString()}` : ""}
           </div>
         )}
 
@@ -96,6 +107,12 @@ export const TicketVisualCard = forwardRef<HTMLDivElement, TicketVisualCardProps
                 <dt className="text-xs font-medium uppercase tracking-wide text-neutral-500">Purchased</dt>
                 <dd className="font-mono text-sm text-neutral-800">{formatPurchaseDate(ticket.purchasedAt)}</dd>
               </div>
+              {ticket.ticketCode && (
+                <div>
+                  <dt className="text-xs font-medium uppercase tracking-wide text-neutral-500">Ticket code</dt>
+                  <dd className="break-all font-mono text-sm font-semibold text-[#1A7A4A]">{ticket.ticketCode}</dd>
+                </div>
+              )}
               <div>
                 <dt className="text-xs font-medium uppercase tracking-wide text-neutral-500">Ticket reference</dt>
                 <dd className="break-all font-mono text-sm font-semibold text-[#1A7A4A]">{ticket.reference}</dd>
@@ -131,7 +148,7 @@ export const TicketVisualCard = forwardRef<HTMLDivElement, TicketVisualCardProps
               )}
             </div>
             <p className="max-w-[9rem] text-center text-[10px] text-neutral-500">
-              Scan at entry — ref. {ticket.reference.slice(0, 10)}…
+              {ticket.ticketCode ? `Scan to verify: ${ticket.ticketCode}` : `Scan at entry — ref. ${ticket.reference.slice(0, 10)}…`}
             </p>
           </div>
         </div>

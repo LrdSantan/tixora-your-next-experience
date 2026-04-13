@@ -4,16 +4,18 @@ import { persist } from "zustand/middleware";
 export interface CartItem {
   eventId: string;
   eventTitle: string;
+  eventDate?: string;
   tierId: string;
   tierName: string;
   quantity: number;
   unitPrice: number;
+  maxQuantity: number;
 }
 
 interface CartStore {
   items: CartItem[];
   isOpen: boolean;
-  addItem: (item: Omit<CartItem, "quantity">) => void;
+  addItem: (item: Omit<CartItem, "quantity"> & { initialQuantity?: number }) => void;
   removeItem: (tierId: string) => void;
   updateQuantity: (tierId: string, quantity: number) => void;
   clearCart: () => void;
@@ -29,15 +31,23 @@ export const useCartStore = create<CartStore>()(
       items: [],
       isOpen: false,
       addItem: (item) => {
+        if (item.eventDate) {
+          const today = new Date().toISOString().split("T")[0];
+          const eDate = item.eventDate.includes("T") ? item.eventDate.split("T")[0] : item.eventDate;
+          if (eDate < today) return; // Guard against past events
+        }
+        const addedQty = item.initialQuantity || 1;
         const existing = get().items.find((i) => i.tierId === item.tierId);
         if (existing) {
+          if (existing.quantity >= existing.maxQuantity) return; // Guard
           set({
             items: get().items.map((i) =>
-              i.tierId === item.tierId ? { ...i, quantity: i.quantity + 1 } : i
+              i.tierId === item.tierId ? { ...i, quantity: Math.min(i.quantity + addedQty, i.maxQuantity) } : i
             ),
           });
         } else {
-          set({ items: [...get().items, { ...item, quantity: 1 }] });
+          if (item.maxQuantity <= 0) return; // Guard
+          set({ items: [...get().items, { ...item, quantity: Math.min(addedQty, item.maxQuantity) }] });
         }
       },
       removeItem: (tierId) =>
@@ -47,9 +57,12 @@ export const useCartStore = create<CartStore>()(
           set({ items: get().items.filter((i) => i.tierId !== tierId) });
         } else {
           set({
-            items: get().items.map((i) =>
-              i.tierId === tierId ? { ...i, quantity } : i
-            ),
+            items: get().items.map((i) => {
+              if (i.tierId === tierId) {
+                return { ...i, quantity: Math.min(quantity, i.maxQuantity) };
+              }
+              return i;
+            }),
           });
         }
       },

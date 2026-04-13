@@ -15,6 +15,7 @@ const jsonHeaders: Record<string, string> = {
 type Body = {
   reference?: string;
   lines?: { tier_id: string; quantity: number }[];
+  coupon_code?: string;
 };
 
 type PaystackVerifyData = {
@@ -282,6 +283,26 @@ Deno.serve(async (req: Request): Promise<Response> => {
       console.error(`${LOG} RPC OK`, {
         keys: rpcData && typeof rpcData === "object" ? Object.keys(rpcData as object) : rpcData,
       });
+
+      if (body.coupon_code) {
+        try {
+          console.error(`${LOG} Applying coupon logic for: ${body.coupon_code}`);
+          const { data: couponData } = await admin.from("coupons")
+            .select("id, uses_count")
+            .eq("code", body.coupon_code)
+            .eq("is_active", true)
+            .single();
+
+          if (couponData) {
+            await admin.from("coupons").update({ uses_count: (couponData.uses_count || 0) + 1 }).eq("id", couponData.id);
+            await admin.from("tickets")
+              .update({ coupon_code: body.coupon_code, coupon_id: couponData.id })
+              .eq("reference", reference);
+          }
+        } catch (couponErr) {
+          console.error(`${LOG} Failed to process coupon after success.`, couponErr);
+        }
+      }
 
       return successResponse(rpcData);
     } catch (innerErr) {

@@ -1,6 +1,7 @@
 export type ConfirmationTicket = {
   id: string;
   reference: string;
+  ticketCode: string;
   amountPaidKobo: number;
   quantity: number;
   eventTitle: string;

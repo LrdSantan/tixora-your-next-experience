@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Ticket } from "lucide-react";
+import { Ticket, Plus, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 type TicketTiersCarouselProps = {
   tiers: TicketTier[];
-  onAddToCart: (tier: TicketTier) => void;
+  onAddToCart: (tier: TicketTier, qty?: number) => void;
   addedTierId: string | null;
   onHover?: (tier: TicketTier | null) => void;
 };
@@ -17,6 +17,15 @@ type TicketTiersCarouselProps = {
 export function TicketTiersCarousel({ tiers, onAddToCart, addedTierId, onHover }: TicketTiersCarouselProps) {
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+
+  const handleQtyChange = (id: string, delta: number, max: number) => {
+    setQuantities(prev => {
+      const currentQty = prev[id] || 1;
+      const nextQty = currentQty + delta;
+      return { ...prev, [id]: Math.max(1, Math.min(nextQty, Math.min(10, max))) };
+    });
+  };
 
   const onSelect = useCallback((instance: CarouselApi) => {
     if (!instance) return;
@@ -91,24 +100,50 @@ export function TicketTiersCarousel({ tiers, onAddToCart, addedTierId, onHover }
                     </div>
 
                     {/* Price + CTA */}
-                    <div className="mt-4 flex items-end justify-between border-t border-border pt-4">
-                      <div>
-                        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">From</p>
-                        <p className="text-2xl font-extrabold tabular-nums text-primary">{formatPrice(tier.price)}</p>
+                    <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4">
+                      <div className="flex items-end justify-between">
+                        <div>
+                          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">From</p>
+                          <p className="text-2xl font-extrabold tabular-nums text-primary">{formatPrice(tier.price)}</p>
+                        </div>
+                        {soldOut ? (
+                          <div className="h-9 truncate flex px-3 items-center text-sm font-medium border text-muted-foreground bg-muted/50 rounded-md">Unavailable</div>
+                        ) : (
+                          <div className="flex items-center rounded-md border border-neutral-200 bg-white">
+                            <button
+                              type="button"
+                              className="flex h-9 w-8 items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors"
+                              onClick={() => handleQtyChange(tier.id, -1, tier.remaining_quantity)}
+                              disabled={justAdded}
+                            >
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="w-6 text-center text-sm font-medium tabular-nums">{quantities[tier.id] || 1}</span>
+                            <button
+                              type="button"
+                              className="flex h-9 w-8 items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors"
+                              onClick={() => handleQtyChange(tier.id, 1, tier.remaining_quantity)}
+                              disabled={justAdded || (quantities[tier.id] || 1) >= Math.min(10, tier.remaining_quantity)}
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
                       </div>
+                      
                       <Button
                         type="button"
                         size="sm"
                         disabled={soldOut}
-                        onClick={() => onAddToCart(tier)}
+                        onClick={() => onAddToCart(tier, quantities[tier.id] || 1)}
                         className={cn(
-                          "shrink-0 min-w-[7rem] text-sm",
+                          "w-full text-sm font-semibold transition-all shadow-sm",
                           justAdded
                             ? "bg-secondary text-secondary-foreground"
                             : "bg-primary text-primary-foreground",
                         )}
                       >
-                        {soldOut ? "Unavailable" : justAdded ? "Added ✓" : "Add to cart"}
+                        {soldOut ? "Sold Out" : justAdded ? "Added ✓" : "Add to cart"}
                       </Button>
                     </div>
                   </div>

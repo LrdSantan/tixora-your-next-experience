@@ -18,8 +18,10 @@ function isEmailNotConfirmedError(error: { message?: string; code?: string }): b
 const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const redirectParam = searchParams.get("redirect");
   const from = (location.state as { from?: string } | undefined)?.from;
-  const redirectTo = typeof from === "string" && from.startsWith("/") ? from : "/";
+  const redirectTo = redirectParam || (typeof from === "string" && from.startsWith("/") ? from : "/");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);

@@ -2,6 +2,7 @@ import { Ticket } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/auth-context";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
@@ -12,8 +13,11 @@ import { isEventDatePassed } from "@/lib/ticket-utils";
 type TicketRow = {
   id: string;
   reference: string;
+  ticket_code: string | null;
   amount_paid: number;
   quantity: number;
+  is_used: boolean;
+  used_at: string | null;
   created_at: string;
   events: {
     title: string;
@@ -29,6 +33,7 @@ function rowToModel(row: TicketRow, buyerName: string, buyerEmail: string): Tick
   const ev = row.events;
   return {
     reference: row.reference,
+    ticketCode: row.ticket_code ?? undefined,
     eventTitle: ev?.title ?? "Event",
     eventDate: ev?.date ? String(ev.date) : "",
     eventTime: ev?.time ?? "",
@@ -40,6 +45,8 @@ function rowToModel(row: TicketRow, buyerName: string, buyerEmail: string): Tick
     buyerName,
     buyerEmail,
     purchasedAt: row.created_at,
+    isUsed: row.is_used,
+    usedAt: row.used_at,
   };
 }
 
@@ -62,8 +69,11 @@ const MyTicketsPage = () => {
           `
           id,
           reference,
+          ticket_code,
           amount_paid,
           quantity,
+          is_used,
+          used_at,
           created_at,
           events ( title, date, time, venue, city ),
           ticket_tiers ( name )
@@ -145,7 +155,19 @@ const MyTicketsPage = () => {
               <h2 className="mb-4 text-lg font-semibold text-foreground">Active</h2>
               <div className="space-y-8">
                 {active.map((row) => (
-                  <TicketDownloadBlock key={row.id} model={rowToModel(row, buyerName, buyerEmail)} />
+                  <div key={row.id} className="relative">
+                    {/* Used/Active badge overlay */}
+                    <div className="absolute top-3 right-3 z-10">
+                      {row.is_used ? (
+                        <Badge className="bg-neutral-500 text-white border-0">
+                          Used {row.used_at ? `· ${new Date(row.used_at).toLocaleDateString()}` : ""}
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-green-600 text-white border-0">Active</Badge>
+                      )}
+                    </div>
+                    <TicketDownloadBlock model={rowToModel(row, buyerName, buyerEmail)} />
+                  </div>
                 ))}
               </div>
             </section>
@@ -156,7 +178,16 @@ const MyTicketsPage = () => {
               <h2 className="mb-4 text-lg font-semibold text-muted-foreground">Past events</h2>
               <div className="space-y-8 opacity-95">
                 {expired.map((row) => (
-                  <TicketDownloadBlock key={row.id} model={rowToModel(row, buyerName, buyerEmail)} />
+                  <div key={row.id} className="relative">
+                    <div className="absolute top-3 right-3 z-10">
+                      {row.is_used ? (
+                        <Badge className="bg-neutral-500 text-white border-0">Used</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-muted-foreground">Unused</Badge>
+                      )}
+                    </div>
+                    <TicketDownloadBlock model={rowToModel(row, buyerName, buyerEmail)} />
+                  </div>
                 ))}
               </div>
             </section>

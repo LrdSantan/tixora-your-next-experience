@@ -4,7 +4,7 @@ import { fetchEvents } from "@/lib/events";
 export function useEvents() {
   return useQuery({
     queryKey: ["events"],
-    queryFn: fetchEvents,
+    queryFn: () => fetchEvents(true),
     staleTime: 60_000,
   });
 }

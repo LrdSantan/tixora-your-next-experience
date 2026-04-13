@@ -8,6 +8,10 @@ export interface Event {
   city: string;
   category: string;
   banner_url: string;
+  cover_image_url?: string;
+  status?: string;
+  organizer_id?: string;
+  organizer_email?: string;
   created_at: string;
   ticket_tiers: TicketTier[];
 }

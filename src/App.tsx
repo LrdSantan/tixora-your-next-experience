@@ -15,6 +15,9 @@ import CheckoutPage from "./pages/Checkout";
 import ConfirmationPage from "./pages/Confirmation";
 import MyTicketsPage from "./pages/MyTickets";
 import NotFound from "./pages/NotFound";
+import CreateEvent from "./pages/CreateEvent";
+import AdminDashboard from "./pages/AdminDashboard";
+import VerifyTicketPage from "./pages/VerifyTicket";
 
 const queryClient = new QueryClient();
 
@@ -42,6 +45,9 @@ const App = () => (
             <Route path="/my-tickets" element={<AppLayout><MyTicketsPage /></AppLayout>} />
             <Route path="/login" element={<AppLayout showNav={false}><LoginPage /></AppLayout>} />
             <Route path="/signup" element={<AppLayout showNav={false}><SignupPage /></AppLayout>} />
+            <Route path="/create-event" element={<AppLayout><CreateEvent /></AppLayout>} />
+            <Route path="/admin" element={<AppLayout showNav={false}><AdminDashboard /></AppLayout>} />
+            <Route path="/verify/:ticketCode" element={<VerifyTicketPage />} />
             <Route path="*" element={<AppLayout><NotFound /></AppLayout>} />
           </Routes>
         </BrowserRouter>

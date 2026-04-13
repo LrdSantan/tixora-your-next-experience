@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { ShoppingCart, Menu, X, LogOut, Ticket, Home } from "lucide-react";
+import { ShoppingCart, Menu, X, LogOut, Ticket, Home, Plus } from "lucide-react";
 import TixoraLogo from "./TixoraLogo";
 import { EventSearchInput } from "@/components/EventSearchInput";
 import { useCartStore } from "@/store/cart-store";
@@ -84,6 +84,12 @@ const Navbar = () => {
               My tickets
             </Button>
           </Link>
+          <Link to="/create-event" className="hidden sm:block">
+            <Button variant="ghost" size="sm" className="text-foreground gap-1.5">
+              <Plus className="w-4 h-4" />
+              Create Event
+            </Button>
+          </Link>
           <button type="button" onClick={toggleCart} className="relative p-2">
             <ShoppingCart className="w-5 h-5 text-foreground" />
             {count > 0 && (
@@ -140,6 +146,12 @@ const Navbar = () => {
             <Button variant="outline" className="w-full border-border gap-2">
               <Ticket className="w-4 h-4" />
               My tickets
+            </Button>
+          </Link>
+          <Link to="/create-event" onClick={() => setMobileOpen(false)}>
+            <Button variant="outline" className="w-full border-border gap-2">
+              <Plus className="w-4 h-4" />
+              Create Event
             </Button>
           </Link>
           {user ? (

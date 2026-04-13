@@ -11,6 +11,10 @@ type EventRow = {
   city: string;
   category: string;
   banner_url: string;
+  cover_image_url: string;
+  status: string;
+  organizer_id: string | null;
+  organizer_email: string | null;
   created_at: string;
   ticket_tiers: TicketTierRow[] | null;
 };
@@ -46,16 +50,20 @@ function mapRow(row: EventRow): Event {
     city: row.city,
     category: row.category,
     banner_url: row.banner_url ?? "",
+    cover_image_url: row.cover_image_url,
+    status: row.status,
+    organizer_id: row.organizer_id ?? undefined,
+    organizer_email: row.organizer_email ?? undefined,
     created_at: row.created_at,
     ticket_tiers: tiers,
   };
 }
 
-export async function fetchEvents(): Promise<Event[]> {
+export async function fetchEvents(filterActive = true): Promise<Event[]> {
   const supabase = getSupabaseClient();
   if (!supabase) return EVENTS;
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("events")
     .select(
       `
@@ -68,6 +76,10 @@ export async function fetchEvents(): Promise<Event[]> {
       city,
       category,
       banner_url,
+      cover_image_url,
+      status,
+      organizer_id,
+      organizer_email,
       created_at,
       ticket_tiers (
         id,
@@ -79,8 +91,14 @@ export async function fetchEvents(): Promise<Event[]> {
         remaining_quantity
       )
     `,
-    )
-    .order("date", { ascending: true });
+    );
+
+  if (filterActive) {
+    const today = new Date().toISOString().split("T")[0];
+    query = query.eq("status", "active").gte("date", today);
+  }
+
+  const { data, error } = await query.order("date", { ascending: true });
 
   if (error) {
     console.warn("[events] Supabase fetch failed, using local mock data:", error.message);

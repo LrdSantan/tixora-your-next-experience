@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { formatPrice, formatDate } from "@/lib/mock-data";
 import { getEventImage } from "@/lib/event-image";
 import { useCartStore } from "@/store/cart-store";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useEvents } from "@/hooks/use-events";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TicketTiersCarousel } from "@/components/TicketTiersCarousel";
 import type { TicketTier } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
+import { EventReviews } from "@/components/EventReviews";
 
 const EventDetailPage = () => {
   const { id } = useParams();
@@ -22,6 +23,16 @@ const EventDetailPage = () => {
     .reduce((sum, i) => sum + i.quantity, 0);
   const [addedTier, setAddedTier] = useState<string | null>(null);
   const [hoveredTier, setHoveredTier] = useState<TicketTier | null>(null);
+  const [sidebarQty, setSidebarQty] = useState(1);
+
+  // Reset side bar quantity when hovered tier changes
+  useEffect(() => {
+    setSidebarQty(1);
+  }, [hoveredTier?.id]);
+
+  const todayDateStr = new Date().toISOString().split("T")[0];
+  const eventDateStr = event?.date?.includes("T") ? event.date.split("T")[0] : event?.date;
+  const isExpired = eventDateStr ? eventDateStr < todayDateStr : false;
 
   if (isLoading) {
     return (
@@ -44,13 +55,16 @@ const EventDetailPage = () => {
     );
   }
 
-  const handleAddToCart = (tier: (typeof event.ticket_tiers)[0]) => {
+  const handleAddToCart = (tier: (typeof event.ticket_tiers)[0], qty?: number) => {
     addItem({
       eventId: event.id,
       eventTitle: event.title,
+      eventDate: event.date,
       tierId: tier.id,
       tierName: tier.name,
       unitPrice: tier.price,
+      maxQuantity: tier.remaining_quantity,
+      initialQuantity: qty,
     });
     setAddedTier(tier.id);
     setTimeout(() => setAddedTier(null), 1500);
@@ -110,26 +124,35 @@ const EventDetailPage = () => {
 
             {/* Ticket carousel */}
             <div>
-              <h2 className="text-lg font-bold text-foreground mb-1">Select tickets</h2>
-              <p className="text-sm text-muted-foreground mb-5">
-                {event.ticket_tiers.length > 1
-                  ? "Hover a tier to preview it, then add to your cart."
-                  : "Review the ticket type below and add it to your cart."}
-              </p>
-              <TicketTiersCarousel
-                tiers={event.ticket_tiers}
-                onAddToCart={handleAddToCart}
-                addedTierId={addedTier}
-                onHover={setHoveredTier}
-              />
-              {cartCountForEvent > 0 && (
-                <div className="mt-6 flex justify-center sm:justify-start">
-                  <Button asChild className="bg-primary text-primary-foreground font-semibold">
-                    <Link to="/checkout">
-                      Continue to checkout · {cartCountForEvent} ticket{cartCountForEvent !== 1 ? "s" : ""}
-                    </Link>
-                  </Button>
+              {isExpired ? (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+                  <h2 className="text-xl font-bold text-red-900 mb-2">This event has ended</h2>
+                  <p className="text-red-700">Tickets are no longer available for purchase.</p>
                 </div>
+              ) : (
+                <>
+                  <h2 className="text-lg font-bold text-foreground mb-1">Select tickets</h2>
+                  <p className="text-sm text-muted-foreground mb-5">
+                    {event.ticket_tiers.length > 1
+                      ? "Hover a tier to preview it, then add to your cart."
+                      : "Review the ticket type below and add it to your cart."}
+                  </p>
+                  <TicketTiersCarousel
+                    tiers={event.ticket_tiers}
+                    onAddToCart={handleAddToCart}
+                    addedTierId={addedTier}
+                    onHover={setHoveredTier}
+                  />
+                  {cartCountForEvent > 0 && (
+                    <div className="mt-6 flex justify-center sm:justify-start">
+                      <Button asChild className="bg-primary text-primary-foreground font-semibold">
+                        <Link to="/checkout">
+                          Continue to checkout · {cartCountForEvent} ticket{cartCountForEvent !== 1 ? "s" : ""}
+                        </Link>
+                      </Button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -144,6 +167,9 @@ const EventDetailPage = () => {
                 </div>
               </div>
             </div>
+            
+            {/* Reviews */}
+            <EventReviews eventId={event.id} />
           </div>
 
           {/* ── Right: sticky Quick Summary sidebar ── */}
@@ -193,15 +219,36 @@ const EventDetailPage = () => {
                     <p className="text-xl font-extrabold text-primary tabular-nums">
                       {formatPrice(sidebarTier.price)}
                     </p>
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={sidebarTier.remaining_quantity <= 0}
-                      onClick={() => handleAddToCart(sidebarTier)}
-                      className="w-full bg-primary text-primary-foreground text-xs mt-1"
-                    >
-                      {sidebarTier.remaining_quantity <= 0 ? "Unavailable" : "Add to cart"}
-                    </Button>
+                    <div className="flex gap-2 mt-1">
+                      <div className="flex items-center rounded-md border border-neutral-200 bg-white">
+                        <button
+                          type="button"
+                          className="flex h-9 w-7 items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors"
+                          onClick={() => setSidebarQty(q => Math.max(1, q - 1))}
+                          disabled={sidebarTier.remaining_quantity <= 0}
+                        >
+                          -
+                        </button>
+                        <span className="w-5 text-center text-sm font-medium tabular-nums">{sidebarQty}</span>
+                        <button
+                          type="button"
+                          className="flex h-9 w-7 items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors"
+                          onClick={() => setSidebarQty(q => Math.min(10, Math.min(sidebarTier.remaining_quantity, q + 1)))}
+                          disabled={sidebarTier.remaining_quantity <= 0 || sidebarQty >= Math.min(10, sidebarTier.remaining_quantity)}
+                        >
+                          +
+                        </button>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={sidebarTier.remaining_quantity <= 0 || isExpired}
+                        onClick={() => handleAddToCart(sidebarTier, sidebarQty)}
+                        className="flex-1 bg-primary text-primary-foreground text-xs"
+                      >
+                        {isExpired ? "Event Ended" : (sidebarTier.remaining_quantity <= 0 ? "Unavailable" : "Add to cart")}
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
