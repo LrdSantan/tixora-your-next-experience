@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getSupabaseClient } from "@/lib/supabase";
@@ -115,6 +115,23 @@ export default function AdminDashboard() {
   const [ticketsData, setTicketsData] = useState<any[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
+
+  const handleCleanupTickets = async () => {
+    if (!supabase) return;
+    if (!window.confirm("This will permanently delete all tickets that were used more than 24 hours ago. Are you sure?")) return;
+    
+    setIsCleaningUp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('cleanup-used-tickets');
+      if (error) throw error;
+      toast.success(`${data?.deleted || 0} used tickets deleted successfully`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to cleanup tickets");
+    } finally {
+      setIsCleaningUp(false);
+    }
+  };
 
   const loadData = async () => {
     if (!supabase) return;
@@ -128,7 +145,7 @@ export default function AdminDashboard() {
       const { data: tData, error: tError } = await supabase.from('tickets').select('amount_paid, quantity, events(id, title)');
       if (!tError && tData) setTicketsData(tData);
 
-      const { data: cData, error: cError } = await supabase.from('coupons').select('*').order('created_at', { ascending: false });
+      const { data: cData, error: cError } = await supabase.from('coupons').select('id, code, discount_type, discount_value, max_uses, uses_count, expires_at, is_active').order('created_at', { ascending: false });
       if (!cError && cData) setCoupons(cData);
     } catch (err) {
       console.error("Admin load error:", err);
@@ -148,25 +165,31 @@ export default function AdminDashboard() {
   if (loading || isInitializing) return <div className="p-8 text-center">Loading dashboard...</div>;
   if (!user || user.email !== 'yusufquadir50@gmail.com') return <Navigate to="/" replace />;
 
-  const activeSuspendEvents = events.filter(e => e.status !== 'expired' && e.status !== 'deleted');
-  const expiredEvents = events.filter(e => e.status === 'expired');
+  const activeSuspendEvents = useMemo(() => events.filter(e => e.status !== 'expired' && e.status !== 'deleted'), [events]);
+  const expiredEvents = useMemo(() => events.filter(e => e.status === 'expired'), [events]);
   
-  let totalTicketsSold = 0;
-  let totalRevenue = 0;
-  const revenueByEventMap: Record<string, { event_title: string; revenue: number }> = {};
+  const { totalTicketsSold, totalRevenue, revenueByEvent } = useMemo(() => {
+    let sold = 0;
+    let rev = 0;
+    const map: Record<string, { event_title: string; revenue: number }> = {};
 
-  ticketsData.forEach(t => {
-    totalTicketsSold += t.quantity;
-    totalRevenue += t.amount_paid;
-    const eventTitle = t.events?.title || 'Unknown Event';
-    const eventId = t.events?.id || 'unknown';
-    if (!revenueByEventMap[eventId]) {
-      revenueByEventMap[eventId] = { event_title: eventTitle, revenue: 0 };
-    }
-    revenueByEventMap[eventId].revenue += t.amount_paid;
-  });
+    ticketsData.forEach(t => {
+      sold += t.quantity;
+      rev += t.amount_paid;
+      const eventTitle = t.events?.title || 'Unknown Event';
+      const eventId = t.events?.id || 'unknown';
+      if (!map[eventId]) {
+        map[eventId] = { event_title: eventTitle, revenue: 0 };
+      }
+      map[eventId].revenue += t.amount_paid;
+    });
 
-  const revenueByEvent = Object.values(revenueByEventMap).sort((a, b) => b.revenue - a.revenue);
+    return {
+      totalTicketsSold: sold,
+      totalRevenue: rev,
+      revenueByEvent: Object.values(map).sort((a, b) => b.revenue - a.revenue)
+    };
+  }, [ticketsData]);
 
   const updateEventStatus = async (id: string, status: 'active' | 'suspended') => {
     if (!supabase) return;
@@ -253,6 +276,12 @@ export default function AdminDashboard() {
         </TabsList>
 
         <TabsContent value="listings" className="space-y-4">
+          <div className="flex justify-end mb-4">
+            <Button variant="outline" className="text-muted-foreground hover:text-destructive border-dashed" onClick={handleCleanupTickets} disabled={isCleaningUp}>
+              <Trash2 className="w-4 h-4 mr-2" />
+              {isCleaningUp ? "Cleaning..." : "Delete Used Tickets"}
+            </Button>
+          </div>
           <div className="bg-card rounded-2xl border overflow-hidden">
             <div className="divide-y cursor-default">
               {activeSuspendEvents.length === 0 ? (

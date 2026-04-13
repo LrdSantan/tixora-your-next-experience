@@ -69,6 +69,49 @@ export async function fetchEvents(filterActive = true): Promise<Event[]> {
       `
       id,
       title,
+      date,
+      time,
+      venue,
+      city,
+      category,
+      cover_image_url,
+      status,
+      ticket_tiers (
+        price
+      )
+    `
+    );
+
+  if (filterActive) {
+    const today = new Date().toISOString().split("T")[0];
+    query = query.eq("status", "active").gte("date", today);
+  }
+
+  const { data, error } = await query.order("date", { ascending: true });
+
+  if (error) {
+    console.warn("[events] Supabase fetch failed, using local mock data:", error.message);
+    return EVENTS;
+  }
+
+  const rows = (data ?? []) as EventRow[];
+  if (rows.length === 0 && isSupabaseConfigured) {
+    return EVENTS;
+  }
+
+  return rows.map(mapRow);
+}
+
+export async function fetchEventById(id: string): Promise<Event | null> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return EVENTS.find((e) => e.id === id) || null;
+
+  const { data, error } = await supabase
+    .from("events")
+    .select(
+      `
+      id,
+      title,
       description,
       date,
       time,
@@ -90,25 +133,15 @@ export async function fetchEvents(filterActive = true): Promise<Event[]> {
         total_quantity,
         remaining_quantity
       )
-    `,
-    );
+    `
+    )
+    .eq("id", id)
+    .single();
 
-  if (filterActive) {
-    const today = new Date().toISOString().split("T")[0];
-    query = query.eq("status", "active").gte("date", today);
+  if (error || !data) {
+    console.warn("[events] Supabase fetchEventById failed:", error?.message);
+    return EVENTS.find((e) => e.id === id) || null;
   }
 
-  const { data, error } = await query.order("date", { ascending: true });
-
-  if (error) {
-    console.warn("[events] Supabase fetch failed, using local mock data:", error.message);
-    return EVENTS;
-  }
-
-  const rows = (data ?? []) as EventRow[];
-  if (rows.length === 0 && isSupabaseConfigured) {
-    return EVENTS;
-  }
-
-  return rows.map(mapRow);
+  return mapRow(data as EventRow);
 }

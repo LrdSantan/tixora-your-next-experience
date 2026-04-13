@@ -134,21 +134,34 @@ export const TicketVisualCard = forwardRef<HTMLDivElement, TicketVisualCardProps
           </div>
 
           <div className="relative flex shrink-0 flex-col items-center gap-2 lg:w-[140px]">
-            <div className="relative rounded-lg border border-neutral-200 bg-white p-3">
-              <QRCodeSVG value={qrValue} size={120} level="M" />
-              {expired && (
-                <div
-                  className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden rounded-lg bg-white/40"
-                  aria-hidden
-                >
-                  <span className="rotate-[-32deg] select-none text-center text-base font-black uppercase tracking-[0.25em] text-red-700/95">
-                    EXPIRED
-                  </span>
+            <div className="relative rounded-lg border border-neutral-200 bg-white p-3 flex min-h-[146px] min-w-[146px] items-center justify-center">
+              {ticket.isUsed ? (
+                <div className="text-center">
+                  <Ticket className="mx-auto h-8 w-8 text-neutral-300 mb-2 rotate-[-15deg]" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">TICKET USED</span>
                 </div>
+              ) : (
+                <>
+                  <QRCodeSVG value={qrValue} size={120} level="M" />
+                  {expired && (
+                    <div
+                      className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden rounded-lg bg-white/40"
+                      aria-hidden
+                    >
+                      <span className="rotate-[-32deg] select-none text-center text-base font-black uppercase tracking-[0.25em] text-red-700/95">
+                        EXPIRED
+                      </span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
             <p className="max-w-[9rem] text-center text-[10px] text-neutral-500">
-              {ticket.ticketCode ? `Scan to verify: ${ticket.ticketCode}` : `Scan at entry — ref. ${ticket.reference.slice(0, 10)}…`}
+              {ticket.isUsed
+                ? "This ticket has already been used."
+                : ticket.ticketCode
+                  ? `Scan to verify: ${ticket.ticketCode}`
+                  : `Scan at entry — ref. ${ticket.reference.slice(0, 10)}…`}
             </p>
           </div>
         </div>

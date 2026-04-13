@@ -163,8 +163,19 @@ export default function CheckoutPage() {
       toast.error("Please enter your phone number.");
       return false;
     }
+    if (!isValidPhone(attendee.phone)) {
+      toast.error("Please enter a valid Nigerian phone number.");
+      return false;
+    }
     return true;
   };
+
+  const isValidPhone = (p: string) => {
+    const phone = p.trim();
+    return /^0\d{10}$/.test(phone) || /^\+234\d{10}$/.test(phone);
+  };
+  const phoneHasInput = attendee.phone.trim().length > 0;
+  const isPhoneError = phoneHasInput && !isValidPhone(attendee.phone);
 
   const handlePayWithPaystack = () => {
     const supabase = getSupabaseClient();
@@ -538,15 +549,18 @@ export default function CheckoutPage() {
                     { label: "Phone Number", key: "phone" as const, type: "tel", placeholder: "+234 800 000 0000" },
                   ] as const
                 ).map((f) => (
-                  <div key={f.key} className="space-y-1.5">
+                  <div key={f.key} className="space-y-1.5 flex flex-col">
                     <label className="text-sm font-medium text-neutral-700">{f.label} <span className="text-red-500">*</span></label>
-                    <input type={f.type} value={attendee[f.key]} onChange={(e) => setAttendee({ ...attendee, [f.key]: e.target.value })} placeholder={f.placeholder} required className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 outline-none transition-all focus:border-transparent focus:ring-2" style={{ "--tw-ring-color": ACCENT } as React.CSSProperties} />
+                    <input type={f.type} value={attendee[f.key]} onChange={(e) => setAttendee({ ...attendee, [f.key]: e.target.value })} placeholder={f.placeholder} required className={cn("h-11 w-full rounded-xl border bg-white px-4 text-sm text-neutral-900 outline-none transition-all focus:border-transparent focus:ring-2", f.key === "phone" && isPhoneError ? "border-red-500 focus:ring-red-500" : "border-neutral-200")} style={!(f.key === "phone" && isPhoneError) ? { "--tw-ring-color": ACCENT } as React.CSSProperties : undefined} />
+                    {f.key === "phone" && isPhoneError && (
+                      <p className="text-xs font-medium text-red-500 mt-1">Please enter a valid Nigerian phone number (e.g. 08012345678)</p>
+                    )}
                   </div>
                 ))}
               </div>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button type="button" variant="outline" className="h-11 flex-1 border-neutral-200 rounded-xl" onClick={() => setStep(0)}>Back</Button>
-                <Button type="button" className="h-11 flex-1 rounded-xl font-semibold text-white" style={{ backgroundColor: ACCENT }} onClick={() => { if (validateAttendee()) setStep(2); }}>Continue to payment</Button>
+                <Button type="button" disabled={!attendee.phone.trim() || isPhoneError} className="h-11 flex-1 rounded-xl font-semibold text-white disabled:opacity-50" style={(!attendee.phone.trim() || isPhoneError) ? undefined : { backgroundColor: ACCENT }} onClick={() => { if (validateAttendee()) setStep(2); }}>Continue to payment</Button>
               </div>
             </div>
 

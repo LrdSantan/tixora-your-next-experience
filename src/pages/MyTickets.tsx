@@ -1,8 +1,11 @@
-import { Ticket } from "lucide-react";
+import { useState } from "react";
+import { Ticket, Search, X } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/auth-context";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
@@ -53,6 +56,10 @@ function rowToModel(row: TicketRow, buyerName: string, buyerEmail: string): Tick
 const MyTicketsPage = () => {
   const { user, loading } = useAuth();
   const supabase = getSupabaseClient();
+  const queryClient = useQueryClient();
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [clearing, setClearing] = useState(false);
 
   const meta = user?.user_metadata as { full_name?: string } | undefined;
   const buyerName = meta?.full_name?.trim() || user?.email?.split("@")[0] || "Guest";
@@ -89,9 +96,15 @@ const MyTicketsPage = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto max-w-2xl space-y-4 px-4 py-12">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-40 w-full" />
+      <div className="container mx-auto max-w-3xl space-y-6 px-4 py-8 animate-pulse">
+        <div className="flex justify-between items-center mb-6">
+          <Skeleton className="h-8 w-40" />
+        </div>
+        <Skeleton className="h-4 w-64 mb-8" />
+        <div className="space-y-8">
+          <Skeleton className="h-[200px] w-full rounded-xl" />
+          <Skeleton className="h-[200px] w-full rounded-xl" />
+        </div>
       </div>
     );
   }
@@ -119,10 +132,16 @@ const MyTicketsPage = () => {
 
   if (query.isLoading) {
     return (
-      <div className="container mx-auto max-w-3xl space-y-4 px-4 py-12">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-52 w-full" />
-        <Skeleton className="h-52 w-full" />
+      <div className="container mx-auto max-w-3xl space-y-6 px-4 py-8 animate-pulse">
+        <div className="flex justify-between items-center mb-6">
+          <Skeleton className="h-8 w-40" />
+        </div>
+        <Skeleton className="h-4 w-64 mb-8" />
+        <div className="space-y-8">
+          <Skeleton className="h-[200px] w-full rounded-xl" />
+          <Skeleton className="h-[200px] w-full rounded-xl" />
+          <Skeleton className="h-[200px] w-full rounded-xl" />
+        </div>
       </div>
     );
   }
@@ -138,18 +157,99 @@ const MyTicketsPage = () => {
   }
 
   const rows = query.data ?? [];
-  const active = rows.filter((r) => !isEventDatePassed(r.events?.date ? String(r.events.date) : ""));
-  const expired = rows.filter((r) => isEventDatePassed(r.events?.date ? String(r.events.date) : ""));
+  const hasUsedOrExpired = rows.some((r) => r.is_used || isEventDatePassed(r.events?.date ? String(r.events.date) : ""));
+  
+  const filteredRows = rows.filter(r => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    const evTitle = r.events?.title?.toLowerCase() || "";
+    const code = r.ticket_code?.toLowerCase() || "";
+    const venue = r.events?.venue?.toLowerCase() || "";
+    return evTitle.includes(q) || code.includes(q) || venue.includes(q);
+  });
+
+  const active = filteredRows.filter((r) => !isEventDatePassed(r.events?.date ? String(r.events.date) : ""));
+  const expired = filteredRows.filter((r) => isEventDatePassed(r.events?.date ? String(r.events.date) : ""));
+
+  const handleClear = async () => {
+    if (!supabase || !user) return;
+    if (!window.confirm("This will remove all used and expired tickets from your list. Are you sure?")) return;
+    
+    setClearing(true);
+    try {
+      const ticketsToDelete = rows.filter((r) => r.is_used || isEventDatePassed(r.events?.date ? String(r.events.date) : ""));
+      if (ticketsToDelete.length === 0) {
+        toast.info("No used or expired tickets to clear.");
+        setClearing(false);
+        return;
+      }
+      
+      const ids = ticketsToDelete.map(t => t.id);
+      
+      const { error } = await supabase
+        .from('tickets')
+        .delete()
+        .eq('user_id', user.id)
+        .in('id', ids);
+        
+      if (error) throw error;
+      
+      toast.success("Your used and expired tickets have been cleared");
+      queryClient.invalidateQueries({ queryKey: ["my-tickets", user.id] });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to clear tickets");
+    } finally {
+      setClearing(false);
+    }
+  };
 
   return (
     <div className="container mx-auto max-w-3xl px-4 py-8">
-      <h1 className="mb-1 text-2xl font-bold text-foreground">My Tickets</h1>
-      <p className="mb-8 text-sm text-muted-foreground">Signed in as {user.email}</p>
+      <div className="mb-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-2xl font-bold text-foreground">My Tickets</h1>
+        {hasUsedOrExpired && (
+          <Button variant="outline" size="sm" onClick={handleClear} disabled={clearing} className="w-full sm:w-auto text-muted-foreground hover:text-destructive border-dashed">
+            {clearing ? "Clearing..." : "Clear Used & Expired"}
+          </Button>
+        )}
+      </div>
+      <p className="mb-6 text-sm text-muted-foreground">Signed in as {user.email}</p>
+      
+      <div className="mb-8 rounded-lg bg-blue-50 border border-blue-100 p-3 text-sm text-blue-800">
+        <p>Used tickets are automatically removed after 24 hours.</p>
+      </div>
 
       {rows.length === 0 ? (
         <p className="text-muted-foreground">No tickets yet. Browse events to get started!</p>
       ) : (
-        <div className="space-y-12">
+        <div className="space-y-8">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search by event, code, or venue..." 
+              className="pl-9 pr-10" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:bg-transparent"
+                onClick={() => setSearchQuery("")}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+
+          {filteredRows.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No tickets found matching "{searchQuery}"</p>
+              <Button variant="link" onClick={() => setSearchQuery("")} className="mt-2 text-primary">Clear search</Button>
+            </div>
+          ) : (
+            <div className="space-y-12">
           {active.length > 0 && (
             <section>
               <h2 className="mb-4 text-lg font-semibold text-foreground">Active</h2>
@@ -191,6 +291,8 @@ const MyTicketsPage = () => {
                 ))}
               </div>
             </section>
+          )}
+        </div>
           )}
         </div>
       )}

@@ -1,3 +1,4 @@
+import React from "react";
 import { Link } from "react-router-dom";
 import { MapPin, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,17 +9,17 @@ interface EventCardProps {
   event: Event;
 }
 
-const EventCard = ({ event }: EventCardProps) => {
+const EventCard = React.memo(({ event }: EventCardProps) => {
   const lowestPrice = Math.min(...event.ticket_tiers.map((t) => t.price));
 
   return (
     <Link to={`/events/${event.id}`} className="group block h-full">
       <div className="bg-card rounded-xl overflow-hidden border border-border hover:shadow-lg transition-all duration-300 hover:-translate-y-1 h-full flex flex-col">
-        <div className="aspect-[16/10] overflow-hidden flex-shrink-0">
+        <div className="aspect-[16/10] overflow-hidden flex-shrink-0 bg-muted relative">
           <img
             src={getEventImage(event)}
             alt={event.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 absolute inset-0"
             loading="lazy"
             width={800}
             height={512}
@@ -51,6 +52,8 @@ const EventCard = ({ event }: EventCardProps) => {
       </div>
     </Link>
   );
-};
+});
+
+EventCard.displayName = "EventCard";
 
 export default EventCard; 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Ticket, Plus, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,7 @@ type TicketTiersCarouselProps = {
   onHover?: (tier: TicketTier | null) => void;
 };
 
-export function TicketTiersCarousel({ tiers, onAddToCart, addedTierId, onHover }: TicketTiersCarouselProps) {
+export const TicketTiersCarousel = React.memo(function TicketTiersCarousel({ tiers, onAddToCart, addedTierId, onHover }: TicketTiersCarouselProps) {
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -190,4 +190,4 @@ export function TicketTiersCarousel({ tiers, onAddToCart, addedTierId, onHover }
       <p className="text-center text-xs text-muted-foreground sm:hidden">Swipe to compare ticket types</p>
     </div>
   );
-}
+});

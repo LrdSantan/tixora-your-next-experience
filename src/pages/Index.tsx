@@ -49,6 +49,25 @@ function EventsEmptyState({
   );
 }
 
+const EventCardSkeleton = () => (
+  <div className="bg-card rounded-xl overflow-hidden border border-border h-full flex flex-col min-h-[380px]">
+    <Skeleton className="aspect-[16/10] w-full rounded-none" />
+    <div className="p-4 flex flex-col flex-1 gap-2">
+      <Skeleton className="h-5 w-20 rounded-full" />
+      <Skeleton className="h-6 w-full mt-1" />
+      <Skeleton className="h-6 w-2/3" />
+      <div className="mt-3 space-y-2">
+        <Skeleton className="h-4 w-1/2" />
+        <Skeleton className="h-4 w-2/3" />
+      </div>
+      <div className="flex items-center justify-between pt-3 mt-auto border-t border-border">
+        <Skeleton className="h-5 w-20" />
+        <Skeleton className="h-8 w-24 rounded-md" />
+      </div>
+    </div>
+  </div>
+);
+
 const HomePage = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const browseRef = useRef<HTMLElement>(null);
@@ -201,15 +220,17 @@ const HomePage = () => {
             </div>
             <div className="flex gap-5 overflow-x-auto pb-4">
               {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="min-w-[280px] h-[340px] rounded-xl flex-shrink-0" />
+                <div key={i} className="min-w-[280px] w-[320px] max-w-[320px] flex-shrink-0 animate-pulse">
+                  <EventCardSkeleton />
+                </div>
               ))}
             </div>
           </section>
           <section className="container mx-auto px-4 py-12">
             <h2 className="text-2xl font-bold text-foreground mb-6">Upcoming Events</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <Skeleton key={i} className="h-[380px] rounded-xl" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-pulse">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                <EventCardSkeleton key={i} />
               ))}
             </div>
           </section>

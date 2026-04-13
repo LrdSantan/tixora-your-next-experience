@@ -5,7 +5,7 @@ import { formatPrice, formatDate } from "@/lib/mock-data";
 import { getEventImage } from "@/lib/event-image";
 import { useCartStore } from "@/store/cart-store";
 import { useState, useEffect } from "react";
-import { useEvents } from "@/hooks/use-events";
+import { useEvent } from "@/hooks/use-events";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TicketTiersCarousel } from "@/components/TicketTiersCarousel";
 import type { TicketTier } from "@/lib/mock-data";
@@ -15,8 +15,7 @@ import { EventReviews } from "@/components/EventReviews";
 const EventDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { data: events, isLoading } = useEvents();
-  const event = events?.find((e) => e.id === id);
+  const { data: event, isLoading } = useEvent(id);
   const { addItem, items: cartItems } = useCartStore();
   const cartCountForEvent = cartItems
     .filter((i) => i.eventId === id)
@@ -36,10 +35,29 @@ const EventDetailPage = () => {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8 space-y-6">
+      <div className="animate-pulse">
         <Skeleton className="h-64 md:h-96 w-full rounded-none" />
-        <Skeleton className="h-10 w-2/3 max-w-lg" />
-        <Skeleton className="h-24 w-full" />
+        <div className="container mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-6">
+            <Skeleton className="h-10 w-3/4 max-w-lg" />
+            <div className="flex gap-4">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+            <Skeleton className="h-24 w-full" />
+            <div>
+              <Skeleton className="h-6 w-32 mb-4" />
+              <div className="flex gap-4 overflow-hidden">
+                <Skeleton className="h-48 w-[280px] rounded-xl flex-shrink-0" />
+                <Skeleton className="h-48 w-[280px] rounded-xl flex-shrink-0" />
+              </div>
+            </div>
+          </div>
+          <div className="hidden lg:block">
+            <Skeleton className="h-64 w-full rounded-xl" />
+          </div>
+        </div>
       </div>
     );
   }

@@ -115,7 +115,7 @@ export default function VerifyTicketPage() {
   if (pageState === "not_found") {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border p-8 text-center">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border p-6 sm:p-8 text-center overflow-hidden">
           <div className="flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mx-auto mb-4">
             <XCircle className="w-8 h-8 text-red-600" />
           </div>
@@ -139,8 +139,8 @@ export default function VerifyTicketPage() {
   // ── Used ──
   if (pageState === "used") {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border p-8">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8 sm:py-12 w-full overflow-x-hidden">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border p-6 sm:p-8 overflow-hidden">
           <div className="text-center mb-6">
             <div className="flex items-center justify-center w-16 h-16 rounded-full bg-orange-100 mx-auto mb-4">
               <AlertTriangle className="w-8 h-8 text-orange-600" />
@@ -167,8 +167,8 @@ export default function VerifyTicketPage() {
 
   // ── Valid ──
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border p-8">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8 sm:py-12 w-full overflow-x-hidden">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border p-6 sm:p-8 overflow-hidden">
         <div className="text-center mb-6">
           <div className="flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mx-auto mb-4">
             <CheckCircle className="w-8 h-8 text-green-600" />
@@ -252,9 +252,9 @@ function TicketDetailCard({
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex justify-between items-start gap-3">
+    <div className="flex justify-between items-start gap-3 w-full">
       <span className="text-neutral-500 shrink-0">{label}</span>
-      <span className="font-semibold text-neutral-900 text-right">{value}</span>
+      <span className="font-semibold text-neutral-900 text-right break-all sm:break-words min-w-0">{value}</span>
     </div>
   );
 }
