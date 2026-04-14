@@ -13,3 +13,7 @@ entrypoint = "./functions/auto-expire-events/index.ts"
 [functions.cleanup-used-tickets]
 enabled = true
 verify_jwt = false
+
+[functions.send-contact-email]
+enabled = true
+verify_jwt = false

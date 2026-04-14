@@ -145,3 +145,41 @@ export async function fetchEventById(id: string): Promise<Event | null> {
 
   return mapRow(data as EventRow);
 }
+
+export async function fetchEventSearch(searchQuery: string): Promise<Event[]> {
+  const supabase = getSupabaseClient();
+  if (!supabase || !searchQuery.trim()) return [];
+
+  const today = new Date().toISOString().split("T")[0];
+  
+  const { data, error } = await supabase
+    .from("events")
+    .select(
+      `
+      id,
+      title,
+      date,
+      time,
+      venue,
+      city,
+      category,
+      cover_image_url,
+      status,
+      ticket_tiers (
+        price
+      )
+    `
+    )
+    .eq("status", "active")
+    .gte("date", today)
+    .or(`title.ilike.%${searchQuery}%,venue.ilike.%${searchQuery}%,city.ilike.%${searchQuery}%`)
+    .order("date", { ascending: true })
+    .limit(10);
+
+  if (error) {
+    console.warn("[events] Supabase fetchEventSearch failed:", error.message);
+    return [];
+  }
+
+  return ((data ?? []) as EventRow[]).map(mapRow);
+}

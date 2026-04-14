@@ -7,6 +7,8 @@ import { fetchEvents } from "@/lib/events";
 import type { Event } from "@/lib/mock-data";
 import { formatPrice, formatDate } from "@/lib/mock-data";
 import { CATEGORIES } from "@/lib/mock-data";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EditCoverImageButton } from "@/components/EditCoverImageButton";
 
 import { 
   Tabs, TabsContent, TabsList, TabsTrigger 
@@ -41,6 +43,127 @@ type Coupon = {
   is_active: boolean;
   created_at: string;
 };
+
+type BlogPost = {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  cover_image_url: string;
+  author: string;
+  published: boolean;
+  published_at: string | null;
+  created_at: string;
+};
+
+function AdminAddBlogModal({ onAdded, editPost }: { onAdded: () => void, editPost?: BlogPost }) {
+  const [open, setOpen] = useState(false);
+  const supabase = getSupabaseClient();
+  const [formData, setFormData] = useState({
+    title: "", excerpt: "", content: "", cover_image_url: "", published: false, author: "Tixora Team"
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (editPost) {
+      setFormData({
+        title: editPost.title,
+        excerpt: editPost.excerpt,
+        content: editPost.content,
+        cover_image_url: editPost.cover_image_url,
+        published: editPost.published,
+        author: editPost.author
+      });
+      setOpen(true);
+    } else {
+      setFormData({ title: "", excerpt: "", content: "", cover_image_url: "", published: false, author: "Tixora Team" });
+    }
+  }, [editPost]);
+
+  const generateSlug = (title: string) => {
+    return title.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, '');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supabase) return;
+    if (!formData.title || !formData.content) return toast.error("Title and content are required");
+
+    try {
+      setIsSubmitting(true);
+      const slug = generateSlug(formData.title);
+      
+      const payload = {
+        ...formData,
+        slug,
+        published_at: formData.published ? new Date().toISOString() : null
+      };
+
+      let error;
+      if (editPost) {
+        ({ error } = await supabase.from('blog_posts').update(payload).eq('id', editPost.id));
+      } else {
+        ({ error } = await supabase.from('blog_posts').insert(payload));
+      }
+
+      if (error) throw error;
+      toast.success(editPost ? "Post updated!" : "Post created!");
+      setOpen(false);
+      onAdded();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save post");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      {!editPost && (
+        <DialogTrigger asChild>
+          <Button className="bg-primary">
+            <Plus className="w-4 h-4 mr-2" /> New Post
+          </Button>
+        </DialogTrigger>
+      )}
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>{editPost ? "Edit Post" : "Compose New Post"}</DialogTitle></DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold">Title</label>
+            <Input required placeholder="Post Title" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} />
+            {formData.title && (
+              <p className="text-[10px] text-muted-foreground italic">Slug: {generateSlug(formData.title)}</p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold">Excerpt</label>
+            <Input placeholder="Short summary for listing" value={formData.excerpt} onChange={e => setFormData({ ...formData, excerpt: e.target.value })} />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold">Cover Image URL</label>
+            <Input placeholder="https://..." value={formData.cover_image_url} onChange={e => setFormData({ ...formData, cover_image_url: e.target.value })} />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold">Content (HTML/Markdown)</label>
+            <Textarea required className="min-h-[200px]" placeholder="Write your post here..." value={formData.content} onChange={e => setFormData({ ...formData, content: e.target.value })} />
+          </div>
+          <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl">
+            <div className="space-y-0.5">
+              <label className="text-sm font-semibold">Publish Immediately</label>
+              <p className="text-xs text-muted-foreground">Make this post visible to everyone on /blog</p>
+            </div>
+            <Switch checked={formData.published} onCheckedChange={v => setFormData({ ...formData, published: v })} />
+          </div>
+          <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting}>
+            {isSubmitting ? "Saving..." : (editPost ? "Update Post" : "Publish Post")}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function AdminAddCouponModal({ onAdded }: { onAdded: () => void }) {
   const [open, setOpen] = useState(false);
@@ -114,6 +237,8 @@ export default function AdminDashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [ticketsData, setTicketsData] = useState<any[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+  const [editingPost, setEditingPost] = useState<BlogPost | undefined>();
   const [isInitializing, setIsInitializing] = useState(true);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
 
@@ -147,6 +272,9 @@ export default function AdminDashboard() {
 
       const { data: cData, error: cError } = await supabase.from('coupons').select('id, code, discount_type, discount_value, max_uses, uses_count, expires_at, is_active').order('created_at', { ascending: false });
       if (!cError && cData) setCoupons(cData);
+
+      const { data: bData, error: bError } = await supabase.from('blog_posts').select('*').order('created_at', { ascending: false });
+      if (!bError && bData) setBlogPosts(bData);
     } catch (err) {
       console.error("Admin load error:", err);
     } finally {
@@ -161,9 +289,6 @@ export default function AdminDashboard() {
       setIsInitializing(false);
     }
   }, [user, loading, supabase]);
-
-  if (loading || isInitializing) return <div className="p-8 text-center">Loading dashboard...</div>;
-  if (!user || user.email !== 'yusufquadir50@gmail.com') return <Navigate to="/" replace />;
 
   const activeSuspendEvents = useMemo(() => events.filter(e => e.status !== 'expired' && e.status !== 'deleted'), [events]);
   const expiredEvents = useMemo(() => events.filter(e => e.status === 'expired'), [events]);
@@ -190,6 +315,38 @@ export default function AdminDashboard() {
       revenueByEvent: Object.values(map).sort((a, b) => b.revenue - a.revenue)
     };
   }, [ticketsData]);
+
+  if (loading || isInitializing) return (
+    <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <div className="mb-8">
+        <Skeleton className="h-9 w-52 mb-2" />
+        <Skeleton className="h-4 w-80" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        {[1,2,3,4].map(i => (
+          <div key={i} className="bg-card p-6 rounded-2xl border shadow-sm space-y-3">
+            <div className="flex justify-between">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-4 w-4 rounded-full" />
+            </div>
+            <Skeleton className="h-8 w-20" />
+          </div>
+        ))}
+      </div>
+      <div className="bg-card rounded-2xl border overflow-hidden">
+        {[1,2,3,4].map(i => (
+          <div key={i} className="p-4 flex items-center justify-between gap-4 border-b last:border-0">
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-5 w-48" />
+              <Skeleton className="h-3 w-32" />
+            </div>
+            <Skeleton className="h-8 w-20" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+  if (!user || user.email !== 'yusufquadir50@gmail.com') return <Navigate to="/" replace />;
 
   const updateEventStatus = async (id: string, status: 'active' | 'suspended') => {
     if (!supabase) return;
@@ -226,6 +383,17 @@ export default function AdminDashboard() {
     const { error } = await supabase.from('coupons').delete().eq('id', id);
     if (error) toast.error("Failed to delete coupon");
     else loadData();
+  };
+
+  const deleteBlogPost = async (id: string) => {
+    if (!supabase) return;
+    if (!window.confirm("Delete this blog post?")) return;
+    const { error } = await supabase.from('blog_posts').delete().eq('id', id);
+    if (error) toast.error("Failed to delete post");
+    else {
+      toast.success("Post deleted");
+      loadData();
+    }
   };
 
   return (
@@ -271,6 +439,7 @@ export default function AdminDashboard() {
           <TabsTrigger value="listings" className="rounded-lg py-2">Listings</TabsTrigger>
           <TabsTrigger value="expired" className="rounded-lg py-2">Expired</TabsTrigger>
           <TabsTrigger value="coupons" className="rounded-lg py-2">Coupons</TabsTrigger>
+          <TabsTrigger value="blog" className="rounded-lg py-2">Blog</TabsTrigger>
           <TabsTrigger value="txs" className="rounded-lg py-2">Transactions</TabsTrigger>
           <TabsTrigger value="revenue" className="rounded-lg py-2">Revenue</TabsTrigger>
         </TabsList>
@@ -317,6 +486,13 @@ export default function AdminDashboard() {
                              <PlayCircle className="w-4 h-4 mr-1.5" /> Unsuspend
                            </Button>
                         )}
+                        <EditCoverImageButton 
+                          eventId={e.id} 
+                          onSuccess={loadData}
+                          size="icon"
+                          variant="ghost"
+                          className="text-muted-foreground hover:text-primary hover:bg-primary/10"
+                        />
                         <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => deleteEvent(e.id)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -393,6 +569,54 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive h-8 w-8" onClick={() => deleteCoupon(c.id)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="blog" className="space-y-4">
+          <div className="flex justify-between items-center mb-4">
+            <p className="text-sm text-muted-foreground">{blogPosts.length} posts total</p>
+            <AdminAddBlogModal onAdded={loadData} editPost={editingPost} />
+          </div>
+          <div className="bg-card rounded-2xl border overflow-hidden">
+            {blogPosts.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">No blog posts yet.</div>
+            ) : (
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-muted-foreground uppercase bg-muted/50 border-b">
+                  <tr>
+                    <th className="px-6 py-4">Title</th>
+                    <th className="px-6 py-4">Author</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">Date</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {blogPosts.map(post => (
+                    <tr key={post.id} className="hover:bg-muted/10 transition-colors">
+                      <td className="px-6 py-4 font-bold max-w-xs truncate">{post.title}</td>
+                      <td className="px-6 py-4 text-muted-foreground">{post.author}</td>
+                      <td className="px-6 py-4">
+                        <Badge variant="outline" className={post.published ? "bg-green-50 text-green-700 border-green-200" : "bg-neutral-50 text-neutral-600"}>
+                          {post.published ? 'Published' : 'Draft'}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4 text-muted-foreground">
+                        {formatDate(post.created_at)}
+                      </td>
+                      <td className="px-6 py-4 text-right space-x-1">
+                        <Button variant="ghost" size="sm" className="h-8 text-primary" onClick={() => setEditingPost(post)}>
+                          Edit
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteBlogPost(post.id)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </td>

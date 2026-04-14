@@ -1,4 +1,5 @@
 import React, { Suspense } from "react";
+import { HelmetProvider } from "react-helmet-async";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -9,6 +10,7 @@ import { Loader2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import CartDrawer from "@/components/CartDrawer";
+import { InviteBanner } from "@/components/InviteBanner";
 
 const Index = React.lazy(() => import("./pages/Index"));
 const EventDetail = React.lazy(() => import("./pages/EventDetail"));
@@ -21,6 +23,17 @@ const NotFound = React.lazy(() => import("./pages/NotFound"));
 const CreateEvent = React.lazy(() => import("./pages/CreateEvent"));
 const AdminDashboard = React.lazy(() => import("./pages/AdminDashboard"));
 const VerifyTicketPage = React.lazy(() => import("./pages/VerifyTicket"));
+const SearchPage = React.lazy(() => import("./pages/Search"));
+const OrganizerCouponsPage = React.lazy(() => import("./pages/organizer/Coupons"));
+const OrganizerTeamPage = React.lazy(() => import("./pages/organizer/Team"));
+const OrganizerEventsPage = React.lazy(() => import("./pages/organizer/Events"));
+const AboutPage = React.lazy(() => import("./pages/About"));
+const ContactPage = React.lazy(() => import("./pages/Contact"));
+const BlogPage = React.lazy(() => import("./pages/Blog"));
+const BlogPostPage = React.lazy(() => import("./pages/BlogPost"));
+const PrivacyPage = React.lazy(() => import("./pages/Privacy"));
+const TermsPage = React.lazy(() => import("./pages/Terms"));
+const FAQPage = React.lazy(() => import("./pages/FAQ"));
 
 const queryClient = new QueryClient();
 
@@ -45,37 +58,51 @@ const AppLayout = ({ children, showNav = true }: { children: React.ReactNode; sh
   <div className="min-h-screen flex flex-col">
     {showNav && <Navbar />}
     <CartDrawer />
+    {showNav && <InviteBanner />}
     <main className="flex-1">{children}</main>
     {showNav && <Footer />}
   </div>
 );
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Suspense fallback={<DelayedFallback />}>
-            <Routes>
-              <Route path="/" element={<AppLayout><Index /></AppLayout>} />
-              <Route path="/events/:id" element={<AppLayout><EventDetail /></AppLayout>} />
-              <Route path="/checkout" element={<AppLayout><CheckoutPage /></AppLayout>} />
-              <Route path="/confirmation" element={<AppLayout><ConfirmationPage /></AppLayout>} />
-              <Route path="/my-tickets" element={<AppLayout><MyTicketsPage /></AppLayout>} />
-              <Route path="/login" element={<AppLayout showNav={false}><LoginPage /></AppLayout>} />
-              <Route path="/signup" element={<AppLayout showNav={false}><SignupPage /></AppLayout>} />
-              <Route path="/create-event" element={<AppLayout><CreateEvent /></AppLayout>} />
-              <Route path="/admin" element={<AppLayout showNav={false}><AdminDashboard /></AppLayout>} />
-              <Route path="/verify/:ticketCode" element={<VerifyTicketPage />} />
-              <Route path="*" element={<AppLayout><NotFound /></AppLayout>} />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+  <HelmetProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Suspense fallback={<DelayedFallback />}>
+              <Routes>
+                <Route path="/" element={<AppLayout><Index /></AppLayout>} />
+                <Route path="/events/:id" element={<AppLayout><EventDetail /></AppLayout>} />
+                <Route path="/checkout" element={<AppLayout><CheckoutPage /></AppLayout>} />
+                <Route path="/confirmation" element={<AppLayout><ConfirmationPage /></AppLayout>} />
+                <Route path="/my-tickets" element={<AppLayout><MyTicketsPage /></AppLayout>} />
+                <Route path="/login" element={<AppLayout showNav={false}><LoginPage /></AppLayout>} />
+                <Route path="/signup" element={<AppLayout showNav={false}><SignupPage /></AppLayout>} />
+                <Route path="/create-event" element={<AppLayout><CreateEvent /></AppLayout>} />
+                <Route path="/admin" element={<AppLayout showNav={false}><AdminDashboard /></AppLayout>} />
+                <Route path="/search" element={<AppLayout><SearchPage /></AppLayout>} />
+                <Route path="/organizer/events" element={<AppLayout><OrganizerEventsPage /></AppLayout>} />
+                <Route path="/organizer/coupons" element={<AppLayout><OrganizerCouponsPage /></AppLayout>} />
+                <Route path="/organizer/team" element={<AppLayout><OrganizerTeamPage /></AppLayout>} />
+                <Route path="/about" element={<AppLayout><AboutPage /></AppLayout>} />
+                <Route path="/contact" element={<AppLayout><ContactPage /></AppLayout>} />
+                <Route path="/blog" element={<AppLayout><BlogPage /></AppLayout>} />
+                <Route path="/blog/:slug" element={<AppLayout><BlogPostPage /></AppLayout>} />
+                <Route path="/privacy" element={<AppLayout><PrivacyPage /></AppLayout>} />
+                <Route path="/terms" element={<AppLayout><TermsPage /></AppLayout>} />
+                <Route path="/faq" element={<AppLayout><FAQPage /></AppLayout>} />
+                <Route path="/verify/:ticketCode" element={<VerifyTicketPage />} />
+                <Route path="*" element={<AppLayout><NotFound /></AppLayout>} />
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  </HelmetProvider>
 );
 
 export default App;

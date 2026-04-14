@@ -53,6 +53,7 @@ export default function CheckoutPage() {
     code: string;
     discount_type: 'percentage' | 'fixed';
     discount_value: number;
+    event_id?: string | null;
   } | null>(null);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
 
@@ -133,6 +134,15 @@ export default function CheckoutPage() {
       if (data.max_uses && data.uses_count >= data.max_uses) {
          toast.error("This coupon has reached its usage limit");
          return;
+      }
+
+      // If coupon is event-specific, validate it against cart items
+      if (data.event_id) {
+        const cartHasEvent = items.some((i) => i.eventId === data.event_id);
+        if (!cartHasEvent) {
+          toast.error("This coupon is only valid for a specific event not in your cart");
+          return;
+        }
       }
       
       setAppliedCoupon(data);

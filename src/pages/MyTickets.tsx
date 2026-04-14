@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
 import { TicketDownloadBlock } from "@/components/TicketDownloadBlock";
 import type { TicketVisualModel } from "@/components/TicketVisualCard";
+import { TicketVisualCardSkeleton } from "@/components/TicketVisualCardSkeleton";
 import { isEventDatePassed } from "@/lib/ticket-utils";
 
 type TicketRow = {
@@ -132,15 +133,15 @@ const MyTicketsPage = () => {
 
   if (query.isLoading) {
     return (
-      <div className="container mx-auto max-w-3xl space-y-6 px-4 py-8 animate-pulse">
+      <div className="container mx-auto max-w-3xl space-y-6 px-4 py-8">
         <div className="flex justify-between items-center mb-6">
           <Skeleton className="h-8 w-40" />
         </div>
         <Skeleton className="h-4 w-64 mb-8" />
         <div className="space-y-8">
-          <Skeleton className="h-[200px] w-full rounded-xl" />
-          <Skeleton className="h-[200px] w-full rounded-xl" />
-          <Skeleton className="h-[200px] w-full rounded-xl" />
+          <TicketVisualCardSkeleton />
+          <TicketVisualCardSkeleton />
+          <TicketVisualCardSkeleton />
         </div>
       </div>
     );

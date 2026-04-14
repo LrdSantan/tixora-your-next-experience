@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEvents } from "@/hooks/use-events";
-import { getEventSearchSuggestions } from "@/lib/event-search-suggestions";
+import { useEventSearch } from "@/hooks/use-events";
 import type { Event } from "@/lib/mock-data";
 
 type EventSearchInputProps = {
@@ -33,17 +32,21 @@ export function EventSearchInput({
   "aria-label": ariaLabel,
 }: EventSearchInputProps) {
   const navigate = useNavigate();
-  const { data: fetched = [] } = useEvents();
-  const events = eventsProp ?? fetched;
 
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [focused, setFocused] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [debouncedValue, setDebouncedValue] = useState(value);
 
-  const suggestions = useMemo(() => getEventSearchSuggestions(events, value, 8), [events, value]);
-  const showList = focused && suggestions.length > 0;
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), 300);
+    return () => clearTimeout(timer);
+  }, [value]);
+
+  const { data: suggestions = [], isLoading } = useEventSearch(debouncedValue);
+  const showList = focused && value.trim().length >= 2 && suggestions.length > 0;
 
   useEffect(() => {
     setActiveIndex(-1);
@@ -148,6 +151,9 @@ export function EventSearchInput({
           role="combobox"
           className="bg-transparent text-sm outline-none w-full text-foreground placeholder:text-muted-foreground"
         />
+        {isLoading && value.trim().length >= 2 && (
+          <Loader2 className="w-4 h-4 text-primary animate-spin shrink-0 ml-2" />
+        )}
       </div>
 
       {showList && (

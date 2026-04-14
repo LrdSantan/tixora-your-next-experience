@@ -5,6 +5,8 @@ import EventCard from "@/components/EventCard";
 import { useEvents } from "@/hooks/use-events";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCallback, useMemo, useRef } from "react";
+import { Helmet } from "react-helmet-async";
+import { EventCardSkeleton } from "@/components/EventCardSkeleton";
 import { filterEvents, parseDatePreset, type DateFilterPreset } from "@/lib/event-filters";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EventSearchInput } from "@/components/EventSearchInput";
@@ -49,24 +51,7 @@ function EventsEmptyState({
   );
 }
 
-const EventCardSkeleton = () => (
-  <div className="bg-card rounded-xl overflow-hidden border border-border h-full flex flex-col min-h-[380px]">
-    <Skeleton className="aspect-[16/10] w-full rounded-none" />
-    <div className="p-4 flex flex-col flex-1 gap-2">
-      <Skeleton className="h-5 w-20 rounded-full" />
-      <Skeleton className="h-6 w-full mt-1" />
-      <Skeleton className="h-6 w-2/3" />
-      <div className="mt-3 space-y-2">
-        <Skeleton className="h-4 w-1/2" />
-        <Skeleton className="h-4 w-2/3" />
-      </div>
-      <div className="flex items-center justify-between pt-3 mt-auto border-t border-border">
-        <Skeleton className="h-5 w-20" />
-        <Skeleton className="h-8 w-24 rounded-md" />
-      </div>
-    </div>
-  </div>
-);
+
 
 const HomePage = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -117,6 +102,14 @@ const HomePage = () => {
 
   return (
     <div>
+      <Helmet>
+        <title>Tixora — Book Events in Nigeria</title>
+        <meta name="description" content="Discover and book tickets for the best events in Nigeria. Concerts, sports, food festivals and more on Tixora." />
+        <meta property="og:title" content="Tixora — Book Events in Nigeria" />
+        <meta property="og:description" content="Discover and book tickets for the best events in Nigeria." />
+        <meta property="og:image" content="https://tixora-your-next-experience.vercel.app/og-default.png" />
+        <meta property="og:url" content="https://tixora-your-next-experience.vercel.app" />
+      </Helmet>
       <section className="bg-hero text-primary-foreground">
         <div className="container mx-auto px-4 py-20 md:py-28 text-center space-y-6">
           <h1 className="text-4xl md:text-6xl font-extrabold leading-tight animate-fade-in-up">
@@ -228,8 +221,8 @@ const HomePage = () => {
           </section>
           <section className="container mx-auto px-4 py-12">
             <h2 className="text-2xl font-bold text-foreground mb-6">Upcoming Events</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-pulse">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
                 <EventCardSkeleton key={i} />
               ))}
             </div>

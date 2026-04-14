@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Ticket, Mail, Lock } from "lucide-react";
 import { toast } from "sonner";
@@ -27,8 +27,28 @@ const LoginPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
   const [showResendConfirmation, setShowResendConfirmation] = useState(false);
+  const [pendingInvites, setPendingInvites] = useState<Array<{ id: string; organizer_email: string; organizer_id: string }>>([]);
+  const [inviteChecked, setInviteChecked] = useState(false);
 
   const redirectOrigin = typeof window !== "undefined" ? window.location.origin : "";
+
+  // After login, check for pending invites
+  const checkPendingInvites = async (userEmail: string) => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+    try {
+      const { data } = await supabase
+        .from("organizer_team_members")
+        .select("id, organizer_id")
+        .eq("email", userEmail)
+        .eq("status", "pending");
+      if (data && data.length > 0) {
+        // We can't easily get organizer email without a join, show generic message
+        setPendingInvites(data.map(d => ({ id: d.id, organizer_id: d.organizer_id, organizer_email: "an organizer" })));
+      }
+    } catch {}
+    setInviteChecked(true);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +59,7 @@ const LoginPage = () => {
     }
     setShowResendConfirmation(false);
     setSubmitting(true);
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    const { data: authData, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     setSubmitting(false);
     if (error) {
       if (isEmailNotConfirmedError(error)) {
@@ -53,6 +73,10 @@ const LoginPage = () => {
       return;
     }
     toast.success("Signed in");
+    // Check for pending team invites before redirecting
+    if (authData?.user?.email) {
+      await checkPendingInvites(authData.user.email);
+    }
     navigate(redirectTo, { replace: true });
   };
 

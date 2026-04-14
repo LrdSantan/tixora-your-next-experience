@@ -1,5 +1,6 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { MapPin, Calendar, Clock, ArrowLeft } from "lucide-react";
+import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { formatPrice, formatDate } from "@/lib/mock-data";
 import { getEventImage } from "@/lib/event-image";
@@ -11,6 +12,8 @@ import { TicketTiersCarousel } from "@/components/TicketTiersCarousel";
 import type { TicketTier } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { EventReviews } from "@/components/EventReviews";
+
+const SITE_URL = "https://tixora-your-next-experience.vercel.app";
 
 const EventDetailPage = () => {
   const { id } = useParams();
@@ -35,27 +38,34 @@ const EventDetailPage = () => {
 
   if (isLoading) {
     return (
-      <div className="animate-pulse">
-        <Skeleton className="h-64 md:h-96 w-full rounded-none" />
-        <div className="container mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-6">
-            <Skeleton className="h-10 w-3/4 max-w-lg" />
-            <div className="flex gap-4">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-32" />
-            </div>
-            <Skeleton className="h-24 w-full" />
-            <div>
-              <Skeleton className="h-6 w-32 mb-4" />
-              <div className="flex gap-4 overflow-hidden">
-                <Skeleton className="h-48 w-[280px] rounded-xl flex-shrink-0" />
-                <Skeleton className="h-48 w-[280px] rounded-xl flex-shrink-0" />
+      <div>
+        <Helmet>
+          <title>Loading Event | Tixora</title>
+        </Helmet>
+        <div>
+          <Skeleton className="h-64 md:h-96 w-full rounded-none" />
+          <div className="container mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-6">
+              <Skeleton className="h-10 w-3/4 max-w-lg" />
+              <div className="flex gap-4">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+              <Skeleton className="h-6 w-full" />
+              <Skeleton className="h-6 w-full" />
+              <Skeleton className="h-6 w-2/3" />
+              <div>
+                <Skeleton className="h-6 w-32 mb-4" />
+                <div className="flex gap-4 overflow-hidden">
+                  <Skeleton className="h-48 w-[280px] rounded-xl flex-shrink-0" />
+                  <Skeleton className="h-48 w-[280px] rounded-xl flex-shrink-0" />
+                </div>
               </div>
             </div>
-          </div>
-          <div className="hidden lg:block">
-            <Skeleton className="h-64 w-full rounded-xl" />
+            <div className="hidden lg:block">
+              <Skeleton className="h-64 w-full rounded-xl" />
+            </div>
           </div>
         </div>
       </div>
@@ -93,8 +103,25 @@ const EventDetailPage = () => {
   // What the sidebar shows — hovered tier takes priority, otherwise event defaults
   const sidebarTier = hoveredTier;
 
+  const shortDesc = (event.description ?? "").slice(0, 155);
+  const ogImage = event.cover_image_url || `${SITE_URL}/og-default.png`;
+
   return (
     <div>
+      <Helmet>
+        <title>{event.title} | Tixora</title>
+        <meta name="description" content={shortDesc} />
+        <meta property="og:title" content={event.title} />
+        <meta property="og:description" content={shortDesc} />
+        <meta property="og:image" content={ogImage} />
+        <meta property="og:url" content={`${SITE_URL}/events/${event.id}`} />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Tixora" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={event.title} />
+        <meta name="twitter:description" content={shortDesc} />
+        <meta name="twitter:image" content={ogImage} />
+      </Helmet>
       {/* Banner image */}
       <div className="relative h-64 md:h-96 overflow-hidden">
         <img src={getEventImage(event)} alt={event.title} className="w-full h-full object-cover" />

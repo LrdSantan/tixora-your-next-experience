@@ -19,15 +19,16 @@ type TicketData = {
   is_used: boolean;
   used_at: string | null;
   created_at: string;
+  event_id: string | null;
   events: {
     title: string;
     date: string;
     time: string;
     venue: string;
     city: string;
+    organizer_id: string | null;
   } | null;
   ticket_tiers: { name: string } | null;
-  // user profile joined via user_id isn't directly available; we'll show what we can
 };
 
 type PageState = "loading" | "not_found" | "valid" | "used";
@@ -40,8 +41,11 @@ export default function VerifyTicketPage() {
   const [pageState, setPageState] = useState<PageState>("loading");
   const [ticket, setTicket] = useState<TicketData | null>(null);
   const [marking, setMarking] = useState(false);
+  const [isOrganizerOrTeam, setIsOrganizerOrTeam] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
 
   const isAdmin = !authLoading && user?.email === ADMIN_EMAIL;
+  const canMark = isAdmin || isOrganizerOrTeam;
 
   useEffect(() => {
     async function fetchTicket() {
@@ -60,7 +64,8 @@ export default function VerifyTicketPage() {
           is_used,
           used_at,
           created_at,
-          events ( title, date, time, venue, city ),
+          event_id,
+          events ( title, date, time, venue, city, organizer_id ),
           ticket_tiers ( name )
         `)
         .eq("ticket_code", ticketCode)
@@ -77,6 +82,42 @@ export default function VerifyTicketPage() {
 
     fetchTicket();
   }, [ticketCode, supabase]);
+
+  // Check if the current user is organizer or accepted team member
+  useEffect(() => {
+    async function checkOrganizerAccess() {
+      if (authLoading) return;
+      setAuthChecking(true);
+      try {
+        if (!supabase || !user || !ticket) {
+          setIsOrganizerOrTeam(false);
+          return;
+        }
+        const organizerId = ticket.events?.organizer_id;
+        if (!organizerId) {
+          setIsOrganizerOrTeam(false);
+          return;
+        }
+        // Check if user is the organizer
+        if (user.id === organizerId) {
+          setIsOrganizerOrTeam(true);
+          return;
+        }
+        // Check if user is an accepted team member of the organizer
+        const { data: membership } = await supabase
+          .from("organizer_team_members")
+          .select("id")
+          .eq("organizer_id", organizerId)
+          .eq("member_id", user.id)
+          .eq("status", "accepted")
+          .maybeSingle();
+        setIsOrganizerOrTeam(Boolean(membership));
+      } finally {
+        setAuthChecking(false);
+      }
+    }
+    checkOrganizerAccess();
+  }, [ticket, user, authLoading, supabase]);
 
   const handleMarkUsed = async () => {
     if (!supabase || !ticket) return;
@@ -99,7 +140,7 @@ export default function VerifyTicketPage() {
   };
 
   // ── Loading ──
-  if (pageState === "loading" || authLoading) {
+  if (pageState === "loading" || authLoading || authChecking) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="w-full max-w-md space-y-4">
@@ -183,8 +224,8 @@ export default function VerifyTicketPage() {
 
         <TicketDetailCard ticket={ticket!} ev={ev} tierName={tierName} amountPaid={amountPaid} />
 
-        {/* Admin Mark as Used */}
-        {isAdmin ? (
+        {/* Organizer / Team: Mark as Used */}
+        {canMark ? (
           <Button
             onClick={handleMarkUsed}
             disabled={marking}
@@ -196,13 +237,13 @@ export default function VerifyTicketPage() {
         ) : (
           <div className="mt-6 rounded-xl bg-neutral-50 border border-neutral-200 p-4 text-center">
             {user ? (
-              <p className="text-sm text-neutral-500">Only the event admin can mark this ticket as used.</p>
+              <p className="text-sm text-neutral-500">You are not authorized to verify this ticket.</p>
             ) : (
               <>
-                <p className="text-sm text-neutral-500 mb-3">Admin? Log in to mark this ticket as used.</p>
+                <p className="text-sm text-neutral-500 mb-3">Organizer? Log in to mark this ticket as used.</p>
                 <Link to={`/login?redirect=/verify/${ticketCode}`}>
                   <Button variant="outline" size="sm" className="border-primary text-primary">
-                    Log in as Admin
+                    Log in
                   </Button>
                 </Link>
               </>
