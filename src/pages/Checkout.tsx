@@ -26,6 +26,7 @@ type RpcTicketRow = {
   ticket_code: string;
   amount_paid: number;
   quantity: number;
+  qr_token: string | null;
   event_title: string;
   tier_name: string;
   venue: string;
@@ -272,6 +273,7 @@ export default function CheckoutPage() {
               id: t.id,
               reference: t.reference,
               ticketCode: t.ticket_code,
+              qrToken: t.qr_token ?? undefined,
               amountPaidKobo: t.amount_paid,
               quantity: t.quantity,
               eventTitle: t.event_title,
@@ -312,6 +314,7 @@ export default function CheckoutPage() {
                     time: t.time,
                     reference: t.reference,
                     ticketCode: t.ticketCode,
+                    qrToken: t.qrToken,
                   })),
                 }),
               });

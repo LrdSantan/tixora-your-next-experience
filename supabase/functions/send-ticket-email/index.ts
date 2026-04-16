@@ -27,6 +27,7 @@ type TicketItem = {
   time: string;
   reference: string;
   ticketCode: string;
+  qrToken: string;
 };
 
 type EmailPayload = {
@@ -43,7 +44,8 @@ function ticketEmailHtml(p: EmailPayload): string {
 
   const ticketsHtml = p.tickets.map((t, idx) => {
     // encodeURIComponent is safe for URL params
-    const verifyUrl = `https://tixora-your-next-experience.vercel.app/verify/${t.ticketCode}`;
+    const tokenToUse = t.qrToken || t.ticketCode;
+    const verifyUrl = `https://tixora-your-next-experience.vercel.app/verify/${tokenToUse}`;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(verifyUrl)}`;
 
     return `

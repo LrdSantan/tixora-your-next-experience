@@ -1,5 +1,5 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { MapPin, Calendar, Clock, ArrowLeft } from "lucide-react";
+import { MapPin, Calendar, Clock, ArrowLeft, Tag } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { formatPrice, formatDate } from "@/lib/mock-data";
@@ -197,6 +197,19 @@ const EventDetailPage = () => {
                       </Button>
                     </div>
                   )}
+
+                  <div className="mt-8 rounded-xl bg-orange-50 p-4 border border-orange-100 flex items-center justify-between gap-4">
+                    <div className="flex gap-3">
+                      <Tag className="h-5 w-5 text-orange-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-bold text-orange-900">Looking for a specific tier?</p>
+                        <p className="text-xs text-orange-700">Check our secure marketplace for fan-to-fan resales.</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" asChild className="bg-white border-orange-200 text-orange-700 hover:bg-orange-100 shrink-0">
+                      <Link to="/marketplace">View Marketplace</Link>
+                    </Button>
+                  </div>
                 </>
               )}
             </div>

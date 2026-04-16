@@ -143,7 +143,23 @@ export async function fetchEventById(id: string): Promise<Event | null> {
     return EVENTS.find((e) => e.id === id) || null;
   }
 
-  return mapRow(data as EventRow);
+  const eventRow = data as EventRow;
+  if (eventRow.ticket_tiers && eventRow.ticket_tiers.length > 0) {
+    for (const tier of eventRow.ticket_tiers) {
+      const { count } = await supabase
+        .from("ticket_resells")
+        .select("id, tickets!inner(tier_id, event_id)", { count: "exact", head: true })
+        .eq("status", "pending")
+        .eq("tickets.tier_id", tier.id)
+        .eq("tickets.event_id", id);
+      
+      if (count !== null) {
+        tier.remaining_quantity += count;
+      }
+    }
+  }
+
+  return mapRow(eventRow);
 }
 
 export async function fetchEventSearch(searchQuery: string): Promise<Event[]> {

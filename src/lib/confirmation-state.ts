@@ -2,6 +2,7 @@ export type ConfirmationTicket = {
   id: string;
   reference: string;
   ticketCode: string;
+  qrToken?: string;
   amountPaidKobo: number;
   quantity: number;
   eventTitle: string;

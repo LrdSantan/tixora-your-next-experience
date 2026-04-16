@@ -111,6 +111,11 @@ BEGIN
     RAISE EXCEPTION 'Unauthorized: You are not authorized to mark this ticket as used';
   END IF;
 
+  -- Check if already used
+  IF EXISTS (SELECT 1 FROM public.tickets WHERE ticket_code = p_ticket_code AND is_used = true) THEN
+    RAISE EXCEPTION 'Ticket already used';
+  END IF;
+
   -- Update row
   UPDATE public.tickets
   SET is_used = true, used_at = now()

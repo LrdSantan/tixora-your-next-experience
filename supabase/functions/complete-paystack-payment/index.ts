@@ -82,6 +82,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const supabaseUrl = Deno.env.get("SUPABASE_URL");
       const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      console.error(`${LOG} serviceRoleKey defined=${Boolean(serviceRoleKey)} length=${serviceRoleKey?.length ?? 0}`);
       const paystackSecret = Deno.env.get("PAYSTACK_SECRET_KEY");
 
       if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey || !paystackSecret) {
@@ -231,58 +232,136 @@ Deno.serve(async (req: Request): Promise<Response> => {
         auth: { persistSession: false, autoRefreshToken: false },
       });
 
-      const itemsPayload = lines.map((l) => ({
-        tier_id: l.tier_id,
-        quantity: l.quantity,
-      }));
+      const finalizedTickets: any[] = [];
+      // RESELL POOL CHECK - disabled until resell feature launches
+      const remainingLines = lines;
 
-      const rpcArgs = {
-        p_user_id: user.id,
-        p_reference: reference,
-        p_verified_amount_kobo: amountKoboInt,
-        p_items: itemsPayload,
-      };
+      /*
+      const remainingLines: { tier_id: string; quantity: number }[] = [];
 
-      console.error(`${LOG} RPC: finalize_purchase_after_payment`, {
-        p_user_id: rpcArgs.p_user_id,
-        p_reference: rpcArgs.p_reference,
-        p_verified_amount_kobo: rpcArgs.p_verified_amount_kobo,
-        line_count: itemsPayload.length,
-        p_items: itemsPayload,
-      });
+      for (const line of lines) {
+        let fulfilledCount = 0;
 
-      let rpcData: unknown;
-      let rpcError: { message: string; code?: string; details?: string; hint?: string } | null;
-      try {
-        const out = await admin.rpc("finalize_purchase_after_payment", rpcArgs);
-        rpcData = out.data;
-        rpcError = out.error;
-      } catch (rpcThrow) {
-        console.error(`${LOG} RPC threw`, rpcThrow);
-        return errorResponse(
-          rpcThrow instanceof Error ? rpcThrow.message : String(rpcThrow),
-          400,
-        );
+        try {
+          // Get event context for this tier
+          const { data: tierData } = await admin
+            .from("ticket_tiers")
+            .select("event_id")
+            .eq("id", line.tier_id)
+            .single();
+
+          if (tierData?.event_id) {
+            // Look for oldest pending resales for this tier/event
+            const { data: resells } = await admin
+              .from("ticket_resells")
+              .select("id, ticket_id, tickets!inner(tier_id, event_id)")
+              .eq("status", "pending")
+              .eq("tickets.tier_id", line.tier_id)
+              .eq("tickets.event_id", tierData.event_id)
+              .order("created_at", { ascending: true })
+              .limit(line.quantity);
+
+            if (resells && resells.length > 0) {
+              console.error(`${LOG} Found ${resells.length} resales for tier ${line.tier_id}`);
+              for (const resell of resells) {
+                try {
+                  const completeResellUrl = `${supabaseUrl}/functions/v1/complete-resell`;
+                  console.error(`${LOG} Calling complete-resell for resell_id=${resell.id}`);
+                  const resellRes = await fetch(completeResellUrl, {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "Authorization": `Bearer ${jwt}`,
+                    },
+                    body: JSON.stringify({
+                      ticket_resell_id: resell.id,
+                      new_buyer_id: user.id,
+                      paystack_reference: reference,
+                    }),
+                  });
+
+                  console.error(`${LOG} complete-resell response status=${resellRes.status}`);
+                  const resellBody = await resellRes.text();
+                  console.error(`${LOG} complete-resell response body=${resellBody}`);
+
+                  if (resellRes.ok) {
+                    // Fetch the updated ticket details to match the RPC format
+                    const { data: t } = await admin
+                      .from("tickets")
+                      .select(`
+                        id, 
+                        ticket_code, 
+                        reference, 
+                        amount_paid, 
+                        quantity, 
+                        qr_token,
+                        events (title, venue, city, date, time),
+                        ticket_tiers (name)
+                      `)
+                      .eq("id", resell.ticket_id)
+                      .single();
+
+                    if (t) {
+                      finalizedTickets.push({
+                        id: t.id,
+                        ticket_code: t.ticket_code,
+                        reference: reference,
+                        amount_paid: t.amount_paid,
+                        quantity: t.quantity,
+                        qr_token: t.qr_token,
+                        event_title: (t.events as any)?.title,
+                        tier_name: (t.ticket_tiers as any)?.name,
+                        venue: (t.events as any)?.venue,
+                        city: (t.events as any)?.city,
+                        date: (t.events as any)?.date,
+                        time: (t.events as any)?.time,
+                      });
+                      fulfilledCount++;
+                    }
+                  }
+                } catch (err) {
+                  console.error(`${LOG} complete-resell error:`, err);
+                }
+              }
+            }
+          }
+        } catch (resellErr) {
+          console.error(`${LOG} Resell check pool failed for tier ${line.tier_id}, falling back to new tickets:`, resellErr);
+        }
+
+        const remainingQty = line.quantity - fulfilledCount;
+        if (remainingQty > 0) {
+          remainingLines.push({ tier_id: line.tier_id, quantity: remainingQty });
+        }
+      }
+      */
+
+      // If there are still new tickets to create
+      if (remainingLines.length > 0) {
+        console.error(`${LOG} RPC: finalise_purchase_after_payment for ${remainingLines.length} items`);
+        const rpcArgs = {
+          p_user_id: user.id,
+          p_reference: reference,
+          p_verified_amount_kobo: amountKoboInt,
+          p_items: remainingLines,
+        };
+
+        const { data: rpcData, error: rpcError } = await admin.rpc("finalize_purchase_after_payment", rpcArgs);
+
+        if (rpcError) {
+          console.error(`${LOG} RPC failed`, rpcError);
+          return errorResponse(rpcError.message ?? "Could not complete purchase", 400, {
+            code: rpcError.code,
+            details: rpcError.details,
+          });
+        }
+
+        if (rpcData?.tickets) {
+          finalizedTickets.push(...rpcData.tickets);
+        }
       }
 
-      if (rpcError) {
-        console.error(`${LOG} RPC failed`, {
-          message: rpcError.message,
-          code: rpcError.code,
-          details: rpcError.details,
-          hint: rpcError.hint,
-          full: JSON.stringify(rpcError),
-        });
-        return errorResponse(rpcError.message ?? "Could not complete purchase", 400, {
-          code: rpcError.code,
-          hint: rpcError.hint,
-          details: rpcError.details,
-        });
-      }
-
-      console.error(`${LOG} RPC OK`, {
-        keys: rpcData && typeof rpcData === "object" ? Object.keys(rpcData as object) : rpcData,
-      });
+      const rpcData = { tickets: finalizedTickets };
 
       if (body.coupon_code) {
         try {

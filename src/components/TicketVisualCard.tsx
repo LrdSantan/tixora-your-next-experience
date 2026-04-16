@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 export type TicketVisualModel = {
   reference: string;
   ticketCode?: string;
+  qrToken?: string;
   eventTitle: string;
   eventDate: string;
   eventTime: string;
@@ -40,8 +41,8 @@ export const TicketVisualCard = forwardRef<HTMLDivElement, TicketVisualCardProps
   ref,
 ) {
   const BASE_URL = "https://tixora-your-next-experience.vercel.app";
-  const qrValue = ticket.ticketCode
-    ? `${BASE_URL}/verify/${ticket.ticketCode}`
+  const qrValue = ticket.qrToken
+    ? `${BASE_URL}/verify/${ticket.qrToken}`
     : ticket.reference;
 
   return (
@@ -160,7 +161,7 @@ export const TicketVisualCard = forwardRef<HTMLDivElement, TicketVisualCardProps
               {ticket.isUsed
                 ? "This ticket has already been used."
                 : ticket.ticketCode
-                  ? `Scan to verify: ${ticket.ticketCode}`
+                  ? `Scan to verify QR`
                   : `Scan at entry — ref. ${ticket.reference.slice(0, 10)}…`}
             </p>
           </div>

@@ -34,6 +34,12 @@ const BlogPostPage = React.lazy(() => import("./pages/BlogPost"));
 const PrivacyPage = React.lazy(() => import("./pages/Privacy"));
 const TermsPage = React.lazy(() => import("./pages/Terms"));
 const FAQPage = React.lazy(() => import("./pages/FAQ"));
+const ResellMarketplace = React.lazy(() => import("./pages/ResellMarketplace"));
+const ResellCheckout = React.lazy(() => import("./pages/ResellCheckout"));
+const ClaimTicket = React.lazy(() => import("./pages/ClaimTicket"));
+const SettingsPage = React.lazy(() => import("./pages/Settings"));
+const AdminPayoutsPage = React.lazy(() => import("./pages/AdminPayouts"));
+const HighSpeedScannerPage = React.lazy(() => import("./pages/admin/HighSpeedScanner"));
 
 const queryClient = new QueryClient();
 
@@ -94,7 +100,13 @@ const App = () => (
                 <Route path="/privacy" element={<AppLayout><PrivacyPage /></AppLayout>} />
                 <Route path="/terms" element={<AppLayout><TermsPage /></AppLayout>} />
                 <Route path="/faq" element={<AppLayout><FAQPage /></AppLayout>} />
-                <Route path="/verify/:ticketCode" element={<VerifyTicketPage />} />
+                <Route path="/marketplace" element={<AppLayout><ResellMarketplace /></AppLayout>} />
+                <Route path="/resell/checkout/:resellId" element={<AppLayout><ResellCheckout /></AppLayout>} />
+                <Route path="/claim-ticket/:transferToken" element={<AppLayout><ClaimTicket /></AppLayout>} />
+                <Route path="/settings" element={<AppLayout><SettingsPage /></AppLayout>} />
+                <Route path="/admin/payouts" element={<AppLayout showNav={false}><AdminPayoutsPage /></AppLayout>} />
+                <Route path="/admin/events/:id/scan" element={<AppLayout><HighSpeedScannerPage /></AppLayout>} />
+                <Route path="/verify/:qrToken?" element={<VerifyTicketPage />} />
                 <Route path="*" element={<AppLayout><NotFound /></AppLayout>} />
               </Routes>
             </Suspense>

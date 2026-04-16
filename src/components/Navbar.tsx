@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { ShoppingCart, Menu, X, LogOut, Ticket, Home, Plus, Tag, Users, CalendarDays, ChevronDown } from "lucide-react";
+import { ShoppingCart, Menu, X, LogOut, Ticket, Home, Plus, Tag, Users, CalendarDays, ChevronDown, ScanLine, Wifi } from "lucide-react";
 import TixoraLogo from "./TixoraLogo";
 import { EventSearchInput } from "@/components/EventSearchInput";
 import { useCartStore } from "@/store/cart-store";
@@ -13,6 +13,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/auth-context";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "@/lib/db";
 
 const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -64,6 +66,21 @@ const Navbar = () => {
     user?.email?.split("@")[0] ||
     "Account";
 
+  // Role Detection
+  const userRole = user?.user_metadata?.role as string | undefined;
+  const isEligibleForScanner = isAdmin || userRole === 'organizer' || userRole === 'staff' || isOrganizer;
+
+  // Event ID detection from URL
+  const eventMatch = location.pathname.match(/\/(?:events|admin\/events)\/([^\/]+)/);
+  const currentEventId = eventMatch ? eventMatch[1] : null;
+
+  // Reactive Offline Data Indicator
+  const offlineTicketCount = useLiveQuery(
+    () => currentEventId ? db.tickets.where('event_id').equals(currentEventId).count() : Promise.resolve(0),
+    [currentEventId]
+  );
+  const hasOfflineData = (offlineTicketCount ?? 0) > 0;
+
   return (
     <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -93,6 +110,12 @@ const Navbar = () => {
             <Button variant="ghost" size="sm" className="text-foreground gap-1.5">
               <Ticket className="w-4 h-4" />
               My tickets
+            </Button>
+          </Link>
+          <Link to="/marketplace" className="hidden sm:block">
+            <Button variant="ghost" size="sm" className="text-foreground gap-1.5">
+              <Tag className="w-4 h-4" />
+              Marketplace
             </Button>
           </Link>
           <Link to="/create-event" className="hidden sm:block">
@@ -144,9 +167,36 @@ const Navbar = () => {
                         My Team
                       </Link>
                     </DropdownMenuItem>
+                    {isEligibleForScanner && currentEventId && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                          <Link to={`/admin/events/${currentEventId}/scan`} className="cursor-pointer flex items-center justify-between gap-2">
+                            <span className="flex items-center gap-2">
+                              <ScanLine className="w-4 h-4" />
+                              High-Speed Scanner
+                            </span>
+                            <Wifi className={`w-3.5 h-3.5 ${hasOfflineData ? 'text-green-500 fill-green-500/20' : 'text-muted-foreground/40'}`} />
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    {isAdmin && (
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin/payouts" className="cursor-pointer font-semibold text-primary">
+                          Payout Dashboard
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                   </>
                 )}
+                <DropdownMenuItem asChild>
+                  <Link to="/settings" className="cursor-pointer">
+                    Account Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive cursor-pointer"
                   onClick={() => void signOut()}
@@ -210,6 +260,13 @@ const Navbar = () => {
                 My Tickets
               </Link>
               <Link
+                to="/marketplace"
+                onClick={() => setMobileOpen(false)}
+                className="w-full py-5 text-center text-[19px] font-medium border-b border-muted transition-colors hover:text-primary"
+              >
+                Marketplace
+              </Link>
+              <Link
                 to="/create-event"
                 onClick={() => setMobileOpen(false)}
                 className="w-full py-5 text-center text-[19px] font-medium border-b border-muted transition-colors hover:text-primary"
@@ -247,6 +304,17 @@ const Navbar = () => {
                       >
                         My Team
                       </Link>
+                      {isEligibleForScanner && currentEventId && (
+                        <Link
+                          to={`/admin/events/${currentEventId}/scan`}
+                          onClick={() => setMobileOpen(false)}
+                          className="w-full py-5 text-center text-[19px] font-medium border-b border-muted transition-colors hover:text-primary flex items-center justify-center gap-2"
+                        >
+                          <ScanLine className="w-5 h-5" />
+                          High-Speed Scanner
+                          <Wifi className={`w-4 h-4 ${hasOfflineData ? 'text-green-500 fill-green-500' : 'text-muted-foreground/40'}`} />
+                        </Link>
+                      )}
                     </>
                   )}
                 </>

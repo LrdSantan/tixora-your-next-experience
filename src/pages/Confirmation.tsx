@@ -14,6 +14,7 @@ function toModel(
   return {
     reference: t.reference,
     ticketCode: t.ticketCode,
+    qrToken: t.qrToken,
     eventTitle: t.eventTitle,
     eventDate: t.date,
     eventTime: t.time,
