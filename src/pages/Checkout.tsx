@@ -40,6 +40,76 @@ const ACCENT = "#1A7A4A";
 const ACCENT_LIGHT = "#F4FAF6";
 const ACCENT_BORDER = "#d0ead9";
 
+// Inline quantity input with +/- and typed input
+function QtyInput({
+  value,
+  max,
+  onChange,
+}: {
+  value: number;
+  max: number;
+  onChange: (n: number) => void;
+}) {
+  const [inputVal, setInputVal] = useState(String(value));
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setInputVal(String(value));
+    setError("");
+  }, [value]);
+
+  const commit = (raw: string) => {
+    const n = parseInt(raw, 10);
+    if (isNaN(n) || n < 0) {
+      setError("Invalid number");
+      setInputVal(String(value));
+      return;
+    }
+    if (n > max) {
+      setError(`Max ${max} available`);
+      setInputVal(String(max));
+      onChange(max);
+      return;
+    }
+    setError("");
+    onChange(n);
+  };
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <div className="flex items-center rounded-lg border border-neutral-200 bg-white overflow-hidden">
+        <button
+          type="button"
+          className="flex h-10 w-9 items-center justify-center text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors disabled:opacity-30"
+          onClick={() => onChange(Math.max(0, value - 1))}
+          disabled={value <= 0}
+        >
+          −
+        </button>
+        <input
+          type="number"
+          min={0}
+          max={max}
+          value={inputVal}
+          onChange={(e) => setInputVal(e.target.value)}
+          onBlur={(e) => commit(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && commit(inputVal)}
+          className="w-14 text-center text-sm font-medium text-neutral-900 outline-none border-x border-neutral-200 h-10 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        />
+        <button
+          type="button"
+          className="flex h-10 w-9 items-center justify-center text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors disabled:opacity-30"
+          onClick={() => onChange(Math.min(max, value + 1))}
+          disabled={value >= max}
+        >
+          +
+        </button>
+      </div>
+      {error && <p className="text-xs text-red-500">{error}</p>}
+    </div>
+  );
+}
+
 export default function CheckoutPage() {
   const [step, setStep] = useState(0);
   const [paying, setPaying] = useState(false);
@@ -70,7 +140,6 @@ export default function CheckoutPage() {
     }
   }, [user]);
 
-  // Group cart items by event for display
   const itemsByEvent = useMemo(() => {
     const map = new Map<string, { eventId: string; eventTitle: string; items: typeof items }>();
     for (const item of items) {
@@ -84,7 +153,6 @@ export default function CheckoutPage() {
     return Array.from(map.values());
   }, [items]);
 
-  // Resolve full event objects for each group (for tier details on step 0)
   const eventObjects = useMemo(() => {
     const map = new Map<string, (typeof events)[number]>();
     for (const ev of events) map.set(ev.id, ev);
@@ -94,7 +162,7 @@ export default function CheckoutPage() {
   const lineItems = useMemo(() => items.filter((i) => i.quantity > 0), [items]);
 
   const rawSubtotal = subtotal();
-  
+
   let discountAmount = 0;
   if (appliedCoupon) {
     if (appliedCoupon.discount_type === 'percentage') {
@@ -110,7 +178,7 @@ export default function CheckoutPage() {
     if (!couponCode.trim()) return;
     const supabase = getSupabaseClient();
     if (!supabase) return;
-    
+
     setValidatingCoupon(true);
     try {
       const { data, error } = await supabase
@@ -119,25 +187,24 @@ export default function CheckoutPage() {
         .eq('code', couponCode.trim().toUpperCase())
         .eq('is_active', true)
         .single();
-        
+
       if (error || !data) {
         toast.error("Invalid or expired coupon code");
         setAppliedCoupon(null);
         return;
       }
-      
+
       const now = new Date();
       if (data.expires_at && new Date(data.expires_at) < now) {
         toast.error("This coupon has expired");
         return;
       }
-      
+
       if (data.max_uses && data.uses_count >= data.max_uses) {
-         toast.error("This coupon has reached its usage limit");
-         return;
+        toast.error("This coupon has reached its usage limit");
+        return;
       }
 
-      // If coupon is event-specific, validate it against cart items
       if (data.event_id) {
         const cartHasEvent = items.some((i) => i.eventId === data.event_id);
         if (!cartHasEvent) {
@@ -145,10 +212,9 @@ export default function CheckoutPage() {
           return;
         }
       }
-      
+
       setAppliedCoupon(data);
       toast.success("Coupon applied successfully");
-      
     } catch (err) {
       toast.error("Failed to validate coupon");
     } finally {
@@ -240,7 +306,7 @@ export default function CheckoutPage() {
               lines: lineItems.map((i) => ({ tier_id: i.tierId, quantity: i.quantity })),
             };
             if (appliedCoupon) {
-               payload.coupon_code = appliedCoupon.code;
+              payload.coupon_code = appliedCoupon.code;
             }
 
             const res = await fetch(
@@ -292,7 +358,6 @@ export default function CheckoutPage() {
             clearCart();
             toast.success("Payment successful");
 
-            // Send confirmation email (non-blocking)
             try {
               const uniqueEventTitles = [...new Set(tickets.map(t => t.eventTitle))];
               await fetch(`${supabaseUrl}/functions/v1/send-ticket-email`, {
@@ -354,13 +419,14 @@ export default function CheckoutPage() {
         tierId: tier.id,
         tierName: tier.name,
         unitPrice: tier.price,
-        maxQuantity: tier.remaining_quantity
+        maxQuantity: tier.remaining_quantity,
       });
       if (qty > 1) updateQuantity(tier.id, qty);
     }
   };
 
-  const maxSelectable = (tier: TicketTier) => Math.min(Math.max(0, tier.remaining_quantity), 10);
+  // No artificial cap — respect actual remaining stock
+  const maxSelectable = (tier: TicketTier) => Math.max(0, tier.remaining_quantity);
 
   const SummaryContent = () => (
     <div className="rounded-2xl bg-white p-6 shadow-sm">
@@ -371,18 +437,18 @@ export default function CheckoutPage() {
           {itemsByEvent
             .filter(g => g.items.some(i => i.quantity > 0))
             .map((group) => (
-            <li key={group.eventId}>
-              <p className="text-sm font-bold text-neutral-900 mb-1.5">{group.eventTitle}</p>
-              <ul className="space-y-1 pl-2">
-                {group.items.filter(i => i.quantity > 0).map((item) => (
-                  <li key={item.tierId} className="flex justify-between gap-3 text-neutral-600">
-                    <span>{item.quantity} × {item.tierName}</span>
-                    <span className="shrink-0 tabular-nums">{formatPrice(item.unitPrice * item.quantity)}</span>
-                  </li>
-                ))}
-              </ul>
-            </li>
-          ))}
+              <li key={group.eventId}>
+                <p className="text-sm font-bold text-neutral-900 mb-1.5">{group.eventTitle}</p>
+                <ul className="space-y-1 pl-2">
+                  {group.items.filter(i => i.quantity > 0).map((item) => (
+                    <li key={item.tierId} className="flex justify-between gap-3 text-neutral-600">
+                      <span>{item.quantity} × {item.tierName}</span>
+                      <span className="shrink-0 tabular-nums">{formatPrice(item.unitPrice * item.quantity)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
         </ul>
       )}
 
@@ -405,7 +471,7 @@ export default function CheckoutPage() {
 
       {!appliedCoupon && (
         <div className="mt-4 flex items-center gap-2 border border-neutral-200 rounded-xl px-3 py-2.5">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-neutral-400 flex-shrink-0"><rect x="1" y="4" width="12" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.2"/><path d="M4 4V3a3 3 0 016 0v1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-neutral-400 flex-shrink-0"><rect x="1" y="4" width="12" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.2" /><path d="M4 4V3a3 3 0 016 0v1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>
           <input type="text" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} placeholder="Discount code" className="flex-1 text-sm outline-none text-neutral-700 placeholder-neutral-400 bg-transparent" />
           <button onClick={handleApplyCoupon} disabled={validatingCoupon || !couponCode.trim()} className="text-xs font-semibold transition-colors disabled:opacity-50" style={{ color: ACCENT }}>{validatingCoupon ? "Validating..." : "Apply"}</button>
         </div>
@@ -509,11 +575,11 @@ export default function CheckoutPage() {
                                   {soldOut ? (
                                     <div className="h-10 min-w-[7rem] flex items-center justify-center rounded-lg bg-neutral-100 border border-neutral-200 text-sm font-medium text-neutral-400">Sold Out</div>
                                   ) : (
-                                    <select value={qty} onChange={(e) => setTierQuantity(tier, Number.parseInt(e.target.value, 10), group.eventId, ev.title)} className="h-10 min-w-[5.5rem] rounded-lg border border-neutral-200 bg-white px-3 text-sm font-medium text-neutral-900 shadow-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-offset-1" style={{ "--tw-ring-color": ACCENT } as React.CSSProperties}>
-                                      {Array.from({ length: maxQ + 1 }, (_, n) => (
-                                        <option key={n} value={n}>{n}</option>
-                                      ))}
-                                    </select>
+                                    <QtyInput
+                                      value={qty}
+                                      max={maxQ}
+                                      onChange={(n) => setTierQuantity(tier, n, group.eventId, ev.title)}
+                                    />
                                   )}
                                 </div>
                               </li>
@@ -528,9 +594,11 @@ export default function CheckoutPage() {
                                 <p className="text-sm font-bold uppercase tracking-wide text-neutral-900">{item.tierName}</p>
                                 <p className="text-base font-bold" style={{ color: ACCENT }}>{formatPrice(item.unitPrice)}</p>
                               </div>
-                              <select value={item.quantity} onChange={(e) => updateQuantity(item.tierId, Number.parseInt(e.target.value, 10))} className="h-10 min-w-[5.5rem] rounded-lg border border-neutral-200 bg-white px-3 text-sm font-medium">
-                                {Array.from({ length: 11 }, (_, n) => <option key={n} value={n}>{n}</option>)}
-                              </select>
+                              <QtyInput
+                                value={item.quantity}
+                                max={item.maxQuantity}
+                                onChange={(n) => updateQuantity(item.tierId, n)}
+                              />
                             </li>
                           ))}
                         </ul>
@@ -601,16 +669,16 @@ export default function CheckoutPage() {
                 {itemsByEvent
                   .filter(g => g.items.some(i => i.quantity > 0))
                   .map((group) => (
-                  <div key={group.eventId}>
-                    <p className="text-xs font-bold uppercase tracking-wide text-neutral-500 mb-1">{group.eventTitle}</p>
-                    {group.items.filter(i => i.quantity > 0).map((item) => (
-                      <div key={item.tierId} className="flex justify-between text-sm text-neutral-700 pl-2">
-                        <span>{item.quantity} × {item.tierName}</span>
-                        <span className="font-medium">{formatPrice(item.unitPrice * item.quantity)}</span>
-                      </div>
-                    ))}
-                  </div>
-                ))}
+                    <div key={group.eventId}>
+                      <p className="text-xs font-bold uppercase tracking-wide text-neutral-500 mb-1">{group.eventTitle}</p>
+                      {group.items.filter(i => i.quantity > 0).map((item) => (
+                        <div key={item.tierId} className="flex justify-between text-sm text-neutral-700 pl-2">
+                          <span>{item.quantity} × {item.tierName}</span>
+                          <span className="font-medium">{formatPrice(item.unitPrice * item.quantity)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
                 {appliedCoupon && (
                   <div className="flex justify-between text-sm text-green-700 font-medium pt-1">
                     <span>Discount</span>
@@ -626,12 +694,12 @@ export default function CheckoutPage() {
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button type="button" variant="outline" className="h-11 flex-1 border-neutral-200 rounded-xl" onClick={() => setStep(1)} disabled={paying}>Back</Button>
                 <Button type="button" className="h-11 flex-1 rounded-xl font-semibold text-white active:scale-[0.98] transition-all" style={{ backgroundColor: ACCENT }} onClick={handlePayWithPaystack} disabled={paying || authLoading || !user || finalTotal <= 0}>
-                   {paying ? "Processing…" : `Pay ${formatPrice(finalTotal)}`}
+                  {paying ? "Processing…" : `Pay ${formatPrice(finalTotal)}`}
                 </Button>
               </div>
 
               <p className="text-center text-xs text-neutral-400 mt-4 flex items-center justify-center gap-1">
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="4" width="10" height="7" rx="1.2" stroke="currentColor" strokeWidth="1.1"/><path d="M3.5 4V3a2.5 2.5 0 015 0v1" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/></svg>
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="4" width="10" height="7" rx="1.2" stroke="currentColor" strokeWidth="1.1" /><path d="M3.5 4V3a2.5 2.5 0 015 0v1" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" /></svg>
                 Secured by Paystack
               </p>
             </div>
