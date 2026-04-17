@@ -77,7 +77,13 @@ export async function fetchEvents(filterActive = true): Promise<Event[]> {
       cover_image_url,
       status,
       ticket_tiers (
-        price
+        id,
+        event_id,
+        name,
+        description,
+        price,
+        total_quantity,
+        remaining_quantity
       )
     `
     );
