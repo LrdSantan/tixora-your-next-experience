@@ -23,7 +23,7 @@ export const TicketTiersCarousel = React.memo(function TicketTiersCarousel({ tie
     setQuantities(prev => {
       const currentQty = prev[id] || 1;
       const nextQty = currentQty + delta;
-      return { ...prev, [id]: Math.max(1, Math.min(nextQty, Math.min(10, max))) };
+      return { ...prev, [id]: Math.max(1, Math.min(nextQty, max)) };
     });
   };
 
@@ -123,14 +123,14 @@ export const TicketTiersCarousel = React.memo(function TicketTiersCarousel({ tie
                               type="button"
                               className="flex h-9 w-8 items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors"
                               onClick={() => handleQtyChange(tier.id, 1, tier.remaining_quantity)}
-                              disabled={justAdded || (quantities[tier.id] || 1) >= Math.min(10, tier.remaining_quantity)}
+                              disabled={justAdded || (quantities[tier.id] || 1) >= tier.remaining_quantity}
                             >
                               <Plus className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         )}
                       </div>
-                      
+
                       <Button
                         type="button"
                         size="sm"

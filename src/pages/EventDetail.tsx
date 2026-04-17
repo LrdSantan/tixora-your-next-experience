@@ -13,7 +13,7 @@ import type { TicketTier } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { EventReviews } from "@/components/EventReviews";
 
-const SITE_URL = "https://tixora-your-next-experience.vercel.app";
+const SITE_URL = "https://tixoraafrica.com.ng";
 
 const EventDetailPage = () => {
   const { id } = useParams();
@@ -225,7 +225,7 @@ const EventDetailPage = () => {
                 </div>
               </div>
             </div>
-            
+
             {/* Reviews */}
             <EventReviews eventId={event.id} eventTitle={event.title} />
           </div>
@@ -291,8 +291,8 @@ const EventDetailPage = () => {
                         <button
                           type="button"
                           className="flex h-9 w-7 items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors"
-                          onClick={() => setSidebarQty(q => Math.min(10, Math.min(sidebarTier.remaining_quantity, q + 1)))}
-                          disabled={sidebarTier.remaining_quantity <= 0 || sidebarQty >= Math.min(10, sidebarTier.remaining_quantity)}
+                          onClick={() => setSidebarQty(q => Math.min(sidebarTier.remaining_quantity, q + 1))}
+                          disabled={sidebarTier.remaining_quantity <= 0 || sidebarQty >= sidebarTier.remaining_quantity}
                         >
                           +
                         </button>
