@@ -1,15 +1,25 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { CalendarDays, Plus, MapPin, Calendar, Ticket, Share2 } from "lucide-react";
+import { CalendarDays, Plus, MapPin, Calendar, Ticket, Share2, Landmark, Check, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useAuth } from "@/contexts/auth-context";
 import { getSupabaseClient } from "@/lib/supabase";
 import { formatDate, formatPrice } from "@/lib/mock-data";
 import { getEventImage } from "@/lib/event-image";
 import { EditCoverImageButton } from "@/components/EditCoverImageButton";
+import { cn } from "@/lib/utils";
+
+const NIGERIAN_BANKS = [
+  "Access Bank", "GTBank", "First Bank", "Zenith Bank", "UBA",
+  "Sterling Bank", "Fidelity Bank", "Polaris Bank", "Union Bank",
+  "Wema Bank", "Stanbic IBTC", "FCMB", "Ecobank", "Keystone Bank",
+  "Jaiz Bank", "Opay", "Palmpay", "Kuda Bank", "Moniepoint"
+].sort();
 
 type OrganizerEvent = {
   id: string;
@@ -22,6 +32,9 @@ type OrganizerEvent = {
   cover_image_url: string | null;
   status: string;
   created_at: string;
+  bank_name: string | null;
+  account_number: string | null;
+  account_name: string | null;
   ticket_tiers: Array<{
     id: string;
     name: string;
@@ -41,6 +54,133 @@ const STATUS_STYLES: Record<string, string> = {
 
 const ADMIN_EMAIL = "yusufquadir50@gmail.com";
 const SITE_URL = "https://tixora-your-next-experience.vercel.app";
+
+function OrganizerPayoutModal({ event, onSuccess }: { event: OrganizerEvent, onSuccess: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [bankSearchOpen, setBankSearchOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const supabase = getSupabaseClient();
+  
+  const [formData, setFormData] = useState({
+    bankName: event.bank_name || "",
+    accountNumber: event.account_number || "",
+    accountName: event.account_name || ""
+  });
+
+  const isValid = formData.bankName && formData.accountNumber.length === 10 && formData.accountName;
+
+  const handleUpdate = async () => {
+    if (!supabase || !isValid) return;
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from("events")
+        .update({
+          bank_name: formData.bankName,
+          account_number: formData.accountNumber,
+          account_name: formData.accountName
+        })
+        .eq("id", event.id);
+
+      if (error) throw error;
+      toast.success("Payout details updated!");
+      setOpen(false);
+      onSuccess();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update payout details");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="h-9 gap-1.5 px-3 border-border hover:bg-muted" title="Manage Payout">
+          <Landmark className="w-3.5 h-3.5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Payout Details: {event.title}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Bank Name</label>
+            <Popover open={bankSearchOpen} onOpenChange={setBankSearchOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={bankSearchOpen}
+                  className="w-full justify-between h-10 px-3 font-normal"
+                >
+                  {formData.bankName ? formData.bankName : "Search bank..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                <Command>
+                  <CommandInput placeholder="Search bank..." />
+                  <CommandList>
+                    <CommandEmpty>No bank found.</CommandEmpty>
+                    <CommandGroup>
+                      {NIGERIAN_BANKS.map((bank) => (
+                        <CommandItem
+                          key={bank}
+                          value={bank}
+                          onSelect={(currentValue) => {
+                            setFormData({ ...formData, bankName: currentValue });
+                            setBankSearchOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              formData.bankName === bank ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {bank}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Account Number</label>
+            <Input 
+              placeholder="10 digits" 
+              maxLength={10} 
+              value={formData.accountNumber} 
+              onChange={e => setFormData({ ...formData, accountNumber: e.target.value.replace(/\D/g, "") })} 
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Account Name</label>
+            <Input 
+              placeholder="Name on account" 
+              value={formData.accountName} 
+              onChange={e => setFormData({ ...formData, accountName: e.target.value })} 
+            />
+          </div>
+
+          <Button 
+            className="w-full mt-4" 
+            disabled={!isValid || isSubmitting}
+            onClick={handleUpdate}
+          >
+            {isSubmitting ? "Saving..." : "Save Payout Details"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function OrganizerEventsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -74,6 +214,7 @@ export default function OrganizerEventsPage() {
       .from("events")
       .select(
         `id, title, date, time, venue, city, category, cover_image_url, status, created_at,
+         bank_name, account_number, account_name,
          ticket_tiers ( id, name, price, total_quantity, remaining_quantity )`
       )
       .eq("organizer_id", user.id)
@@ -237,6 +378,7 @@ export default function OrganizerEventsPage() {
                       onSuccess={fetchEvents}
                       className="flex-1"
                     />
+                    <OrganizerPayoutModal event={event} onSuccess={fetchEvents} />
                     <Button
                       variant="outline"
                       size="sm"

@@ -15,6 +15,9 @@ type EventRow = {
   status: string;
   organizer_id: string | null;
   organizer_email: string | null;
+  bank_name: string | null;
+  account_number: string | null;
+  account_name: string | null;
   created_at: string;
   ticket_tiers: TicketTierRow[] | null;
 };
@@ -54,6 +57,9 @@ function mapRow(row: EventRow): Event {
     status: row.status,
     organizer_id: row.organizer_id ?? undefined,
     organizer_email: row.organizer_email ?? undefined,
+    bank_name: row.bank_name ?? undefined,
+    account_number: row.account_number ?? undefined,
+    account_name: row.account_name ?? undefined,
     created_at: row.created_at,
     ticket_tiers: tiers,
   };
@@ -76,6 +82,9 @@ export async function fetchEvents(filterActive = true): Promise<Event[]> {
       category,
       cover_image_url,
       status,
+      bank_name,
+      account_number,
+      account_name,
       ticket_tiers (
         id,
         event_id,
@@ -129,6 +138,9 @@ export async function fetchEventById(id: string): Promise<Event | null> {
       status,
       organizer_id,
       organizer_email,
+      bank_name,
+      account_number,
+      account_name,
       created_at,
       ticket_tiers (
         id,

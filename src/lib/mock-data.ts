@@ -14,6 +14,9 @@ export interface Event {
   organizer_email?: string;
   created_at: string;
   ticket_tiers: TicketTier[];
+  bank_name?: string;
+  account_number?: string;
+  account_name?: string;
 }
 
 export interface TicketTier {

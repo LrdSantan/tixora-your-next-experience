@@ -1,14 +1,24 @@
 import { useState, useMemo } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Plus, Trash2, Upload, Navigation, MapPin, Calendar, Clock } from "lucide-react";
+import { Plus, Trash2, Upload, Navigation, MapPin, Calendar, Clock, Check, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth-context";
 import { CATEGORIES } from "@/lib/mock-data";
+import { cn } from "@/lib/utils";
+
+const NIGERIAN_BANKS = [
+  "Access Bank", "GTBank", "First Bank", "Zenith Bank", "UBA",
+  "Sterling Bank", "Fidelity Bank", "Polaris Bank", "Union Bank",
+  "Wema Bank", "Stanbic IBTC", "FCMB", "Ecobank", "Keystone Bank",
+  "Jaiz Bank", "Opay", "Palmpay", "Kuda Bank", "Moniepoint"
+].sort();
 
 type TierInput = { id: string; name: string; description: string; price: number | ""; quantity: number | "" };
 
@@ -25,7 +35,11 @@ export default function CreateEvent() {
     time: "",
     venue: "",
     city: "",
+    bankName: "",
+    accountNumber: "",
+    accountName: "",
   });
+  const [bankSearchOpen, setBankSearchOpen] = useState(false);
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [tiers, setTiers] = useState<TierInput[]>([
     { id: "1", name: "Regular", description: "General admission", price: 5000, quantity: 100 }
@@ -63,6 +77,15 @@ export default function CreateEvent() {
     if (!formData.category) errs.category = "Category is required.";
     if (!formData.venue.trim()) errs.venue = "Venue is required.";
     if (!formData.city.trim()) errs.city = "City is required.";
+
+    // Payout Details Validation
+    if (!formData.bankName) errs.bankName = "Bank name is required.";
+    if (!formData.accountNumber.trim()) {
+      errs.accountNumber = "Account number is required.";
+    } else if (!/^\d{10}$/.test(formData.accountNumber)) {
+      errs.accountNumber = "Account number must be exactly 10 digits.";
+    }
+    if (!formData.accountName.trim()) errs.accountName = "Account name is required.";
     
     if (!formData.date) {
       errs.date = "Date is required.";
@@ -130,7 +153,10 @@ export default function CreateEvent() {
           banner_url: publicUrlData.publicUrl,
           organizer_id: user!.id,
           organizer_email: user!.email,
-          status: 'active' // SET TO ACTIVE AS PER REQUIREMENT #1
+          status: 'active',
+          bank_name: formData.bankName,
+          account_number: formData.accountNumber,
+          account_name: formData.accountName,
         })
         .select()
         .single();
@@ -287,6 +313,84 @@ export default function CreateEvent() {
                 </div>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* Section 4: Payout Details */}
+        <section className="space-y-6">
+          <h2 className="text-xl font-bold border-b pb-2">4. Payout Details</h2>
+          <p className="text-sm text-muted-foreground">Enter the bank details where you want to receive your payouts from ticket sales.</p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Bank Name <span className="text-destructive">*</span></label>
+              <Popover open={bankSearchOpen} onOpenChange={setBankSearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={bankSearchOpen}
+                    className="w-full justify-between h-11 px-4 font-normal"
+                  >
+                    {formData.bankName ? formData.bankName : "Search bank..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                  <Command>
+                    <CommandInput placeholder="Search bank..." />
+                    <CommandList>
+                      <CommandEmpty>No bank found.</CommandEmpty>
+                      <CommandGroup>
+                        {NIGERIAN_BANKS.map((bank) => (
+                          <CommandItem
+                            key={bank}
+                            value={bank}
+                            onSelect={(currentValue) => {
+                              setFormData({ ...formData, bankName: currentValue });
+                              setBankSearchOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                formData.bankName === bank ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {bank}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {errors.bankName && <p className="text-xs text-destructive">{errors.bankName}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Account Number <span className="text-destructive">*</span></label>
+              <Input 
+                placeholder="e.g. 0123456789" 
+                maxLength={10} 
+                value={formData.accountNumber} 
+                onChange={e => {
+                  const val = e.target.value.replace(/\D/g, "");
+                  setFormData({ ...formData, accountNumber: val });
+                }} 
+              />
+              {errors.accountNumber && <p className="text-xs text-destructive">{errors.accountNumber}</p>}
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-sm font-medium">Account Name <span className="text-destructive">*</span></label>
+              <Input 
+                placeholder="The name on the bank account" 
+                value={formData.accountName} 
+                onChange={e => setFormData({ ...formData, accountName: e.target.value })} 
+              />
+              {errors.accountName && <p className="text-xs text-destructive">{errors.accountName}</p>}
+            </div>
           </div>
         </section>
 

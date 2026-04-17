@@ -229,6 +229,38 @@ function AdminAddCouponModal({ onAdded }: { onAdded: () => void }) {
   );
 }
 
+function AdminPayoutDetailsModal({ event }: { event: Event }) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary hover:bg-primary/10" title="Payout Details">
+          <Landmark className="w-4 h-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Payout Details: {event.title}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="grid grid-cols-3 gap-4 border-b pb-2">
+            <span className="text-sm font-semibold text-muted-foreground">Bank Name</span>
+            <span className="text-sm font-medium col-span-2">{event.bank_name || "Not provided"}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-4 border-b pb-2">
+            <span className="text-sm font-semibold text-muted-foreground">Account Number</span>
+            <span className="text-sm font-medium col-span-2 text-primary font-mono">{event.account_number || "Not provided"}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <span className="text-sm font-semibold text-muted-foreground">Account Name</span>
+            <span className="text-sm font-medium col-span-2">{event.account_name || "Not provided"}</span>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 export default function AdminDashboard() {
   const { user, loading } = useAuth();
   const supabase = getSupabaseClient();
@@ -486,13 +518,14 @@ export default function AdminDashboard() {
                              <PlayCircle className="w-4 h-4 mr-1.5" /> Unsuspend
                            </Button>
                         )}
-                        <EditCoverImageButton 
+                         <EditCoverImageButton 
                           eventId={e.id} 
                           onSuccess={loadData}
                           size="icon"
                           variant="ghost"
                           className="text-muted-foreground hover:text-primary hover:bg-primary/10"
                         />
+                        <AdminPayoutDetailsModal event={e} />
                         <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => deleteEvent(e.id)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -520,10 +553,13 @@ export default function AdminDashboard() {
                       </div>
                       <p className="text-sm text-muted-foreground">{e.category} • {formatDate(e.date)}</p>
                     </div>
-                    <div>
-                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => deleteEvent(e.id)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                     <div>
+                      <div className="flex items-center gap-1">
+                        <AdminPayoutDetailsModal event={e} />
+                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => deleteEvent(e.id)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
