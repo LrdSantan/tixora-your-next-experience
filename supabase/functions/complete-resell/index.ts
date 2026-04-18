@@ -303,7 +303,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             {
               tierName: "Resold Ticket",
               quantity: 1,
-              amountPaid: `₦${Number(resell.refund_amount).toLocaleString("en-NG", {
+              amountPaid: `₦${(Number(resell.refund_amount) / 100).toLocaleString("en-NG", {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}`,

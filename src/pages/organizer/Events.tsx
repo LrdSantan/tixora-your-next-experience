@@ -58,7 +58,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 const ADMIN_EMAIL = "yusufquadir50@gmail.com";
-const SITE_URL = "https://tixora-your-next-experience.vercel.app";
+const SITE_URL = "https://tixoraafrica.com.ng";
 
 function OrganizerPayoutModal({ event, onSuccess }: { event: OrganizerEvent, onSuccess: () => void }) {
   const [open, setOpen] = useState(false);

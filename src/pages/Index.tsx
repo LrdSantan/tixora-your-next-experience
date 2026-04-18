@@ -107,8 +107,8 @@ const HomePage = () => {
         <meta name="description" content="Discover and book tickets for the best events in Nigeria. Concerts, sports, food festivals and more on Tixora." />
         <meta property="og:title" content="Tixora — Book Events in Nigeria" />
         <meta property="og:description" content="Discover and book tickets for the best events in Nigeria." />
-        <meta property="og:image" content="https://tixora-your-next-experience.vercel.app/favicon-32x32.png?v=2" />
-        <meta property="og:url" content="https://tixora-your-next-experience.vercel.app" />
+        <meta property="og:image" content="https://tixoraafrica.com.ng/favicon-32x32.png?v=2" />
+        <meta property="og:url" content="https://tixoraafrica.com.ng" />
       </Helmet>
       <section className="bg-hero text-primary-foreground">
         <div className="container mx-auto px-4 py-20 md:py-28 text-center space-y-6">

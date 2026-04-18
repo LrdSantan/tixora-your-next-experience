@@ -383,6 +383,52 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }
       }
 
+      if (finalizedTickets.length > 0) {
+        try {
+          const functionsBaseUrl = `${supabaseUrl}/functions/v1`;
+          const buyerName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Ticket buyer";
+          
+          const eventTitle = finalizedTickets[0].event_title || "Your Event";
+
+          const emailTickets = finalizedTickets.map(t => ({
+            tierName: t.tier_name || "General Admission",
+            quantity: t.quantity || 1,
+            amountPaid: `₦${(Number(t.amount_paid || 0) / 100).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            venue: t.venue || "Venue",
+            city: t.city || "",
+            date: t.date || "",
+            time: t.time || "",
+            reference: t.reference || reference,
+            ticketCode: t.ticket_code,
+            qrToken: t.qr_token || t.ticket_code
+          }));
+
+          const emailPayload = {
+            type: "ticket_confirmation",
+            buyerName,
+            buyerEmail: user.email,
+            eventTitle,
+            purchasedAt: new Date().toISOString(),
+            tickets: emailTickets
+          };
+
+          const emailRes = await fetch(`${functionsBaseUrl}/send-ticket-email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${serviceRoleKey}`,
+            },
+            body: JSON.stringify(emailPayload),
+          });
+
+          if (!emailRes.ok) {
+            console.error(`${LOG} send-ticket-email failed status=${emailRes.status}`);
+          }
+        } catch (emailErr) {
+          console.error(`${LOG} Error sending email`, emailErr);
+        }
+      }
+
       return successResponse(rpcData);
     } catch (innerErr) {
       const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);

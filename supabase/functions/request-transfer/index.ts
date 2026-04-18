@@ -66,7 +66,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
       const siteUrl =
-        Deno.env.get("SITE_URL") ?? "https://tixora-your-next-experience.vercel.app";
+        Deno.env.get("SITE_URL") ?? "https://tixoraafrica.com.ng";
 
       if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
         const missing = [

@@ -40,7 +40,7 @@ export const TicketVisualCard = forwardRef<HTMLDivElement, TicketVisualCardProps
   { ticket, expired, download, className },
   ref,
 ) {
-  const BASE_URL = "https://tixora-your-next-experience.vercel.app";
+  const BASE_URL = "https://tixoraafrica.com.ng";
   const qrValue = ticket.qrToken
     ? `${BASE_URL}/verify/${ticket.qrToken}`
     : ticket.reference;

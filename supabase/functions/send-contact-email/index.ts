@@ -37,7 +37,7 @@ serve(async (req: Request): Promise<Response> => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Tixora Support <onboarding@resend.dev>",
+        from: "Tixora Support <tickets@tixoraafrica.com.ng>",
         to: ["yusufquadir50@gmail.com"],
         subject: `[Contact Form] ${subject} - from ${name}`,
         html: `

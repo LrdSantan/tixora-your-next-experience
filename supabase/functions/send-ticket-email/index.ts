@@ -45,7 +45,7 @@ function ticketEmailHtml(p: EmailPayload): string {
   const ticketsHtml = p.tickets.map((t, idx) => {
     // encodeURIComponent is safe for URL params
     const tokenToUse = t.qrToken || t.ticketCode;
-    const verifyUrl = `https://tixora-your-next-experience.vercel.app/verify/${tokenToUse}`;
+    const verifyUrl = `https://tixoraafrica.com.ng/verify/${tokenToUse}`;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(verifyUrl)}`;
 
     return `
@@ -90,7 +90,7 @@ function ticketEmailHtml(p: EmailPayload): string {
           ` : (idx === 0 ? `
             <div style="margin-top:24px;text-align:center;">
               <img src="${qrUrl}" alt="QR Code" width="150" height="150" style="display:block;margin:0 auto;border:4px solid #fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);"/>
-              <p style="margin-top:16px;font-size:13px;color:#888;">View all your tickets at: <a href="https://tixora-your-next-experience.vercel.app/my-tickets" style="color:#1A7A4A;">My Tickets</a></p>
+              <p style="margin-top:16px;font-size:13px;color:#888;">View all your tickets at: <a href="https://tixoraafrica.com.ng/my-tickets" style="color:#1A7A4A;">My Tickets</a></p>
             </div>
           ` : ``)}
         </td></tr>
@@ -165,7 +165,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from:"Tixora <onboarding@resend.dev>",
+        from:"Tixora <tickets@tixoraafrica.com.ng>",
         to: [payload.buyerEmail],
         subject: `Your ticket for ${payload.eventTitle} ✓`,
         html: ticketEmailHtml(payload),

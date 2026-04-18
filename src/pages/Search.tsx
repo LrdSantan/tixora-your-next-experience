@@ -21,8 +21,8 @@ const SearchPage = () => {
         <meta name="description" content="Discover and book tickets for the best events in Nigeria. Concerts, sports, food festivals and more on Tixora." />
         <meta property="og:title" content="Tixora — Book Events in Nigeria" />
         <meta property="og:description" content="Discover and book tickets for the best events in Nigeria." />
-        <meta property="og:image" content="https://tixora-your-next-experience.vercel.app/og-default.png" />
-        <meta property="og:url" content="https://tixora-your-next-experience.vercel.app" />
+        <meta property="og:image" content="https://tixoraafrica.com.ng/og-default.png" />
+        <meta property="og:url" content="https://tixoraafrica.com.ng" />
       </Helmet>
       <section className="container mx-auto px-4 py-8">
         <div className="mb-8 border-b border-border pb-6">

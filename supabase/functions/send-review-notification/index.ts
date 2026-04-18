@@ -39,7 +39,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     const starString = "⭐".repeat(payload.rating);
-    const eventUrl = `https://tixora-your-next-experience.vercel.app/events/${payload.event_id}`;
+    const eventUrl = `https://tixoraafrica.com.ng/events/${payload.event_id}`;
 
     const htmlContent = `
       <h2>New Review for ${payload.event_title}</h2>
@@ -56,7 +56,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Tixora <onboarding@resend.dev>",
+        from: "Tixora <tickets@tixoraafrica.com.ng>",
         to: ["yusufquadir50@gmail.com"],
         subject: `New Review on Tixora: ${payload.event_title}`,
         html: htmlContent,
