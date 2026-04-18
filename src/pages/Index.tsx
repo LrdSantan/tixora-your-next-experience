@@ -10,6 +10,7 @@ import { EventCardSkeleton } from "@/components/EventCardSkeleton";
 import { filterEvents, parseDatePreset, type DateFilterPreset } from "@/lib/event-filters";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EventSearchInput } from "@/components/EventSearchInput";
+import { IndexScanAccess } from "@/components/IndexScanAccess";
 
 const CATEGORIES = [
   { name: "Concerts", icon: Music },
@@ -142,6 +143,7 @@ const HomePage = () => {
               Find Events <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
+          <IndexScanAccess />
         </div>
       </section>
 
