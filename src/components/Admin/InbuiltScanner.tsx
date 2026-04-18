@@ -61,6 +61,23 @@ export const InbuiltScanner = ({ onClose }: InbuiltScannerProps) => {
     return () => clearInterval(interval);
   }, []);
 
+  const [mode, setMode] = useState<"online" | "offline">("online");
+  
+  useEffect(() => {
+    const handleOnline = () => setMode("online");
+    const handleOffline = () => setMode("offline");
+    
+    // Check initial state
+    if (!navigator.onLine) setMode("offline");
+    
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
   useEffect(() => {
     const initScanner = async () => {
       try {
@@ -81,7 +98,7 @@ export const InbuiltScanner = ({ onClose }: InbuiltScannerProps) => {
               formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
             },
             async (decodedText) => {
-              if (isScanning.current) return;
+              if (isScanning.current || !decodedText || decodedText.trim().length < 5) return;
               isScanning.current = true;
 
               try {
@@ -180,8 +197,12 @@ export const InbuiltScanner = ({ onClose }: InbuiltScannerProps) => {
         )}
       </div>
       
-      <div className="mt-8 text-center text-white/70">
+      <div className="mt-8 text-center text-white/70 flex flex-col items-center gap-2">
         <p>Position QR Code in the frame</p>
+        <div className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 mt-2">
+          <div className={`mr-2 h-2 w-2 rounded-full ${mode === "online" ? "bg-green-500" : "bg-neutral-500"}`} />
+          <span className="text-xs uppercase tracking-wider">{mode} MODE</span>
+        </div>
       </div>
 
       {/* Bottom Controls */}

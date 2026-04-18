@@ -57,6 +57,30 @@ export async function validateTicketOffline(ticketId: string) {
   const ticket = await db.tickets.where('ticket_id').equals(cleanId).first();
 
   if (!ticket) {
+    if (navigator.onLine) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        const { data, error } = await supabase
+          .from("tickets")
+          .select("id, is_used, ticket_code")
+          .eq("qr_token", cleanId)
+          .single();
+
+        if (!error && data) {
+          if (data.is_used) {
+            return { success: false, message: "Ticket already used" };
+          }
+          // Mark used online
+          const { error: markErr } = await supabase.rpc("mark_ticket_used", {
+            p_ticket_code: data.ticket_code
+          });
+          
+          if (!markErr) {
+            return { success: true, message: "Checked in online!" };
+          }
+        }
+      }
+    }
     return { success: false, message: "Invalid ticket" };
   }
 
