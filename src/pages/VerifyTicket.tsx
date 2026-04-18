@@ -116,6 +116,11 @@ export default function VerifyTicketPage() {
         return;
       }
 
+      let cleanToken = qrToken.trim();
+      if (cleanToken.includes('/verify/')) {
+        cleanToken = cleanToken.split('/verify/').pop() || cleanToken;
+      }
+
       if (!supabase) {
         setPageState("not_found");
         return;
@@ -131,7 +136,7 @@ export default function VerifyTicketPage() {
         for (const key of cacheKeys) {
           try {
             const cachedArray = JSON.parse(localStorage.getItem(key) || '[]');
-            const match = cachedArray.find((t: any) => t.qr_token === qrToken);
+            const match = cachedArray.find((t: any) => t.qr_token === cleanToken);
             if (match) {
               foundTicket = match;
               break;
@@ -176,7 +181,7 @@ export default function VerifyTicketPage() {
           events ( title, date, time, venue, city, organizer_id, is_multi_day, event_days ),
           ticket_tiers ( name )
         `)
-        .eq("qr_token", qrToken)
+        .eq("qr_token", cleanToken)
         .single();
 
       if (error || !data) {

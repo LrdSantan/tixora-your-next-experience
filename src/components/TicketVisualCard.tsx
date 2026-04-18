@@ -40,10 +40,7 @@ export const TicketVisualCard = forwardRef<HTMLDivElement, TicketVisualCardProps
   { ticket, expired, download, className },
   ref,
 ) {
-  const BASE_URL = "https://tixoraafrica.com.ng";
-  const qrValue = ticket.qrToken
-    ? `${BASE_URL}/verify/${ticket.qrToken}`
-    : ticket.reference;
+  const qrValue = ticket.qrToken || ticket.reference;
 
   return (
     <div className={cn("rounded-xl border border-border bg-card shadow-sm", className)}>

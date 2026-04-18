@@ -29,7 +29,7 @@ export async function syncTicketsToLocal(eventId: string) {
   // Fetch active tickets for the event from Supabase
   const { data: remoteTickets, error } = await supabase
     .from('tickets')
-    .select('id, status')
+    .select('id, qr_token, status')
     .eq('event_id', eventId)
     .eq('status', 'active');
 
@@ -40,7 +40,7 @@ export async function syncTicketsToLocal(eventId: string) {
 
   if (remoteTickets && remoteTickets.length > 0) {
     const localTickets: LocalTicket[] = remoteTickets.map(t => ({
-      ticket_id: t.id,
+      ticket_id: t.qr_token || t.id, // qr_token is what scanners read
       event_id: eventId,
       status: 'active',
       synced: true
@@ -50,7 +50,11 @@ export async function syncTicketsToLocal(eventId: string) {
 }
 
 export async function validateTicketOffline(ticketId: string) {
-  const ticket = await db.tickets.where('ticket_id').equals(ticketId).first();
+  let cleanId = ticketId.trim();
+  if (cleanId.includes('/verify/')) {
+    cleanId = cleanId.split('/verify/').pop() || cleanId;
+  }
+  const ticket = await db.tickets.where('ticket_id').equals(cleanId).first();
 
   if (!ticket) {
     return { success: false, message: "Invalid ticket" };
