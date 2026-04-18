@@ -162,11 +162,7 @@ const Navbar = () => {
                         My Events
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to="/organizer/coupons" className="cursor-pointer">
-                        My Coupons
-                      </Link>
-                    </DropdownMenuItem>
+
                     <DropdownMenuItem asChild>
                       <Link to="/organizer/team" className="cursor-pointer">
                         My Team
@@ -302,13 +298,7 @@ const Navbar = () => {
                       >
                         My Events
                       </Link>
-                      <Link
-                        to="/organizer/coupons"
-                        onClick={() => setMobileOpen(false)}
-                        className="w-full py-5 text-center text-[19px] font-medium border-b border-muted transition-colors hover:text-primary"
-                      >
-                        My Coupons
-                      </Link>
+
                       <Link
                         to="/organizer/team"
                         onClick={() => setMobileOpen(false)}

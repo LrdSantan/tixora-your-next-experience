@@ -15,6 +15,7 @@ import { formatDate, formatPrice } from "@/lib/mock-data";
 import { formatEventDateDisplay } from "@/lib/date-utils";
 import { getEventImage } from "@/lib/event-image";
 import { EditCoverImageButton } from "@/components/EditCoverImageButton";
+import { OrganizerCouponsModal } from "@/components/OrganizerCouponsModal";
 import { cn } from "@/lib/utils";
 
 const NIGERIAN_BANKS = [
@@ -383,6 +384,7 @@ export default function OrganizerEventsPage() {
                       onSuccess={fetchEvents}
                       className="flex-1"
                     />
+                    <OrganizerCouponsModal eventId={event.id} eventTitle={event.title} />
                     <OrganizerPayoutModal event={event} onSuccess={fetchEvents} />
                     <Button
                       variant="outline"

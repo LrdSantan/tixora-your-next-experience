@@ -54,7 +54,7 @@ export default function FAQ() {
         },
         {
           q: "Can I create discount codes?",
-          a: "Yes, go to My Coupons in your account to create percentage or fixed discount codes for your events."
+          a: "Yes, go to My Events in your organizer dashboard, and click the Coupons icon on any event to create percentage or fixed discount codes specifically for that event."
         },
         {
           q: "When do I receive my payout?",

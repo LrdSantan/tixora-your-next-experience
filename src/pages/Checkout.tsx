@@ -210,9 +210,12 @@ export default function CheckoutPage() {
       if (data.event_id) {
         const cartHasEvent = items.some((i) => i.eventId === data.event_id);
         if (!cartHasEvent) {
-          toast.error("This coupon is only valid for a specific event not in your cart");
+          toast.error("This coupon is not valid for this event");
           return;
         }
+      } else {
+        toast.error("Invalid coupon configuration");
+        return;
       }
 
       setAppliedCoupon(data);

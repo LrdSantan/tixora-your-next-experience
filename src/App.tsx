@@ -26,7 +26,7 @@ const CreateEvent = React.lazy(() => import("./pages/CreateEvent"));
 const AdminDashboard = React.lazy(() => import("./pages/AdminDashboard"));
 const VerifyTicketPage = React.lazy(() => import("./pages/VerifyTicket"));
 const SearchPage = React.lazy(() => import("./pages/Search"));
-const OrganizerCouponsPage = React.lazy(() => import("./pages/organizer/Coupons"));
+
 const OrganizerTeamPage = React.lazy(() => import("./pages/organizer/Team"));
 const AboutPage = React.lazy(() => import("./pages/About"));
 const ContactPage = React.lazy(() => import("./pages/Contact"));
@@ -93,7 +93,7 @@ const App = () => (
                 <Route path="/search" element={<AppLayout><SearchPage /></AppLayout>} />
                 <Route path="/organizer/dashboard" element={<AppLayout><OrganizerDashboard /></AppLayout>} />
                 <Route path="/organizer/events" element={<AppLayout><OrganizerEventsPage /></AppLayout>} />
-                <Route path="/organizer/coupons" element={<AppLayout><OrganizerCouponsPage /></AppLayout>} />
+
                 <Route path="/organizer/team" element={<AppLayout><OrganizerTeamPage /></AppLayout>} />
                 <Route path="/about" element={<AppLayout><AboutPage /></AppLayout>} />
                 <Route path="/contact" element={<AppLayout><ContactPage /></AppLayout>} />
