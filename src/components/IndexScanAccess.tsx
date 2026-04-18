@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { getSupabaseClient } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
-import { QrCode, ArrowRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { QrCode, ArrowRight, Search } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,14 @@ export function IndexScanAccess() {
   const [hasAccess, setHasAccess] = useState(false);
   const [open, setOpen] = useState(false);
   const [loadingEvents, setLoadingEvents] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredEvents = useMemo(() => {
+    if (!searchQuery.trim()) return events;
+    return events.filter(e => 
+      e.title.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [events, searchQuery]);
 
   useEffect(() => {
     if (loading || !user || !supabase) return;
@@ -116,6 +125,18 @@ export function IndexScanAccess() {
           </DialogHeader>
           
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 bg-neutral-50/50">
+            {!loadingEvents && events.length > 0 && (
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search events..." 
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="pl-9 bg-white"
+                />
+              </div>
+            )}
+
             {loadingEvents ? (
               <div className="space-y-3">
                  <Skeleton className="h-20 w-full rounded-2xl bg-white border border-neutral-100 shadow-sm" />
@@ -130,8 +151,16 @@ export function IndexScanAccess() {
                 <h3 className="text-neutral-900 font-bold mb-1">No active events</h3>
                 <p className="text-sm text-neutral-500">You don't have any events to scan tickets for.</p>
               </div>
+            ) : filteredEvents.length === 0 ? (
+             <div className="text-center py-12 flex flex-col items-center">
+               <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mb-4">
+                 <Search className="w-8 h-8 text-neutral-400" />
+               </div>
+               <h3 className="text-neutral-900 font-bold mb-1">No events found</h3>
+               <p className="text-sm text-neutral-500">No events matched your search.</p>
+             </div>
             ) : (
-             events.map(event => (
+             filteredEvents.map(event => (
                <button
                  key={event.id}
                  onClick={() => navigate(`/admin/events/${event.id}/scan`)}
