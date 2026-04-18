@@ -17,6 +17,9 @@ export interface Event {
   bank_name?: string;
   account_number?: string;
   account_name?: string;
+  payout_status?: string;
+  is_multi_day?: boolean;
+  event_days?: string[];
 }
 
 export interface TicketTier {

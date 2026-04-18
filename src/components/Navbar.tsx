@@ -153,6 +153,11 @@ const Navbar = () => {
                 {isOrganizer && (
                   <>
                     <DropdownMenuItem asChild>
+                      <Link to="/organizer/dashboard" className="cursor-pointer font-semibold text-[#1a7a4a]">
+                        Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
                       <Link to="/organizer/events" className="cursor-pointer">
                         My Events
                       </Link>
@@ -283,6 +288,13 @@ const Navbar = () => {
                 <>
                   {isOrganizer && (
                     <>
+                      <Link
+                        to="/organizer/dashboard"
+                        onClick={() => setMobileOpen(false)}
+                        className="w-full py-5 text-center text-[19px] font-bold text-[#1a7a4a] border-b border-muted transition-colors"
+                      >
+                        Dashboard
+                      </Link>
                       <Link
                         to="/organizer/events"
                         onClick={() => setMobileOpen(false)}

@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { CalendarDays, Plus, MapPin, Calendar, Ticket, Share2, Landmark, Check, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -10,6 +12,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { useAuth } from "@/contexts/auth-context";
 import { getSupabaseClient } from "@/lib/supabase";
 import { formatDate, formatPrice } from "@/lib/mock-data";
+import { formatEventDateDisplay } from "@/lib/date-utils";
 import { getEventImage } from "@/lib/event-image";
 import { EditCoverImageButton } from "@/components/EditCoverImageButton";
 import { cn } from "@/lib/utils";
@@ -35,6 +38,8 @@ type OrganizerEvent = {
   bank_name: string | null;
   account_number: string | null;
   account_name: string | null;
+  is_multi_day: boolean | null;
+  event_days: string[] | null;
   ticket_tiers: Array<{
     id: string;
     name: string;
@@ -214,7 +219,7 @@ export default function OrganizerEventsPage() {
       .from("events")
       .select(
         `id, title, date, time, venue, city, category, cover_image_url, status, created_at,
-         bank_name, account_number, account_name,
+         bank_name, account_number, account_name, is_multi_day, event_days,
          ticket_tiers ( id, name, price, total_quantity, remaining_quantity )`
       )
       .eq("organizer_id", user.id)
@@ -351,7 +356,7 @@ export default function OrganizerEventsPage() {
                   <div className="mt-2 space-y-1 text-xs text-muted-foreground">
                     <div className="flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5 shrink-0" />
-                      <span>{formatDate(event.date)} · {event.time}</span>
+                      <span>{formatEventDateDisplay(event.date, event.is_multi_day || false, event.event_days || [])} · {event.time}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <MapPin className="w-3.5 h-3.5 shrink-0" />

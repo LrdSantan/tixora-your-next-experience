@@ -29,11 +29,13 @@ type TicketData = {
     venue: string;
     city: string;
     organizer_id: string | null;
+    is_multi_day: boolean | null;
+    event_days: string[] | null;
   } | null;
   ticket_tiers: { name: string } | null;
 };
 
-type PageState = "loading" | "not_found" | "valid" | "used" | "idle";
+type PageState = "loading" | "not_found" | "valid" | "used" | "scanned_today" | "idle";
 
 const playFeedbackSound = (type: "success" | "error") => {
   try {
@@ -171,7 +173,7 @@ export default function VerifyTicketPage() {
           created_at,
           qr_token,
           event_id,
-          events ( title, date, time, venue, city, organizer_id ),
+          events ( title, date, time, venue, city, organizer_id, is_multi_day, event_days ),
           ticket_tiers ( name )
         `)
         .eq("qr_token", qrToken)
@@ -192,6 +194,21 @@ export default function VerifyTicketPage() {
       if (isPending) {
         setIsPendingSync(true);
         setPageState("used");
+      } else if (data.events?.is_multi_day) {
+        // Multi-day event: check if already scanned today
+        const today = new Date().toISOString().split('T')[0];
+        const { data: scanData } = await supabase
+          .from("ticket_scans")
+          .select("id")
+          .eq("ticket_id", data.id)
+          .eq("scan_date", today)
+          .maybeSingle();
+        
+        if (scanData) {
+          setPageState("scanned_today");
+        } else {
+          setPageState("valid");
+        }
       } else {
         setIsPendingSync(false);
         setPageState(data.is_used ? "used" : "valid");
@@ -345,6 +362,8 @@ export default function VerifyTicketPage() {
     if (!supabase || !ticket) return;
     setMarking(true);
 
+    const isMultiDay = ticket.events?.is_multi_day;
+
     try {
       // ── Offline Mode Handler ──
       if (!navigator.onLine) {
@@ -365,31 +384,63 @@ export default function VerifyTicketPage() {
         return;
       }
 
-      const { data, error } = await supabase.rpc("mark_ticket_used", {
-        p_ticket_code: ticket.ticket_code,
-      });
+      if (isMultiDay) {
+        // ── Multi-Day: Insert a scan record for today ──
+        const today = new Date().toISOString().split('T')[0];
+        const { error: scanError } = await supabase
+          .from("ticket_scans")
+          .insert({
+            ticket_id: ticket.id,
+            event_id: ticket.event_id,
+            scan_date: today,
+            scanner_id: user?.id ?? null,
+          });
 
-      if (error) throw error;
+        if (scanError) {
+          // Unique constraint violation means already scanned today
+          if (scanError.code === '23505') {
+            setPageState("scanned_today");
+            toast.warning("This ticket was already scanned today.");
+          } else {
+            throw scanError;
+          }
+          return;
+        }
 
-      // Call the edge function to rotate the QR token
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      await fetch("https://hxvgoavigoopcgbmvltf.supabase.co/functions/v1/rotate-qr-token", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": anonKey,
-          "Authorization": `Bearer ${anonKey}`,
-        },
-        body: JSON.stringify({ ticketId: ticket.id }),
-      });
+        setPageState("used");
+        setIsJustMarked(true);
+        setCountdown(3);
+        scanCountRef.current += 1;
+        setDisplayScanCount(scanCountRef.current);
+        toast.success("Entry recorded for today!");
+      } else {
+        // ── Single-Day: Mark ticket as permanently used ──
+        const { data, error } = await supabase.rpc("mark_ticket_used", {
+          p_ticket_code: ticket.ticket_code,
+        });
 
-      setTicket((prev) => prev ? { ...prev, is_used: true, used_at: new Date().toISOString() } : prev);
-      setPageState("used");
-      setIsJustMarked(true);
-      setCountdown(3);
-      scanCountRef.current += 1;
-      setDisplayScanCount(scanCountRef.current);
-      toast.success("Ticket marked as used successfully");
+        if (error) throw error;
+
+        // Call the edge function to rotate the QR token
+        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        await fetch("https://hxvgoavigoopcgbmvltf.supabase.co/functions/v1/rotate-qr-token", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": anonKey,
+            "Authorization": `Bearer ${anonKey}`,
+          },
+          body: JSON.stringify({ ticketId: ticket.id }),
+        });
+
+        setTicket((prev) => prev ? { ...prev, is_used: true, used_at: new Date().toISOString() } : prev);
+        setPageState("used");
+        setIsJustMarked(true);
+        setCountdown(3);
+        scanCountRef.current += 1;
+        setDisplayScanCount(scanCountRef.current);
+        toast.success("Ticket marked as used successfully");
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to mark ticket as used");
     } finally {
@@ -477,6 +528,35 @@ export default function VerifyTicketPage() {
   const ev = ticket?.events;
   const tierName = ticket?.ticket_tiers?.name ?? "Ticket";
   const amountPaid = ticket ? `₦${(ticket.amount_paid / 100).toLocaleString()}` : "";
+
+  // ── Already Scanned Today (multi-day) ──
+  if (pageState === "scanned_today") {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8 sm:py-12 w-full overflow-x-hidden relative">
+        <ScanCounter count={displayScanCount} />
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border p-6 sm:p-8 overflow-hidden">
+          <div className="text-center mb-6">
+            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-amber-100 mx-auto mb-4">
+              <AlertTriangle className="w-8 h-8 text-amber-600" />
+            </div>
+            <h1 className="text-2xl font-extrabold text-neutral-900">Already Scanned Today</h1>
+            <p className="mt-2 text-sm text-neutral-500">
+              This ticket was already used for entry on{" "}
+              {new Date().toLocaleDateString("en-NG", { dateStyle: "long" })}.
+            </p>
+          </div>
+
+          <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 mb-6">
+            <p className="text-sm font-semibold text-amber-700">⚠️ Do not grant entry again today. This is a multi-day ticket — it is valid on other event days.</p>
+          </div>
+
+          <TicketDetailCard ticket={ticket!} ev={ev} tierName={tierName} amountPaid={amountPaid} />
+
+          <Link to="/" className="mt-6 inline-block text-sm text-primary hover:underline">← Back to Tixora</Link>
+        </div>
+      </div>
+    );
+  }
 
   // ── Used ──
   if (pageState === "used") {

@@ -3,6 +3,7 @@ import { MapPin, Calendar, Clock, ArrowLeft, Tag } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { formatPrice, formatDate } from "@/lib/mock-data";
+import { formatEventDateDisplay } from "@/lib/date-utils";
 import { getEventImage } from "@/lib/event-image";
 import { useCartStore } from "@/store/cart-store";
 import { useState, useEffect } from "react";
@@ -150,7 +151,7 @@ const EventDetailPage = () => {
             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-primary" />
-                {formatDate(event.date)}
+                {formatEventDateDisplay(event.date, event.is_multi_day || false, event.event_days || [])}
               </span>
               <span className="flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-primary" />
@@ -239,7 +240,7 @@ const EventDetailPage = () => {
                 <h3 className="font-bold text-foreground">Quick Summary</h3>
                 <div className="text-sm space-y-2 text-muted-foreground">
                   <p>
-                    <span className="font-medium text-foreground">Date:</span> {formatDate(event.date)}
+                    <span className="font-medium text-foreground">Date:</span> {formatEventDateDisplay(event.date, event.is_multi_day || false, event.event_days || [])}
                   </p>
                   <p>
                     <span className="font-medium text-foreground">Time:</span> {event.time}

@@ -18,6 +18,7 @@ type EventRow = {
   bank_name: string | null;
   account_number: string | null;
   account_name: string | null;
+  payout_status: string | null;
   created_at: string;
   ticket_tiers: TicketTierRow[] | null;
 };
@@ -60,6 +61,7 @@ function mapRow(row: EventRow): Event {
     bank_name: row.bank_name ?? undefined,
     account_number: row.account_number ?? undefined,
     account_name: row.account_name ?? undefined,
+    payout_status: row.payout_status ?? 'unpaid',
     created_at: row.created_at,
     ticket_tiers: tiers,
   };
@@ -85,6 +87,7 @@ export async function fetchEvents(filterActive = true): Promise<Event[]> {
       bank_name,
       account_number,
       account_name,
+      payout_status,
       ticket_tiers (
         id,
         event_id,
@@ -141,6 +144,7 @@ export async function fetchEventById(id: string): Promise<Event | null> {
       bank_name,
       account_number,
       account_name,
+      payout_status,
       created_at,
       ticket_tiers (
         id,

@@ -1,13 +1,14 @@
 import { useState, useMemo } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Plus, Trash2, Upload, Navigation, MapPin, Calendar, Clock, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, Trash2, Upload, Navigation, MapPin, Calendar, Clock, Check, ChevronsUpDown, CalendarRange } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Switch } from "@/components/ui/switch";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth-context";
 import { CATEGORIES } from "@/lib/mock-data";
@@ -41,6 +42,8 @@ export default function CreateEvent() {
   });
   const [bankSearchOpen, setBankSearchOpen] = useState(false);
   const [coverImage, setCoverImage] = useState<File | null>(null);
+  const [isMultiDay, setIsMultiDay] = useState(false);
+  const [endDate, setEndDate] = useState("");
   const [tiers, setTiers] = useState<TierInput[]>([
     { id: "1", name: "Regular", description: "General admission", price: 5000, quantity: 100 }
   ]);
@@ -87,14 +90,30 @@ export default function CreateEvent() {
     }
     if (!formData.accountName.trim()) errs.accountName = "Account name is required.";
     
-    if (!formData.date) {
-      errs.date = "Date is required.";
+    if (!isMultiDay) {
+      if (!formData.date) {
+        errs.date = "Date is required.";
+      } else {
+        const selectedDate = new Date(formData.date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (selectedDate < today) {
+          errs.date = "Event date must be in the future.";
+        }
+      }
     } else {
-      const selectedDate = new Date(formData.date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (selectedDate < today) {
-        errs.date = "Event date must be in the future.";
+      if (!formData.date) errs.date = "Start date is required.";
+      if (!endDate) errs.endDate = "End date is required.";
+      if (formData.date && endDate && endDate <= formData.date) {
+        errs.endDate = "End date must be after start date.";
+      }
+      if (formData.date) {
+        const selectedDate = new Date(formData.date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (selectedDate < today) {
+          errs.date = "Start date must be in the future.";
+        }
       }
     }
     if (!formData.time) errs.time = "Time is required.";
@@ -115,6 +134,18 @@ export default function CreateEvent() {
   }, [formData, coverImage, tiers]);
 
   const isValid = Object.keys(errors).length === 0;
+
+  // Generate array of date strings between start and end date (inclusive)
+  const generateEventDays = (start: string, end: string): string[] => {
+    const days: string[] = [];
+    const current = new Date(start);
+    const endDate = new Date(end);
+    while (current <= endDate) {
+      days.push(current.toISOString().split('T')[0]);
+      current.setDate(current.getDate() + 1);
+    }
+    return days;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,6 +188,8 @@ export default function CreateEvent() {
           bank_name: formData.bankName,
           account_number: formData.accountNumber,
           account_name: formData.accountName,
+          is_multi_day: isMultiDay,
+          event_days: isMultiDay ? generateEventDays(formData.date, endDate) : [],
         })
         .select()
         .single();
@@ -249,18 +282,77 @@ export default function CreateEvent() {
         {/* Section 2: Date & Location */}
         <section className="space-y-6">
           <h2 className="text-xl font-bold border-b pb-2">2. Date & Location</h2>
-          
+
+          {/* Multi-day toggle */}
+          <div className="flex items-center justify-between p-4 rounded-xl bg-muted/40 border border-border">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <CalendarRange className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Multi-day event</p>
+                <p className="text-xs text-muted-foreground">Event spans across multiple days</p>
+              </div>
+            </div>
+            <Switch
+              id="multi-day-toggle"
+              checked={isMultiDay}
+              onCheckedChange={(checked) => {
+                setIsMultiDay(checked);
+                if (!checked) setEndDate("");
+              }}
+            />
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-2"><Calendar className="w-4 h-4" /> Date <span className="text-destructive">*</span></label>
+              <label className="text-sm font-medium flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                {isMultiDay ? "Start Date" : "Date"} <span className="text-destructive">*</span>
+              </label>
               <Input type="date" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} />
               {errors.date && <p className="text-xs text-destructive">{errors.date}</p>}
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-2"><Clock className="w-4 h-4" /> Start Time <span className="text-destructive">*</span></label>
-              <Input type="time" value={formData.time} onChange={e => setFormData({ ...formData, time: e.target.value })} />
-              {errors.time && <p className="text-xs text-destructive">{errors.time}</p>}
-            </div>
+
+            {isMultiDay ? (
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  End Date <span className="text-destructive">*</span>
+                </label>
+                <Input
+                  type="date"
+                  value={endDate}
+                  min={formData.date || undefined}
+                  onChange={e => setEndDate(e.target.value)}
+                />
+                {(errors as any).endDate && <p className="text-xs text-destructive">{(errors as any).endDate}</p>}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-2"><Clock className="w-4 h-4" /> Start Time <span className="text-destructive">*</span></label>
+                <Input type="time" value={formData.time} onChange={e => setFormData({ ...formData, time: e.target.value })} />
+                {errors.time && <p className="text-xs text-destructive">{errors.time}</p>}
+              </div>
+            )}
+
+            {isMultiDay && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-2"><Clock className="w-4 h-4" /> Start Time <span className="text-destructive">*</span></label>
+                <Input type="time" value={formData.time} onChange={e => setFormData({ ...formData, time: e.target.value })} />
+                {errors.time && <p className="text-xs text-destructive">{errors.time}</p>}
+              </div>
+            )}
+
+            {isMultiDay && formData.date && endDate && endDate > formData.date && (
+              <div className="col-span-full">
+                <div className="rounded-xl bg-primary/5 border border-primary/20 p-3 text-sm text-primary font-medium flex items-center gap-2">
+                  <CalendarRange className="w-4 h-4 shrink-0" />
+                  This event will span {generateEventDays(formData.date, endDate).length} days: {generateEventDays(formData.date, endDate).map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })).join(', ')}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2"><MapPin className="w-4 h-4" /> Venue Name <span className="text-destructive">*</span></label>
               <Input placeholder="e.g. Eko Convention Centre" value={formData.venue} onChange={e => setFormData({ ...formData, venue: e.target.value })} />

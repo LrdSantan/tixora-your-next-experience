@@ -3,7 +3,9 @@ import { Link } from "react-router-dom";
 import { MapPin, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatPrice, formatDate, type Event } from "@/lib/mock-data";
+import { formatEventDateDisplay } from "@/lib/date-utils";
 import { getEventImage } from "@/lib/event-image";
+import { Badge } from "@/components/ui/badge";
 
 interface EventCardProps {
   event: Event;
@@ -24,6 +26,11 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
             width={800}
             height={512}
           />
+          {event.is_multi_day && (
+            <Badge className="absolute top-2 right-2 bg-primary text-primary-foreground border-none font-bold text-[10px] px-2 py-0.5 shadow-sm uppercase tracking-tighter">
+              Multi-day
+            </Badge>
+          )}
         </div>
         <div className="p-4 flex flex-col flex-1">
           <span className="inline-block text-[11px] font-semibold uppercase tracking-wider text-primary bg-accent px-2.5 py-1 rounded-full w-fit">
@@ -35,7 +42,7 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
           </h3>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2">
             <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
-            <span>{formatDate(event.date)}</span>
+            <span>{formatEventDateDisplay(event.date, event.is_multi_day || false, event.event_days || [])}</span>
           </div>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
             <MapPin className="w-3.5 h-3.5 flex-shrink-0" />

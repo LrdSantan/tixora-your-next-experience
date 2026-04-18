@@ -11,6 +11,8 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import CartDrawer from "@/components/CartDrawer";
 import { InviteBanner } from "@/components/InviteBanner";
+import OrganizerEventsPage from '@/pages/organizer/Events';
+import OrganizerDashboard from '@/pages/organizer/Dashboard';
 
 const Index = React.lazy(() => import("./pages/Index"));
 const EventDetail = React.lazy(() => import("./pages/EventDetail"));
@@ -26,7 +28,6 @@ const VerifyTicketPage = React.lazy(() => import("./pages/VerifyTicket"));
 const SearchPage = React.lazy(() => import("./pages/Search"));
 const OrganizerCouponsPage = React.lazy(() => import("./pages/organizer/Coupons"));
 const OrganizerTeamPage = React.lazy(() => import("./pages/organizer/Team"));
-const OrganizerEventsPage = React.lazy(() => import("./pages/organizer/Events"));
 const AboutPage = React.lazy(() => import("./pages/About"));
 const ContactPage = React.lazy(() => import("./pages/Contact"));
 const BlogPage = React.lazy(() => import("./pages/Blog"));
@@ -90,6 +91,7 @@ const App = () => (
                 <Route path="/create-event" element={<AppLayout><CreateEvent /></AppLayout>} />
                 <Route path="/admin" element={<AppLayout showNav={false}><AdminDashboard /></AppLayout>} />
                 <Route path="/search" element={<AppLayout><SearchPage /></AppLayout>} />
+                <Route path="/organizer/dashboard" element={<AppLayout><OrganizerDashboard /></AppLayout>} />
                 <Route path="/organizer/events" element={<AppLayout><OrganizerEventsPage /></AppLayout>} />
                 <Route path="/organizer/coupons" element={<AppLayout><OrganizerCouponsPage /></AppLayout>} />
                 <Route path="/organizer/team" element={<AppLayout><OrganizerTeamPage /></AppLayout>} />

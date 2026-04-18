@@ -152,8 +152,8 @@ export function BankSettings() {
               <SelectValue placeholder={banksLoading ? "Loading banks..." : "Choose a bank"} />
             </SelectTrigger>
             <SelectContent>
-              {banks?.map((bank) => (
-                <SelectItem key={bank.code} value={bank.code}>
+              {banks?.map((bank, index) => (
+                <SelectItem key={`${bank.code}-${index}`} value={bank.code}>
                   {bank.name}
                 </SelectItem>
               ))}
