@@ -111,13 +111,130 @@ function QtyInput({
   );
 }
 
+interface SummaryContentProps {
+  lineItems: any[];
+  itemsByEvent: { eventId: string; eventTitle: string; items: any[] }[];
+  fees: number;
+  rawSubtotal: number;
+  appliedCoupon: {
+    code: string;
+    discount_type: 'percentage' | 'fixed';
+    discount_value: number;
+    event_id?: string | null;
+  } | null;
+  removeCoupon: () => void;
+  couponCode: string;
+  setCouponCode: (val: string) => void;
+  handleApplyCoupon: () => void;
+  validatingCoupon: boolean;
+  step: number;
+  finalTotal: number;
+  setStep: (step: number) => void;
+  isGuest: boolean;
+}
+
+const SummaryContent = ({
+  lineItems,
+  itemsByEvent,
+  fees,
+  rawSubtotal,
+  appliedCoupon,
+  removeCoupon,
+  couponCode,
+  setCouponCode,
+  handleApplyCoupon,
+  validatingCoupon,
+  step,
+  finalTotal,
+  setStep,
+  isGuest
+}: SummaryContentProps) => (
+  <div className="rounded-2xl bg-white p-6 shadow-sm">
+    {lineItems.length === 0 ? (
+      <p className="text-neutral-400 text-sm">No tickets selected yet.</p>
+    ) : (
+      <ul className="space-y-4 text-sm">
+        {itemsByEvent
+          .filter(g => g.items.some(i => i.quantity > 0))
+          .map((group) => (
+            <li key={group.eventId}>
+              <p className="text-sm font-bold text-neutral-900 mb-1.5">{group.eventTitle}</p>
+              <ul className="space-y-1 pl-2">
+                {group.items.filter(i => i.quantity > 0).map((item) => (
+                  <li key={item.tierId} className="flex justify-between gap-3 text-neutral-600">
+                    <span>{item.quantity} × {item.tierName}</span>
+                    <span className="shrink-0 tabular-nums">{formatPrice((Number(item.unitPrice) || 0) * (Number(item.quantity) || 0))}</span>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+      </ul>
+    )}
+
+    <ul className="mt-4 space-y-3 text-sm">
+      <li className="flex justify-between gap-3 text-neutral-500">
+        <span className="inline-flex items-center gap-1">Fees<Info className="h-3.5 w-3.5 text-neutral-400" /></span>
+        <span className="tabular-nums">{formatPrice(fees)}</span>
+      </li>
+      <li className="flex justify-between gap-3 border-t border-neutral-100 pt-3 font-medium text-neutral-900">
+        <span>Subtotal</span>
+        <span className="tabular-nums">{formatPrice(rawSubtotal)}</span>
+      </li>
+      {appliedCoupon && (
+        <li className="flex justify-between gap-3 text-green-600 font-medium">
+          <span>Discount ({appliedCoupon.code}) <button onClick={removeCoupon} className="text-xs text-red-500 underline ml-1 font-normal">Remove</button></span>
+          <span className="tabular-nums">-{formatPrice(discountAmount(appliedCoupon, rawSubtotal))}</span>
+        </li>
+      )}
+    </ul>
+
+    {!appliedCoupon && (
+      <div className="mt-4 flex items-center gap-2 border border-neutral-200 rounded-xl px-3 py-2.5">
+        <input 
+          type="text" 
+          value={couponCode} 
+          onChange={(e) => setCouponCode(e.target.value)} 
+          placeholder="Discount code" 
+          className="flex-1 text-sm outline-none bg-transparent" 
+        />
+        <button onClick={handleApplyCoupon} disabled={validatingCoupon || !couponCode.trim()} className="text-xs font-semibold" style={{ color: ACCENT }}>
+          {validatingCoupon ? "Validating..." : "Apply"}
+        </button>
+      </div>
+    )}
+
+    <div className="mt-4 flex justify-between border-t pt-4 text-base font-bold text-neutral-900" style={{ borderColor: ACCENT_BORDER }}>
+      <span>Total</span>
+      <span className="tabular-nums" style={{ color: ACCENT }}>{formatPrice(finalTotal)}</span>
+    </div>
+
+    {step === 0 && (
+      <Button type="button" className="mt-5 h-12 w-full rounded-xl font-semibold text-white" style={{ backgroundColor: finalTotal > 0 ? ACCENT : undefined }} disabled={finalTotal <= 0} onClick={() => setStep(isGuest ? 2 : 1)}>
+        Continue
+      </Button>
+    )}
+  </div>
+);
+
+// Helper to avoid passing discountAmount as prop if we can calculate it
+const discountAmount = (coupon: any, subtotal: number) => {
+  if (!coupon) return 0;
+  if (coupon.discount_type === 'percentage') {
+    return subtotal * ((Number(coupon.discount_value) || 0) / 100);
+  }
+  return Number(coupon.discount_value) || 0;
+};
+
+
 export default function CheckoutPage() {
   const [step, setStep] = useState(0);
-  const [paying, setPaying] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
   const { items, subtotal, clearCart, updateQuantity, removeItem, addItem } = useCartStore();
   const navigate = useNavigate();
   const { data: events = [], loading: eventsLoading } = useEvents(); // Track loading state [cite: 19]
   const { user, loading: authLoading } = useAuth();
+  const [paying, setPaying] = useState(false);
   const [attendee, setAttendee] = useState({ name: "", email: "", phone: "" });
 
   const [couponCode, setCouponCode] = useState("");
@@ -271,8 +388,8 @@ export default function CheckoutPage() {
       toast.error("Supabase is not configured.");
       return;
     }
-    if (!user?.email) {
-      toast.error("Sign in to complete payment.");
+    if (!isGuest && !user?.email) {
+      toast.error("Sign in to complete payment or continue as guest.");
       navigate("/login", { state: { from: "/checkout" } });
       return;
     }
@@ -287,34 +404,39 @@ export default function CheckoutPage() {
     setPaying(true);
     openPaystackInline({
       publicKey: pk,
-      email: user.email,
+      email: user?.email || attendee.email,
       amountKobo,
       reference,
+      metadata: isGuest ? {
+        guest_name: attendee.name,
+        guest_email: attendee.email,
+        guest_phone: attendee.phone,
+      } : undefined,
       onSuccess: (paidRef) => {
         void (async () => {
           try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.access_token) {
-              toast.error("Session expired.");
-              setPaying(false);
-              return;
-            }
-
+            const sessionData = await supabase.auth.getSession();
+            const token = sessionData.data.session?.access_token;
+            
             const payload: any = {
               reference: paidRef,
               lines: lineItems.map((i) => ({ tier_id: i.tierId, quantity: i.quantity })),
             };
             if (appliedCoupon) payload.coupon_code = appliedCoupon.code;
 
+            const headers: Record<string, string> = {
+              "Content-Type": "application/json",
+              "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY,
+            };
+            if (token) {
+              headers["Authorization"] = `Bearer ${token}`;
+            }
+
             const res = await fetch(
               `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/complete-paystack-payment`,
               {
                 method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${session.access_token}`,
-                  "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY,
-                },
+                headers,
                 body: JSON.stringify(payload),
               }
             );
@@ -343,7 +465,7 @@ export default function CheckoutPage() {
             clearCart();
             toast.success("Payment successful");
             navigate("/confirmation", {
-              state: { tickets, buyerName: attendee.name, buyerEmail: attendee.email, purchasedAt: new Date().toISOString() },
+              state: { tickets, buyerName: attendee.name, buyerEmail: attendee.email, purchasedAt: new Date().toISOString(), isGuest: isGuest },
             });
           } catch (e) {
             toast.error("Something went wrong confirming payment.");
@@ -384,68 +506,23 @@ export default function CheckoutPage() {
     }
   };
 
-  const SummaryContent = () => (
-    <div className="rounded-2xl bg-white p-6 shadow-sm">
-      {lineItems.length === 0 ? (
-        <p className="text-neutral-400 text-sm">No tickets selected yet.</p>
-      ) : (
-        <ul className="space-y-4 text-sm">
-          {itemsByEvent
-            .filter(g => g.items.some(i => i.quantity > 0))
-            .map((group) => (
-              <li key={group.eventId}>
-                <p className="text-sm font-bold text-neutral-900 mb-1.5">{group.eventTitle}</p>
-                <ul className="space-y-1 pl-2">
-                  {group.items.filter(i => i.quantity > 0).map((item) => (
-                    <li key={item.tierId} className="flex justify-between gap-3 text-neutral-600">
-                      <span>{item.quantity} × {item.tierName}</span>
-                      <span className="shrink-0 tabular-nums">{formatPrice((Number(item.unitPrice) || 0) * (Number(item.quantity) || 0))}</span>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-        </ul>
-      )}
+  const summaryProps: SummaryContentProps = {
+    lineItems,
+    itemsByEvent,
+    fees,
+    rawSubtotal,
+    appliedCoupon,
+    removeCoupon,
+    couponCode,
+    setCouponCode,
+    handleApplyCoupon,
+    validatingCoupon,
+    step,
+    finalTotal,
+    setStep,
+    isGuest,
+  };
 
-      <ul className="mt-4 space-y-3 text-sm">
-        <li className="flex justify-between gap-3 text-neutral-500">
-          <span className="inline-flex items-center gap-1">Fees<Info className="h-3.5 w-3.5 text-neutral-400" /></span>
-          <span className="tabular-nums">{formatPrice(fees)}</span>
-        </li>
-        <li className="flex justify-between gap-3 border-t border-neutral-100 pt-3 font-medium text-neutral-900">
-          <span>Subtotal</span>
-          <span className="tabular-nums">{formatPrice(rawSubtotal)}</span>
-        </li>
-        {appliedCoupon && (
-          <li className="flex justify-between gap-3 text-green-600 font-medium">
-            <span>Discount ({appliedCoupon.code}) <button onClick={removeCoupon} className="text-xs text-red-500 underline ml-1 font-normal">Remove</button></span>
-            <span className="tabular-nums">-{formatPrice(discountAmount)}</span>
-          </li>
-        )}
-      </ul>
-
-      {!appliedCoupon && (
-        <div className="mt-4 flex items-center gap-2 border border-neutral-200 rounded-xl px-3 py-2.5">
-          <input type="text" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} placeholder="Discount code" className="flex-1 text-sm outline-none bg-transparent" />
-          <button onClick={handleApplyCoupon} disabled={validatingCoupon || !couponCode.trim()} className="text-xs font-semibold" style={{ color: ACCENT }}>
-            {validatingCoupon ? "Validating..." : "Apply"}
-          </button>
-        </div>
-      )}
-
-      <div className="mt-4 flex justify-between border-t pt-4 text-base font-bold text-neutral-900" style={{ borderColor: ACCENT_BORDER }}>
-        <span>Total</span>
-        <span className="tabular-nums" style={{ color: ACCENT }}>{formatPrice(finalTotal)}</span>
-      </div>
-
-      {step === 0 && (
-        <Button type="button" className="mt-5 h-12 w-full rounded-xl font-semibold text-white" style={{ backgroundColor: finalTotal > 0 ? ACCENT : undefined }} disabled={finalTotal <= 0} onClick={() => setStep(1)}>
-          Continue
-        </Button>
-      )}
-    </div>
-  );
 
   // Loading state to prevent NaN during initial fetch [cite: 19]
   if (eventsLoading || authLoading) {
@@ -497,74 +574,91 @@ export default function CheckoutPage() {
         {step === 0 && (
           <div className="grid gap-8 lg:grid-cols-[1fr_min(100%,380px)] lg:items-start">
             <div className="rounded-2xl bg-white p-5 shadow-sm md:p-8">
-              <div className="mb-8 flex items-center gap-3">
-                <button type="button" onClick={() => navigate(-1)} className="flex h-11 w-11 items-center justify-center rounded-full text-white" style={{ backgroundColor: ACCENT }}>
-                  <ArrowLeft className="h-5 w-5" />
-                </button>
-                <h1 className="text-xl font-bold text-neutral-900 md:text-2xl">Choose Tickets</h1>
-              </div>
-
-              <div className="space-y-8">
-                {itemsByEvent.map((group) => {
-                  const ev = eventObjects.get(group.eventId);
-                  return (
-                    <div key={group.eventId}>
-                      <h3 className="text-base font-bold text-neutral-900 mb-4 pb-2 border-b border-neutral-200">{group.eventTitle}</h3>
-                      {ev ? (
-                        <ul className="divide-y divide-neutral-100">
-                          {ev.ticket_tiers.map((tier) => {
-                            const cartQty = getTierQuantity(tier.id);
-                            const remaining = (Number(tier.remaining_quantity) || 0) + cartQty;
-                            const soldOut = remaining <= 0 && cartQty === 0;
-                            console.log(`${tier.name} | DB: ${tier.remaining_quantity} | cart: ${cartQty} | remaining: ${remaining} | soldOut: ${soldOut}`);
-                            const qty = cartQty;
-                            return (
-                              <li key={tier.id} className={cn("flex flex-col gap-4 py-6 sm:flex-row sm:items-start sm:justify-between", soldOut && "opacity-60")}>
-                                <div className="min-w-0 flex-1 space-y-1">
-                                  <p className="text-sm font-bold uppercase text-neutral-900">{tier.name}</p>
-                                  {!soldOut && <p className="text-base font-bold" style={{ color: ACCENT }}>{formatPrice(Number(tier.price) || 0)}</p>}
-                                  <p className="text-sm text-neutral-500">{tier.description}</p>
-                                </div>
-                                <div className="flex shrink-0">
-                                  {soldOut ? (
-                                    <div className="h-10 min-w-[7rem] flex items-center justify-center rounded-lg bg-neutral-100 text-sm font-medium text-neutral-400">Sold Out</div>
-                                  ) : (
-                                    <QtyInput
-                                      value={qty}
-                                      max={remaining}
-                                      onChange={(n) => setTierQuantity(tier, n, group.eventId, ev.title)}
-                                    />
-                                  )}
-                                </div>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      ) : (
-                        <ul className="divide-y divide-neutral-100">
-                          {group.items.map((item) => (
-                            <li key={item.tierId} className="flex flex-col gap-4 py-6 sm:flex-row sm:items-start sm:justify-between">
-                              <div className="min-w-0 flex-1">
-                                <p className="text-sm font-bold uppercase text-neutral-900">{item.tierName}</p>
-                                <p className="text-base font-bold" style={{ color: ACCENT }}>{formatPrice(Number(item.unitPrice) || 0)}</p>
-                              </div>
-                              <QtyInput
-                                value={Number(item.quantity) || 0}
-                                max={Number(item.maxQuantity) || 0}
-                                onChange={(n) => updateQuantity(item.tierId, n)}
-                              />
-                            </li>
-                          ))}
-                        </ul>
-                      )}
+              {!user && !isGuest ? (
+                <div className="text-center py-8">
+                  <h2 className="text-2xl font-bold mb-4">Ready to checkout?</h2>
+                  <p className="text-neutral-500 mb-8">Choose how you'd like to proceed with your booking.</p>
+                  <div className="grid gap-4 max-w-sm mx-auto">
+                    <Button onClick={() => setIsGuest(true) || setStep(1)} style={{ backgroundColor: ACCENT }} className="h-12 rounded-xl text-lg font-semibold text-white">Continue as Guest</Button>
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-neutral-200" /></div>
+                      <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-neutral-500">Or</span></div>
                     </div>
-                  );
-                })}
-              </div>
+                    <Button onClick={() => navigate("/login", { state: { from: "/checkout" } })} variant="outline" className="h-12 rounded-xl text-lg font-semibold">Sign in / Sign up</Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-8 flex items-center gap-3">
+                    <button type="button" onClick={() => isGuest ? setIsGuest(false) : navigate(-1)} className="flex h-11 w-11 items-center justify-center rounded-full text-white" style={{ backgroundColor: ACCENT }}>
+                      <ArrowLeft className="h-5 w-5" />
+                    </button>
+                    <h1 className="text-xl font-bold text-neutral-900 md:text-2xl">Choose Tickets</h1>
+                  </div>
+
+                  <div className="space-y-8">
+                    {itemsByEvent.map((group) => {
+                      const ev = eventObjects.get(group.eventId);
+                      return (
+                        <div key={group.eventId}>
+                          <h3 className="text-base font-bold text-neutral-900 mb-4 pb-2 border-b border-neutral-200">{group.eventTitle}</h3>
+                          {ev ? (
+                            <ul className="divide-y divide-neutral-100">
+                              {ev.ticket_tiers.map((tier) => {
+                                const cartQty = getTierQuantity(tier.id);
+                                const remaining = (Number(tier.remaining_quantity) || 0) + cartQty;
+                                const soldOut = remaining <= 0 && cartQty === 0;
+                                console.log(`${tier.name} | DB: ${tier.remaining_quantity} | cart: ${cartQty} | remaining: ${remaining} | soldOut: ${soldOut}`);
+                                const qty = cartQty;
+                                return (
+                                  <li key={tier.id} className={cn("flex flex-col gap-4 py-6 sm:flex-row sm:items-start sm:justify-between", soldOut && "opacity-60")}>
+                                    <div className="min-w-0 flex-1 space-y-1">
+                                      <p className="text-sm font-bold uppercase text-neutral-900">{tier.name}</p>
+                                      {!soldOut && <p className="text-base font-bold" style={{ color: ACCENT }}>{formatPrice(Number(tier.price) || 0)}</p>}
+                                      <p className="text-sm text-neutral-500">{tier.description}</p>
+                                    </div>
+                                    <div className="flex shrink-0">
+                                      {soldOut ? (
+                                        <div className="h-10 min-w-[7rem] flex items-center justify-center rounded-lg bg-neutral-100 text-sm font-medium text-neutral-400">Sold Out</div>
+                                      ) : (
+                                        <QtyInput
+                                          value={qty}
+                                          max={remaining}
+                                          onChange={(n) => setTierQuantity(tier, n, group.eventId, ev.title)}
+                                        />
+                                      )}
+                                    </div>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          ) : (
+                            <ul className="divide-y divide-neutral-100">
+                              {group.items.map((item) => (
+                                <li key={item.tierId} className="flex flex-col gap-4 py-6 sm:flex-row sm:items-start sm:justify-between">
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-bold uppercase text-neutral-900">{item.tierName}</p>
+                                    <p className="text-base font-bold" style={{ color: ACCENT }}>{formatPrice(Number(item.unitPrice) || 0)}</p>
+                                  </div>
+                                  <QtyInput
+                                    value={Number(item.quantity) || 0}
+                                    max={Number(item.maxQuantity) || 0}
+                                    onChange={(n) => updateQuantity(item.tierId, n)}
+                                  />
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
             <aside className="lg:sticky lg:top-24">
               <h2 className="mb-3 text-lg font-bold text-neutral-900">Summary</h2>
-              <SummaryContent />
+              <SummaryContent {...summaryProps} />
             </aside>
           </div>
         )}
@@ -589,11 +683,11 @@ export default function CheckoutPage() {
                 ))}
               </div>
               <div className="mt-8 flex gap-3">
-                <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setStep(0)}>Back</Button>
-                <Button className="flex-1 rounded-xl text-white" style={{ backgroundColor: ACCENT }} onClick={() => validateAttendee() && setStep(2)}>Continue</Button>
+                <Button variant="outline" className="flex-1 rounded-xl" onClick={() => isGuest ? setIsGuest(false) || setStep(0) : setStep(0)}>Back</Button>
+                <Button className="flex-1 rounded-xl text-white" style={{ backgroundColor: ACCENT }} onClick={() => validateAttendee() && setStep(isGuest ? 0 : 2)}>Continue</Button>
               </div>
             </div>
-            <aside><SummaryContent /></aside>
+            <aside><SummaryContent {...summaryProps} /></aside>
           </div>
         )}
 
@@ -602,7 +696,7 @@ export default function CheckoutPage() {
           <div className="grid gap-8 lg:grid-cols-[1fr_min(100%,380px)] lg:items-start">
             <div className="rounded-2xl bg-white p-6 md:p-8">
               <h2 className="mb-1 text-xl font-bold">Payment</h2>
-              <p className="mb-6 text-sm text-neutral-500">Secured by Paystack. Sign in required.</p>
+              <p className="mb-6 text-sm text-neutral-500">Secured by Paystack. {!user && !isGuest && "Sign in required."}</p>
               <div className="rounded-xl p-4 mb-6 space-y-3" style={{ backgroundColor: ACCENT_LIGHT, border: `1px solid ${ACCENT_BORDER}` }}>
                 <div className="flex justify-between border-t pt-2 font-bold text-neutral-900">
                   <span>Total to Pay</span>
@@ -611,12 +705,12 @@ export default function CheckoutPage() {
               </div>
               <div className="flex gap-3">
                 <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setStep(1)} disabled={paying}>Back</Button>
-                <Button className="flex-1 rounded-xl text-white" style={{ backgroundColor: ACCENT }} onClick={handlePayWithPaystack} disabled={paying || !user}>
+                <Button className="flex-1 rounded-xl text-white" style={{ backgroundColor: ACCENT }} onClick={handlePayWithPaystack} disabled={paying || (!user && !isGuest)}>
                   {paying ? "Processing..." : `Pay ${formatPrice(finalTotal)}`}
                 </Button>
               </div>
             </div>
-            <aside><SummaryContent /></aside>
+            <aside><SummaryContent {...summaryProps} /></aside>
           </div>
         )}
       </div>

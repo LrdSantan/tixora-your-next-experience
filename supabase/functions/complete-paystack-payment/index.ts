@@ -98,35 +98,27 @@ Deno.serve(async (req: Request): Promise<Response> => {
         });
       }
 
-      // Use anon client with the user's JWT forwarded — works correctly for Google OAuth tokens
-      const anonClient = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: `Bearer ${jwt}` } },
-        auth: { persistSession: false, autoRefreshToken: false },
-      });
+      let user = null;
+      if (authHeader?.startsWith("Bearer ")) {
+        const jwt = authHeader.replace(/^Bearer\s+/i, "").trim();
+        if (jwt) {
+          const anonClient = createClient(supabaseUrl, supabaseAnonKey, {
+            global: { headers: { Authorization: `Bearer ${jwt}` } },
+            auth: { persistSession: false, autoRefreshToken: false },
+          });
 
-      console.error(`${LOG} JWT: auth.getUser() via anon client (token length=${jwt.length})`);
-      const {
-        data: { user },
-        error: userError,
-      } = await anonClient.auth.getUser();
-
-      if (userError) {
-        console.error(`${LOG} JWT: getUser() failed`, {
-          message: userError.message,
-          name: userError.name,
-          status: userError.status,
-        });
-        return errorResponse(userError.message || "Invalid or expired session", 401, {
-          status: userError.status,
-        });
+          console.error(`${LOG} JWT: auth.getUser() via anon client`);
+          const { data: { user: foundUser } } = await anonClient.auth.getUser();
+          user = foundUser;
+          if (user) {
+            console.error(`${LOG} JWT: OK user_id=${user.id} email=${user.email ?? "(none)"}`);
+          }
+        }
       }
 
       if (!user) {
-        console.error(`${LOG} JWT: getUser returned no user`);
-        return errorResponse("Invalid session (no user)", 401);
+        console.error(`${LOG} Proceeding as guest checkout (no valid user session)`);
       }
-
-      console.error(`${LOG} JWT: OK user_id=${user.id} email=${user.email ?? "(none)"}`);
 
       let body: Body;
       try {
@@ -228,6 +220,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const amountKoboInt = Math.round(Number(amountKobo));
       console.error(`${LOG} Paystack: amount kobo (rounded)=${amountKoboInt}`);
 
+      const metadata = verifyJson.data?.metadata as any;
+      const guestName = metadata?.guest_name;
+      const guestEmail = metadata?.guest_email;
+      const guestPhone = metadata?.guest_phone;
+
+      if (!user && !guestEmail) {
+        console.error(`${LOG} Guest checkout failed: Missing guest_email in Paystack metadata`);
+        return errorResponse("Guest checkout requires email in metadata", 400);
+      }
+
       const admin = createClient(supabaseUrl, serviceRoleKey, {
         auth: { persistSession: false, autoRefreshToken: false },
       });
@@ -275,7 +277,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
                     },
                     body: JSON.stringify({
                       ticket_resell_id: resell.id,
-                      new_buyer_id: user.id,
+                      new_buyer_id: user?.id,
                       paystack_reference: reference,
                     }),
                   });
@@ -340,10 +342,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (remainingLines.length > 0) {
         console.error(`${LOG} RPC: finalise_purchase_after_payment for ${remainingLines.length} items`);
         const rpcArgs = {
-          p_user_id: user.id,
+          p_user_id: user?.id,
           p_reference: reference,
           p_verified_amount_kobo: amountKoboInt,
           p_items: remainingLines,
+          p_guest_name: guestName,
+          p_guest_email: guestEmail,
+          p_guest_phone: guestPhone,
         };
 
         const { data: rpcData, error: rpcError } = await admin.rpc("finalize_purchase_after_payment", rpcArgs);
@@ -405,8 +410,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
           const emailPayload = {
             type: "ticket_confirmation",
-            buyerName,
-            buyerEmail: user.email,
+            buyerName: guestName || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "Ticket buyer",
+            buyerEmail: guestEmail || user?.email,
             eventTitle,
             purchasedAt: new Date().toISOString(),
             tickets: emailTickets

@@ -98,12 +98,20 @@ const ConfirmationPage = () => {
       </div>
 
       <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
-        <Link to="/my-tickets">
-          <Button variant="outline" className="border-primary text-primary w-full sm:w-auto">
-            View My Tickets
-          </Button>
-        </Link>
-        <Button asChild variant="ghost" className="w-full sm:w-auto">
+        {(!state?.isGuest && buyerEmail) ? (
+          <Link to="/my-tickets">
+            <Button variant="outline" className="border-primary text-primary w-full sm:w-auto">
+              View My Tickets
+            </Button>
+          </Link>
+        ) : (
+          <Link to="/">
+            <Button variant="outline" className="border-primary text-primary w-full sm:w-auto">
+              Back to Home
+            </Button>
+          </Link>
+        )}
+        <Button asChild style={{ backgroundColor: "#1A7A4A" }} className="w-full sm:w-auto">
           <Link to="/">Browse more events</Link>
         </Button>
       </div>

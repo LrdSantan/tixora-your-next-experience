@@ -14,6 +14,7 @@ export function openPaystackInline(options: {
   email: string;
   amountKobo: number;
   reference: string;
+  metadata?: any;
   onSuccess: (reference: string) => void;
   onCancel?: () => void;
 }): void {
@@ -24,6 +25,7 @@ export function openPaystackInline(options: {
     amount: options.amountKobo,
     ref: options.reference,
     currency: "NGN",
+    metadata: options.metadata,
     onSuccess: (transaction) => {
       options.onSuccess(transaction.reference ?? options.reference);
     },
