@@ -9,6 +9,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth-context";
 import { CATEGORIES } from "@/lib/mock-data";
@@ -48,6 +58,8 @@ export default function CreateEvent() {
     { id: "1", name: "Regular", description: "General admission", price: 5000, quantity: 100 }
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   if (!loading && !user) {
     return <Navigate to="/login" replace />;
@@ -147,9 +159,22 @@ export default function CreateEvent() {
     return days;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!isValid) return;
+
+    // Check if terms already agreed
+    const hasAgreedBefore = localStorage.getItem("tixora_terms_agreed_v1") === "true";
+    
+    if (!hasAgreedBefore) {
+      setShowTermsModal(true);
+      return;
+    }
+
+    await createEvent();
+  };
+
+  const createEvent = async () => {
     if (!supabase) {
       toast.error("Supabase is not connected.");
       return;
@@ -219,6 +244,12 @@ export default function CreateEvent() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleAgreeTerms = async () => {
+    localStorage.setItem("tixora_terms_agreed_v1", "true");
+    setShowTermsModal(false);
+    await createEvent();
   };
 
   if (loading) {
@@ -492,6 +523,98 @@ export default function CreateEvent() {
           </Button>
         </div>
       </form>
+
+      {/* Terms & Conditions Modal */}
+      <Dialog open={showTermsModal} onOpenChange={setShowTermsModal}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="p-6 pb-2 bg-white">
+            <DialogTitle className="text-2xl font-extrabold text-[#1A7A4A] flex items-center gap-2">
+              <Check className="w-6 h-6 border-2 border-[#1A7A4A] rounded-full p-0.5" />
+              Tixora Organizer Agreement
+            </DialogTitle>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1 px-6 py-4">
+            <div className="space-y-6 text-sm text-muted-foreground leading-relaxed pr-4">
+              <div className="space-y-4">
+                <p className="font-semibold text-foreground text-base">Welcome to Tixora!</p>
+                <p>
+                  Before you publish your event, please review and agree to the following organizer guidelines. 
+                  These terms ensure a safe and trustworthy experience for all Tixora users.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <section>
+                  <h4 className="font-bold text-foreground mb-1">1. Accuracy of Event Details</h4>
+                  <p>The organizer is solely responsible for ensuring the accuracy of all event information provided, including date, time, venue, and ticket tier descriptions.</p>
+                </section>
+
+                <section>
+                  <h4 className="font-bold text-foreground mb-1">2. Liability & Cancellations</h4>
+                  <p>Tixora takes no liability for cancelled, rescheduled, or fraudulent events. Organizers are responsible for managing refunds and attendee communications in such cases.</p>
+                </section>
+
+                <section>
+                  <h4 className="font-bold text-foreground mb-1">3. Payout Policy</h4>
+                  <p>Payouts from ticket sales are subject to Tixora's official payout policy. Standard payouts occur after successful event verification or as specified in your organizer dashboard.</p>
+                </section>
+
+                <section>
+                  <h4 className="font-bold text-foreground mb-1">4. Prohibited Content</h4>
+                  <p>Illegal events, fraudulent listings, or content that promotes hate speech, violence, or discrimination are strictly prohibited on Tixora.</p>
+                </section>
+
+                <section>
+                  <h4 className="font-bold text-foreground mb-1">5. Policy Enforcement</h4>
+                  <p>Tixora reserves the right to remove any event, suspend organizer accounts, or withhold funds for events that violate these policies or our general Terms of Service.</p>
+                </section>
+
+                <section>
+                  <h4 className="font-bold text-foreground mb-1">6. Terms of Service</h4>
+                  <p>
+                    By creating an event, you acknowledge that you have read and agree to Tixora's full Terms of Service 
+                    available at <a href="https://tixoraafrica.com.ng/terms" target="_blank" rel="noopener noreferrer" className="text-[#1A7A4A] font-semibold underline">tixoraafrica.com.ng/terms</a>.
+                  </p>
+                </section>
+              </div>
+
+              <p className="pt-4 border-t text-xs italic">Version 1.0 (Organizers)</p>
+            </div>
+          </ScrollArea>
+
+          <DialogFooter className="p-6 bg-muted/30 border-t flex-col sm:flex-row gap-4 sm:items-center">
+            <div className="flex items-center space-x-3 flex-1 mb-2 sm:mb-0">
+              <Checkbox 
+                id="terms" 
+                checked={termsAccepted} 
+                onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+                className="h-5 w-5 border-2 border-[#1A7A4A] data-[state=checked]:bg-[#1A7A4A] data-[state=checked]:text-white"
+              />
+              <Label htmlFor="terms" className="text-sm font-medium cursor-pointer select-none text-foreground">
+                I have read and agree to the Tixora Organizer Agreement
+              </Label>
+            </div>
+            
+            <div className="flex gap-3 w-full sm:w-auto">
+              <Button 
+                variant="outline" 
+                className="flex-1 sm:flex-none border-[#1A7A4A] text-[#1A7A4A] hover:bg-[#1A7A4A]/5"
+                onClick={() => setShowTermsModal(false)}
+              >
+                I Disagree
+              </Button>
+              <Button 
+                className="flex-1 sm:flex-none bg-[#1A7A4A] text-white hover:brightness-110 disabled:opacity-50 disabled:grayscale transition-all"
+                disabled={!termsAccepted || isSubmitting}
+                onClick={handleAgreeTerms}
+              >
+                {isSubmitting ? "Processing..." : "I Agree"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
