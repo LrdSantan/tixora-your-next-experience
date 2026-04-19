@@ -67,16 +67,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const authHeader = req.headers.get("Authorization") ?? req.headers.get("authorization");
       console.error(`${LOG} JWT: Authorization header present=${Boolean(authHeader)}`);
 
-      if (!authHeader?.startsWith("Bearer ")) {
-        const msg = "Missing or invalid Authorization header (expected Bearer token)";
-        console.error(`${LOG} JWT: ${msg}`);
-        return errorResponse(msg, 401);
-      }
-
-      const jwt = authHeader.replace(/^Bearer\s+/i, "").trim();
-      if (!jwt) {
-        console.error(`${LOG} JWT: empty token after Bearer prefix`);
-        return errorResponse("Empty bearer token", 401);
+      let jwt = "";
+      if (authHeader?.startsWith("Bearer ")) {
+        jwt = authHeader.replace(/^Bearer\s+/i, "").trim();
       }
 
       const supabaseUrl = Deno.env.get("SUPABASE_URL");
