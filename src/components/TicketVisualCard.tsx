@@ -40,7 +40,8 @@ export const TicketVisualCard = forwardRef<HTMLDivElement, TicketVisualCardProps
   { ticket, expired, download, className },
   ref,
 ) {
-  const qrValue = ticket.qrToken || ticket.reference;
+  const tokenToUse = ticket.qrToken || ticket.ticketCode || ticket.reference;
+  const qrValue = `https://tixoraafrica.com.ng/verify?token=${tokenToUse}`;
 
   return (
     <div className={cn("rounded-xl border border-border bg-card shadow-sm", className)}>
@@ -140,7 +141,13 @@ export const TicketVisualCard = forwardRef<HTMLDivElement, TicketVisualCardProps
                 </div>
               ) : (
                 <>
-                  <QRCodeSVG value={qrValue} size={120} level="M" />
+                  <QRCodeSVG 
+                    value={qrValue} 
+                    size={300} 
+                    level="H" 
+                    includeMargin={true}
+                    className="h-full w-full max-w-[120px] max-h-[120px]"
+                  />
                   {expired && (
                     <div
                       className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden rounded-lg bg-white/40"

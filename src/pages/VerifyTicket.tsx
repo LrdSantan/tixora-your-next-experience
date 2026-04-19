@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { CheckCircle, XCircle, AlertTriangle, ShieldCheck, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -85,6 +85,8 @@ const playFeedbackSound = (type: "success" | "error") => {
 
 export default function VerifyTicketPage() {
   const { qrToken } = useParams<{ qrToken: string }>();
+  const [searchParams] = useSearchParams();
+  const queryToken = searchParams.get("token");
   const navigate = useNavigate();
   const supabase = getSupabaseClient();
   const { user, loading: authLoading } = useAuth();
@@ -108,7 +110,9 @@ export default function VerifyTicketPage() {
 
   useEffect(() => {
     async function fetchTicket() {
-      if (!qrToken) {
+      const activeToken = queryToken || qrToken;
+
+      if (!activeToken) {
         setPageState("idle");
         setTicket(null);
         setIsJustMarked(false);
@@ -116,7 +120,7 @@ export default function VerifyTicketPage() {
         return;
       }
 
-      let cleanToken = qrToken.trim();
+      let cleanToken = activeToken.trim();
       if (cleanToken.includes('/verify/')) {
         cleanToken = cleanToken.split('/verify/').pop() || cleanToken;
       }
@@ -221,7 +225,7 @@ export default function VerifyTicketPage() {
     }
 
     fetchTicket();
-  }, [qrToken, supabase]);
+  }, [qrToken, searchParams, supabase]);
 
   // Prefetch other tickets for the same event for offline readiness
   useEffect(() => {
@@ -651,7 +655,7 @@ export default function VerifyTicketPage() {
             ) : (
               <>
                 <p className="text-sm text-neutral-500 mb-3">Organizer? Log in to mark this ticket as used.</p>
-                <Link to={`/login?redirect=/verify/${qrToken}`}>
+                <Link to={`/login?redirect=/verify${queryToken ? `?token=${queryToken}` : `/${qrToken}`}`}>
                   <Button variant="outline" size="sm" className="border-primary text-primary">
                     Log in
                   </Button>
