@@ -231,6 +231,14 @@ export default function CheckoutPage() {
   const [step, setStep] = useState(0);
   const [isGuest, setIsGuest] = useState(false);
   const [isBuyingForFriend, setIsBuyingForFriend] = useState(false);
+  const [showSignInHint, setShowSignInHint] = useState(() => {
+    return !localStorage.getItem("tixora_guest_hint_dismissed");
+  });
+
+  const dismissHint = () => {
+    setShowSignInHint(false);
+    localStorage.setItem("tixora_guest_hint_dismissed", "true");
+  };
   const { items, subtotal, clearCart, updateQuantity, removeItem, addItem } = useCartStore();
   const navigate = useNavigate();
   const { data: events = [], loading: eventsLoading } = useEvents(); // Track loading state [cite: 19]
@@ -670,6 +678,38 @@ export default function CheckoutPage() {
         {step === 1 && (
           <div className="grid gap-8 lg:grid-cols-[1fr_min(100%,380px)] lg:items-start">
             <div className="rounded-2xl bg-white p-6 md:p-8">
+              {isGuest && showSignInHint && (
+                <div className="mb-8 overflow-hidden rounded-2xl border animate-in fade-in slide-in-from-top-4 duration-500" style={{ backgroundColor: ACCENT_LIGHT, borderColor: ACCENT_BORDER }}>
+                  <div className="p-5 sm:p-6">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
+                        <span className="text-xl">✨</span>
+                      </div>
+                      <div className="flex-1 space-y-4">
+                        <p className="text-sm font-medium leading-relaxed text-neutral-800">
+                          Sign in to enjoy faster checkout, order history, easy ticket access and even create & sell your own events on Tixora!
+                        </p>
+                        <div className="flex flex-wrap items-center gap-4">
+                          <Button 
+                            onClick={() => navigate("/login", { state: { from: "/checkout" } })}
+                            className="h-9 px-5 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                            style={{ backgroundColor: ACCENT }}
+                          >
+                            Sign In
+                          </Button>
+                          <button 
+                            onClick={dismissHint}
+                            className="text-xs font-semibold text-neutral-500 hover:text-neutral-900 transition-colors underline underline-offset-4"
+                          >
+                            Continue as Guest
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center justify-between mb-1">
                 <h2 className="text-xl font-bold">{isBuyingForFriend ? "Friend's details" : "Your details"}</h2>
                 {user && !isGuest && (
