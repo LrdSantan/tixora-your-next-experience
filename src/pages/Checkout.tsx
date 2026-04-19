@@ -433,26 +433,14 @@ export default function CheckoutPage() {
             };
             if (appliedCoupon) payload.coupon_code = appliedCoupon.code;
 
-            const headers: Record<string, string> = {
-              "Content-Type": "application/json",
-              "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY,
-            };
-            if (token) {
-              headers["Authorization"] = `Bearer ${token}`;
-            }
+            const { data: fnBody, error: fnError } = await supabase.functions.invoke<PaystackFnResponse>("complete-paystack-payment", {
+              body: payload,
+              headers: token ? { Authorization: `Bearer ${token}` } : undefined
+            });
 
-            const res = await fetch(
-              `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/complete-paystack-payment`,
-              {
-                method: "POST",
-                headers,
-                body: JSON.stringify(payload),
-              }
-            );
-
-            const fnBody = await res.json() as PaystackFnResponse;
-            if (!res.ok || !fnBody?.ok) {
-              toast.error(fnBody?.error ?? "Could not complete your order.");
+            if (fnError || !fnBody?.ok) {
+              const errorMsg = fnError?.message || (fnBody as any)?.error || "Could not complete your order.";
+              toast.error(errorMsg);
               return;
             }
 
