@@ -421,17 +421,22 @@ export default function CheckoutPage() {
     setPaying(true);
     openPaystackInline({
       ...paystackConfig,
-      onSuccess: (paidRef) => {
+      onSuccess: (response) => {
         void (async () => {
           try {
             const sessionData = await supabase.auth.getSession();
             const token = sessionData.data.session?.access_token;
             
+            // Extract reference correctly (could be string or object depending on version)
+            const reference = typeof response === 'string' ? response : (response as any)?.reference;
+
             const payload: any = {
-              reference: paidRef,
+              reference,
               lines: lineItems.map((i) => ({ tier_id: i.tierId, quantity: i.quantity })),
             };
             if (appliedCoupon) payload.coupon_code = appliedCoupon.code;
+
+            console.log("[Checkout] Calling complete-paystack-payment with payload:", payload);
 
             const { data: fnBody, error: fnError } = await supabase.functions.invoke<PaystackFnResponse>("complete-paystack-payment", {
               body: payload,
