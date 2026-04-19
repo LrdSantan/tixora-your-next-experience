@@ -1,18 +1,34 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { MapPin, Calendar } from "lucide-react";
+import { MapPin, Calendar, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatPrice, formatDate, type Event } from "@/lib/mock-data";
 import { formatEventDateDisplay } from "@/lib/date-utils";
 import { getEventImage } from "@/lib/event-image";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 interface EventCardProps {
   event: Event;
 }
 
 const EventCard = React.memo(({ event }: EventCardProps) => {
+  const [copied, setCopied] = useState(false);
   const lowestPrice = Math.min(...event.ticket_tiers.map((t) => t.price));
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const url = `https://tixoraafrica.com.ng/events/${event.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      toast.success("Event link copied!");
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      toast.error("Failed to copy link");
+    });
+  };
 
   return (
     <Link to={`/events/${event.id}`} className="group block h-full">
@@ -26,11 +42,24 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
             width={800}
             height={512}
           />
-          {event.is_multi_day && (
-            <Badge className="absolute top-2 right-2 bg-primary text-primary-foreground border-none font-bold text-[10px] px-2 py-0.5 shadow-sm uppercase tracking-tighter">
-              Multi-day
-            </Badge>
-          )}
+          <div className="absolute top-2 right-2 flex flex-col items-end gap-2">
+            {event.is_multi_day && (
+              <Badge className="bg-primary text-primary-foreground border-none font-bold text-[10px] px-2 py-0.5 shadow-sm uppercase tracking-tighter">
+                Multi-day
+              </Badge>
+            )}
+            <button
+              onClick={handleCopy}
+              className="p-2 rounded-full bg-white/90 backdrop-blur-sm shadow-sm border border-neutral-200 text-neutral-600 hover:text-primary hover:bg-white transition-all active:scale-95"
+              title="Copy event link"
+            >
+              {copied ? (
+                <Check className="w-3.5 h-3.5 text-green-600" />
+              ) : (
+                <Copy className="w-3.5 h-3.5" />
+              )}
+            </button>
+          </div>
         </div>
         <div className="p-4 flex flex-col flex-1">
           <span className="inline-block text-[11px] font-semibold uppercase tracking-wider text-primary bg-accent px-2.5 py-1 rounded-full w-fit">
