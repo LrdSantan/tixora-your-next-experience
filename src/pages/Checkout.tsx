@@ -399,19 +399,28 @@ export default function CheckoutPage() {
     }
 
     const reference = generatePaymentReference();
-    const amountKobo = nairaToKobo(finalTotal);
+    const amountKobo = Math.floor(nairaToKobo(finalTotal));
+    const paystackEmail = (user?.email || attendee.email || "").trim();
 
-    setPaying(true);
-    openPaystackInline({
+    const paystackConfig = {
       publicKey: pk,
-      email: user?.email || attendee.email,
+      email: paystackEmail,
       amountKobo,
       reference,
       metadata: isGuest ? {
-        guest_name: attendee.name,
-        guest_email: attendee.email,
-        guest_phone: attendee.phone,
+        custom_fields: [
+          { display_name: "Guest Name", variable_name: "guest_name", value: attendee.name.trim() },
+          { display_name: "Guest Email", variable_name: "guest_email", value: attendee.email.trim() },
+          { display_name: "Guest Phone", variable_name: "guest_phone", value: attendee.phone.trim() }
+        ]
       } : undefined,
+    };
+
+    console.log("Initiating Paystack with config:", paystackConfig);
+
+    setPaying(true);
+    openPaystackInline({
+      ...paystackConfig,
       onSuccess: (paidRef) => {
         void (async () => {
           try {
