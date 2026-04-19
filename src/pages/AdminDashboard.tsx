@@ -22,7 +22,7 @@ import { Switch } from "@/components/ui/switch";
 import { 
   Trash2, Plus, Users, Landmark, Ticket, Calendar, 
   PlayCircle, PauseCircle, Tag, CheckCircle2, AlertCircle,
-  Filter, Search, Wallet
+  Filter, Search, Wallet, FileText
 } from "lucide-react";
 import {
   Table,
@@ -273,6 +273,92 @@ function AdminPayoutDetailsModal({ event }: { event: Event }) {
   );
 }
 
+function AdminSendInvoiceModal({ event, stats }: { event: Event; stats: { revenue: number; tickets_sold: number } }) {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState(event.organizer_email || "");
+  const [isSending, setIsSending] = useState(false);
+  const supabase = getSupabaseClient();
+
+  const handleSendInvoice = async () => {
+    if (!supabase) return;
+    if (!email) {
+      toast.error("Recipient email is required");
+      return;
+    }
+
+    try {
+      setIsSending(true);
+      const { data, error } = await supabase.functions.invoke('send-invoice-email', {
+        body: { event_id: event.id, recipient_email: email }
+      });
+
+      if (error) throw error;
+      
+      if (data?.ok === false) {
+        throw new Error(data.error || "Failed to send invoice");
+      }
+
+      toast.success(`Invoice for "${event.title}" sent to ${email}`);
+      setOpen(false);
+    } catch (err: any) {
+      console.error("[SendInvoice Error]", err);
+      toast.error(err.message || "Failed to send invoice");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-primary hover:bg-primary/5" title="Send Invoice">
+          <FileText className="w-5 h-5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Send Revenue Invoice</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-6 py-4">
+          <div className="bg-muted/30 p-4 rounded-xl space-y-2 border border-border">
+            <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Event Summary</p>
+            <div className="flex justify-between items-end gap-4">
+              <div className="flex-1">
+                <h4 className="font-bold text-base leading-tight line-clamp-1">{event.title}</h4>
+                <p className="text-xs text-muted-foreground mt-0.5">{formatDate(event.date)} · {event.city}</p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="text-xl font-black text-primary" style={{ color: BRAND_GREEN }}>{formatPrice(stats.revenue / 100)}</p>
+                <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-tighter">Gross Collected</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-foreground">Recipient Email</label>
+            <Input 
+              type="email" 
+              placeholder="organizer@example.com" 
+              value={email} 
+              onChange={e => setEmail(e.target.value)} 
+              className="h-11 rounded-xl focus-visible:ring-primary"
+            />
+            <p className="text-[11px] text-muted-foreground leading-relaxed">The professional HTML invoice will be sent to this address. Defaults to organizer's registered email.</p>
+          </div>
+
+          <Button 
+            onClick={handleSendInvoice} 
+            disabled={isSending} 
+            className="w-full h-12 text-base font-bold shadow-sm transition-all active:scale-[0.98]" 
+            style={{ backgroundColor: BRAND_GREEN }}
+          >
+            {isSending ? "Generating & Sending..." : "Send Invoice Now"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function AdminDashboard() {
   const { user, loading } = useAuth();
@@ -664,6 +750,7 @@ export default function AdminDashboard() {
                               className="h-9 w-9 text-muted-foreground hover:text-primary hover:bg-primary/5"
                             />
                             <AdminPayoutDetailsModal event={e} />
+                            <AdminSendInvoiceModal event={e} stats={stats} />
                             <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/5" onClick={() => deleteEvent(e.id)}>
                               <Trash2 className="w-5 h-5" />
                             </Button>
