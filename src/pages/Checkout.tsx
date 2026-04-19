@@ -230,6 +230,7 @@ const discountAmount = (coupon: any, subtotal: number) => {
 export default function CheckoutPage() {
   const [step, setStep] = useState(0);
   const [isGuest, setIsGuest] = useState(false);
+  const [isBuyingForFriend, setIsBuyingForFriend] = useState(false);
   const { items, subtotal, clearCart, updateQuantity, removeItem, addItem } = useCartStore();
   const navigate = useNavigate();
   const { data: events = [], loading: eventsLoading } = useEvents(); // Track loading state [cite: 19]
@@ -407,7 +408,7 @@ export default function CheckoutPage() {
       email: paystackEmail,
       amountKobo,
       reference,
-      metadata: isGuest ? {
+      metadata: (isGuest || isBuyingForFriend) ? {
         custom_fields: [
           { display_name: "Guest Name", variable_name: "guest_name", value: attendee.name.trim() },
           { display_name: "Guest Email", variable_name: "guest_email", value: attendee.email.trim() },
@@ -669,13 +670,55 @@ export default function CheckoutPage() {
         {step === 1 && (
           <div className="grid gap-8 lg:grid-cols-[1fr_min(100%,380px)] lg:items-start">
             <div className="rounded-2xl bg-white p-6 md:p-8">
-              <h2 className="mb-1 text-xl font-bold">Your details</h2>
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="text-xl font-bold">{isBuyingForFriend ? "Friend's details" : "Your details"}</h2>
+                {user && !isGuest && (
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <span className="text-xs font-medium text-neutral-500">Buy for a friend</span>
+                    <div 
+                      className={cn(
+                        "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
+                        isBuyingForFriend ? "" : "bg-neutral-200"
+                      )}
+                      style={isBuyingForFriend ? { backgroundColor: ACCENT } : undefined}
+                      onClick={() => {
+                        const next = !isBuyingForFriend;
+                        setIsBuyingForFriend(next);
+                        if (next) {
+                          setAttendee({ name: "", email: "", phone: "" });
+                        } else {
+                          // Restore user info if toggled off
+                          const meta = user?.user_metadata as { full_name?: string } | undefined;
+                          setAttendee({
+                            name: meta?.full_name || "",
+                            email: user?.email || "",
+                            phone: ""
+                          });
+                        }
+                      }}
+                    >
+                      <span className={cn(
+                        "pointer-events-none block h-4 w-4 rounded-full bg-white shadow-sm ring-0 transition-transform",
+                        isBuyingForFriend ? "translate-x-4" : "translate-x-1"
+                      )} />
+                    </div>
+                  </label>
+                )}
+              </div>
+              
+              {isBuyingForFriend && (
+                <p className="text-xs text-neutral-500 mb-6 flex items-center gap-1.5">
+                  <Info className="h-3.5 w-3.5" style={{ color: ACCENT }} />
+                  Your friend will receive the ticket confirmation email
+                </p>
+              )}
+
               <div className="space-y-4 mt-6">
                 {(
                   [
-                    { label: "Full Name", key: "name" as const, type: "text" },
-                    { label: "Email address", key: "email" as const, type: "email" },
-                    { label: "Phone Number", key: "phone" as const, type: "tel" },
+                    { label: isBuyingForFriend ? "Friend's Name" : "Full Name", key: "name" as const, type: "text" },
+                    { label: isBuyingForFriend ? "Friend's Email address" : "Email address", key: "email" as const, type: "email" },
+                    { label: isBuyingForFriend ? "Friend's Phone Number" : "Phone Number", key: "phone" as const, type: "tel" },
                   ] as const
                 ).map((f) => (
                   <div key={f.key} className="space-y-1.5">

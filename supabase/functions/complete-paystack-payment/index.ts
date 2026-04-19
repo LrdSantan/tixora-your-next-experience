@@ -116,6 +116,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       let body: Body;
       try {
         body = (await req.json()) as Body;
+        console.error(`${LOG} Received body:`, JSON.stringify(body, null, 2));
       } catch (parseErr) {
         console.error(`${LOG} Body JSON parse failed`, parseErr);
         return errorResponse("Invalid JSON body", 400, {
@@ -129,6 +130,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (!reference || !lines?.length) {
         console.error(`${LOG} Validation: reference or lines missing`, {
           reference: reference || null,
+          hasLines: Boolean(lines),
           lineCount: lines?.length ?? 0,
         });
         return errorResponse("reference and lines are required", 400);
@@ -200,7 +202,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
       if (!verifyJson.status || verifyJson.data?.status !== "success") {
         const msg = verifyJson.message ?? "Paystack verification failed (transaction not successful)";
-        console.error(`${LOG} Paystack: transaction not successful`, verifyJson);
+        console.error(`${LOG} Paystack: transaction not successful. Full body:`, verifyRawText);
         return errorResponse(msg, 400, { paystack: verifyJson });
       }
 
@@ -384,8 +386,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
       if (finalizedTickets.length > 0) {
         try {
-          const functionsBaseUrl = `${supabaseUrl}/functions/v1`;
-          const buyerName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Ticket buyer";
+          const recipientName = guestName || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "Ticket buyer";
+          const recipientEmail = guestEmail || user?.email;
           
           const eventTitle = finalizedTickets[0].event_title || "Your Event";
 
@@ -404,14 +406,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
           const emailPayload = {
             type: "ticket_confirmation",
-            buyerName: guestName || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "Ticket buyer",
-            buyerEmail: guestEmail || user?.email,
+            buyerName: recipientName,
+            buyerEmail: recipientEmail,
             eventTitle,
             purchasedAt: new Date().toISOString(),
             tickets: emailTickets
           };
 
-          const emailRes = await fetch(`${functionsBaseUrl}/send-ticket-email`, {
+          const emailRes = await fetch(`${supabaseUrl}/functions/v1/send-ticket-email`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -419,7 +421,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             },
             body: JSON.stringify(emailPayload),
           });
-
+          
           if (!emailRes.ok) {
             console.error(`${LOG} send-ticket-email failed status=${emailRes.status}`);
           }
