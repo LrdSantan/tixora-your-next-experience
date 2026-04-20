@@ -104,6 +104,10 @@ export default function VerifyTicketPage() {
   const [isJustMarked, setIsJustMarked] = useState(false);
   const scanCountRef = useRef(0);
   const [displayScanCount, setDisplayScanCount] = useState(0);
+  
+  // ── Debug State (Temporary) ──
+  const [debugRaw, setDebugRaw] = useState<string>("");
+  const [debugToken, setDebugToken] = useState<string>("");
 
   const isAdmin = !authLoading && user?.email === ADMIN_EMAIL;
   const canMark = isAdmin || isOrganizerOrTeam;
@@ -133,6 +137,9 @@ export default function VerifyTicketPage() {
 
       // Remove any trailing slashes
       token = token.replace(/\/+$/, "");
+
+      setDebugRaw(value);
+      setDebugToken(token);
 
       console.log(`[Verify] Hardware scanner raw: "${value}" -> extracted: "${token}"`);
 
@@ -204,6 +211,9 @@ export default function VerifyTicketPage() {
       }
 
       console.log(`[Verify] Fetching ticket for token: "${cleanToken}" (raw query/param: "${activeToken}")`);
+
+      setDebugRaw(activeToken);
+      setDebugToken(cleanToken);
 
       if (!supabase) {
         setPageState("not_found");
@@ -758,6 +768,14 @@ export default function VerifyTicketPage() {
           }}
         />
       )}
+
+      {/* Debug UI (Subtle) */}
+      <div className="fixed bottom-2 left-2 right-2 z-[10000] pointer-events-none flex flex-col items-center">
+        <div className="bg-black/80 text-white/40 text-[10px] px-3 py-1 rounded-full backdrop-blur-sm flex gap-4">
+          <span>Raw: {debugRaw || "none"}</span>
+          <span>Token: {debugToken || "none"}</span>
+        </div>
+      </div>
     </div>
   );
 }
