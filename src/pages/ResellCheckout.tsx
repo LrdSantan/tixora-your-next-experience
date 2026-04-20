@@ -114,12 +114,14 @@ const ResellCheckout = () => {
       onSuccess: (paidRef) => {
         void (async () => {
           try {
+            const { data: { session } } = await supabase!.auth.getSession();
             const { data, error } = await supabase!.functions.invoke("complete-resell", {
               body: {
                 ticket_resell_id: resellId,
                 new_buyer_id: user.id,
                 paystack_reference: paidRef
-              }
+              },
+              headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
             });
 
             if (error || !data?.ok) {

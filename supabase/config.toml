@@ -17,3 +17,15 @@ verify_jwt = false
 [functions.send-contact-email]
 enabled = true
 verify_jwt = false
+
+[functions.complete-paystack-payment]
+verify_jwt = false
+
+[functions.complete-resell]
+verify_jwt = false
+
+[functions.complete-transfer]
+verify_jwt = false
+
+[functions.resolve-bank]
+verify_jwt = false

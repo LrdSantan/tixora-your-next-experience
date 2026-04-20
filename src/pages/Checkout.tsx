@@ -441,8 +441,7 @@ export default function CheckoutPage() {
       onSuccess: (response) => {
         void (async () => {
           try {
-            const sessionData = await supabase.auth.getSession();
-            const token = sessionData.data.session?.access_token;
+            const { data: { session } } = await supabase.auth.getSession();
             
             // Extract reference correctly (could be string or object depending on version)
             const reference = typeof response === 'string' ? response : (response as any)?.reference;
@@ -457,7 +456,7 @@ export default function CheckoutPage() {
 
             const { data: fnBody, error: fnError } = await supabase.functions.invoke<PaystackFnResponse>("complete-paystack-payment", {
               body: payload,
-              headers: token ? { Authorization: `Bearer ${token}` } : undefined
+              headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
             });
 
             if (fnError || !fnBody?.ok) {
