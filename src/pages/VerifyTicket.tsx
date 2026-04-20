@@ -131,6 +131,11 @@ export default function VerifyTicketPage() {
         }
       }
 
+      // Remove any trailing slashes
+      token = token.replace(/\/+$/, "");
+
+      console.log(`[Verify] Hardware scanner raw: "${value}" -> extracted: "${token}"`);
+
       if (token) {
         console.log("[Verify] Hardware scanner detected token:", token);
         // Clear current state and navigate to the new token
@@ -189,9 +194,16 @@ export default function VerifyTicketPage() {
       }
 
       let cleanToken = activeToken.trim();
+      // Remove trailing slashes
+      cleanToken = cleanToken.replace(/\/+$/, "");
+
       if (cleanToken.includes('/verify/')) {
         cleanToken = cleanToken.split('/verify/').pop() || cleanToken;
+        // Re-handle trailing slash if it was site.com/verify/TOKEN/
+        cleanToken = cleanToken.replace(/\/+$/, "");
       }
+
+      console.log(`[Verify] Fetching ticket for token: "${cleanToken}" (raw query/param: "${activeToken}")`);
 
       if (!supabase) {
         setPageState("not_found");

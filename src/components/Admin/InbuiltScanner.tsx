@@ -92,17 +92,29 @@ export const InbuiltScanner = ({ onClose }: InbuiltScannerProps) => {
           await scanner.start(
             { facingMode: "environment" },
             {
-              fps: 15,
+              fps: 7, // Scan every ~150ms as requested
               qrbox: 250,
               aspectRatio: 1.0,
               formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
             },
             async (decodedText) => {
               if (isScanning.current || !decodedText || decodedText.trim().length < 5) return;
+              
+              // ── Token Extraction Logic ──
+              let token = decodedText.trim();
+              // Remove trailing slashes
+              token = token.replace(/\/+$/, "");
+              // Extract last segment if it's a URL
+              if (token.includes("/verify/")) {
+                token = token.split("/verify/").pop() || token;
+              }
+
+              console.log(`[Scanner] Raw: "${decodedText}" -> Extracted: "${token}"`);
+              
               isScanning.current = true;
 
               try {
-                const result = await validateTicketOffline(decodedText);
+                const result = await validateTicketOffline(token);
                 
                 if (result.success) {
                   setScanResult("success");

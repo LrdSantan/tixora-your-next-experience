@@ -51,9 +51,17 @@ export async function syncTicketsToLocal(eventId: string) {
 
 export async function validateTicketOffline(ticketId: string) {
   let cleanId = ticketId.trim();
+  // Remove trailing slashes
+  cleanId = cleanId.replace(/\/+$/, "");
+
   if (cleanId.includes('/verify/')) {
     cleanId = cleanId.split('/verify/').pop() || cleanId;
+    // Re-handle trailing slash if it was site.com/verify/TOKEN/
+    cleanId = cleanId.replace(/\/+$/, "");
   }
+  
+  console.log(`[OfflineDB] Validating token: "${cleanId}" (raw input: "${ticketId}")`);
+  
   const ticket = await db.tickets.where('ticket_id').equals(cleanId).first();
 
   if (!ticket) {
