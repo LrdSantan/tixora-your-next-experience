@@ -57,15 +57,33 @@ const ClaimTicket = () => {
     }
 
     const reference = generatePaymentReference();
-    const amountKobo = nairaToKobo(200);
+    const amountKobo = Math.round(nairaToKobo(200));
+
+    // Ensure email is valid and logged
+    const resolvedEmail = (user?.email || "").trim();
+    console.log("[ClaimTicket] Resolved payment email:", resolvedEmail);
+
+    const paystackConfig = {
+      publicKey: pk,
+      email: resolvedEmail,
+      amountKobo,
+      reference,
+    };
+
+    console.log("[ClaimTicket] Full Paystack config before initialization:", {
+      ...paystackConfig,
+      publicKey: paystackConfig.publicKey ? `${paystackConfig.publicKey.slice(0, 8)}…` : "MISSING",
+    });
+
+    if (!resolvedEmail) {
+      toast.error("Could not determine your email address. Please sign in again.");
+      return;
+    }
 
     setClaiming(true);
 
     openPaystackInline({
-      publicKey: pk,
-      email: user.email || "",
-      amountKobo,
-      reference,
+      ...paystackConfig,
       onSuccess: async (paidRef) => {
         try {
           if (!session?.access_token) {

@@ -85,14 +85,32 @@ const ResellCheckout = () => {
     }
 
     const reference = generatePaymentReference();
-    const amountKobo = nairaToKobo(resell.refund_amount);
+    const amountKobo = Math.round(nairaToKobo(resell.refund_amount));
+
+    // Ensure email is valid and logged
+    const resolvedEmail = (user?.email || attendee.email || "").trim();
+    console.log("[ResellCheckout] Resolved payment email:", resolvedEmail, "| user?.email:", user?.email);
+
+    const paystackConfig = {
+      publicKey: pk,
+      email: resolvedEmail,
+      amountKobo,
+      reference,
+    };
+
+    console.log("[ResellCheckout] Full Paystack config before initialization:", {
+      ...paystackConfig,
+      publicKey: paystackConfig.publicKey ? `${paystackConfig.publicKey.slice(0, 8)}…` : "MISSING",
+    });
+
+    if (!resolvedEmail) {
+      toast.error("Could not determine your email address.");
+      return;
+    }
 
     setPaying(true);
     openPaystackInline({
-      publicKey: pk,
-      email: attendee.email,
-      amountKobo,
-      reference,
+      ...paystackConfig,
       onSuccess: (paidRef) => {
         void (async () => {
           try {

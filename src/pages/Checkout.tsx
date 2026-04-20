@@ -408,12 +408,19 @@ export default function CheckoutPage() {
     }
 
     const reference = generatePaymentReference();
-    const amountKobo = Math.floor(nairaToKobo(finalTotal));
-    const paystackEmail = (user?.email || attendee.email || "").trim();
+    const amountKobo = Math.round(nairaToKobo(finalTotal));
+
+    // For authenticated users, always prefer user.email from the auth session
+    // (not user_metadata) as the primary email source.
+    const resolvedEmail = (!isGuest && user?.email)
+      ? user.email.trim()
+      : attendee.email.trim();
+
+    console.log("[Checkout] Resolved payment email:", resolvedEmail, "| isGuest:", isGuest, "| user?.email:", user?.email);
 
     const paystackConfig = {
       publicKey: pk,
-      email: paystackEmail,
+      email: resolvedEmail,
       amountKobo,
       reference,
       metadata: (isGuest || isBuyingForFriend) ? {
@@ -425,7 +432,15 @@ export default function CheckoutPage() {
       } : undefined,
     };
 
-    console.log("Initiating Paystack with config:", paystackConfig);
+    console.log("email:", paystackConfig.email, typeof paystackConfig.email);
+    console.log("amount:", paystackConfig.amountKobo, typeof paystackConfig.amountKobo);
+    console.log("reference:", paystackConfig.reference, typeof paystackConfig.reference);
+    console.log("key:", pk ? `${pk.slice(0, 8)}...` : "MISSING", typeof pk);
+
+    if (!resolvedEmail) {
+      toast.error("Could not determine your email address. Please sign in again.");
+      return;
+    }
 
     setPaying(true);
     openPaystackInline({
