@@ -426,12 +426,14 @@ export default function CheckoutPage() {
       ]
     } : undefined;
 
+    console.log("metadata value:", metadata, typeof metadata);
+
     const paystackConfig = {
       publicKey: pk,
       email: resolvedEmail,
       amountKobo,
       reference,
-      ...(metadata ? { metadata } : {}),
+      ...(metadata && typeof metadata === 'object' ? { metadata } : {}),
     };
 
     console.log("email:", paystackConfig.email, typeof paystackConfig.email);
