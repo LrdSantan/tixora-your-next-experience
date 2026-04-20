@@ -418,22 +418,11 @@ export default function CheckoutPage() {
 
     console.log("[Checkout] Resolved payment email:", resolvedEmail, "| isGuest:", isGuest, "| user?.email:", user?.email);
 
-    const metadata = (isGuest || isBuyingForFriend) ? {
-      custom_fields: [
-        { display_name: "Guest Name", variable_name: "guest_name", value: attendee.name.trim() },
-        { display_name: "Guest Email", variable_name: "guest_email", value: attendee.email.trim() },
-        { display_name: "Guest Phone", variable_name: "guest_phone", value: attendee.phone.trim() }
-      ]
-    } : undefined;
-
-    console.log("metadata value:", metadata, typeof metadata);
-
     const paystackConfig = {
       publicKey: pk,
       email: resolvedEmail,
       amountKobo,
       reference,
-      ...(metadata && typeof metadata === 'object' ? { metadata } : {}),
     };
 
     console.log("email:", paystackConfig.email, typeof paystackConfig.email);
