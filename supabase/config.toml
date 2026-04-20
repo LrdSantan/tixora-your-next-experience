@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.resolve-bank]
 verify_jwt = false
+
+[functions.send-ticket-email]
+verify_jwt = false

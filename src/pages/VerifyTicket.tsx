@@ -108,6 +108,74 @@ export default function VerifyTicketPage() {
   const isAdmin = !authLoading && user?.email === ADMIN_EMAIL;
   const canMark = isAdmin || isOrganizerOrTeam;
 
+  // ── Hardware Scanner Support ──
+  useEffect(() => {
+    let buffer = "";
+    let timeout: ReturnType<typeof setTimeout>;
+
+    const processScannedValue = (value: string) => {
+      let token = value.trim();
+      
+      // If the string looks like a URL, extract the token
+      if (token.startsWith("http")) {
+        try {
+          const url = new URL(token);
+          // Look for /verify/TOKEN or ?token=TOKEN
+          if (url.pathname.includes("/verify/")) {
+            token = url.pathname.split("/verify/").pop() || token;
+          } else {
+            token = url.searchParams.get("token") || token;
+          }
+        } catch (e) {
+          // If parsing fails, use the original string
+        }
+      }
+
+      if (token) {
+        console.log("[Verify] Hardware scanner detected token:", token);
+        // Clear current state and navigate to the new token
+        setPageState("loading");
+        navigate(`/verify/${token}`, { replace: true });
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in an input or textarea
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" || 
+        target.tagName === "TEXTAREA" || 
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.key === "Enter") {
+        if (buffer) processScannedValue(buffer);
+        buffer = "";
+        return;
+      }
+
+      // Add character to buffer
+      // Scanners send characters very quickly
+      if (e.key.length === 1) {
+        buffer += e.key;
+      }
+
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        if (buffer) processScannedValue(buffer);
+        buffer = "";
+      }, 100);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      clearTimeout(timeout);
+    };
+  }, [navigate]);
+
   useEffect(() => {
     async function fetchTicket() {
       const activeToken = queryToken || qrToken;
