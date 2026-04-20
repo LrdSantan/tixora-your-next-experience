@@ -25,7 +25,7 @@ export function openPaystackInline(options: {
     amount: options.amountKobo,
     ref: options.reference,
     currency: "NGN",
-    metadata: options.metadata,
+    ...(options.metadata && typeof options.metadata === 'object' ? { metadata: options.metadata } : {}),
     onSuccess: (transaction) => {
       options.onSuccess(transaction.reference ?? options.reference);
     },
