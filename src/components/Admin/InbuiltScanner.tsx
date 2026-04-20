@@ -63,6 +63,10 @@ export const InbuiltScanner = ({ onClose }: InbuiltScannerProps) => {
 
   const [mode, setMode] = useState<"online" | "offline">("online");
   
+  // ── Duplicate Scan Prevention ──
+  const lastScannedCode = useRef("");
+  const lastScanTime = useRef(0);
+  
   useEffect(() => {
     const handleOnline = () => setMode("online");
     const handleOffline = () => setMode("offline");
@@ -92,27 +96,44 @@ export const InbuiltScanner = ({ onClose }: InbuiltScannerProps) => {
           await scanner.start(
             { facingMode: "environment" },
             {
-              fps: 7, // Scan every ~150ms as requested
+              fps: 10, // Optimized scan speed (100ms interval)
               qrbox: 250,
               aspectRatio: 1.0,
               formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
             },
             async (decodedText) => {
-              if (isScanning.current || !decodedText || decodedText.trim().length < 5) return;
+              // 1. Validation: Ignore empty or obviously invalid scans early
+              if (!decodedText || decodedText.trim().length < 10) {
+                return;
+              }
+
+              // 2. Debounce: Only process the same QR code once every 1.5 seconds
+              const now = Date.now();
+              if (decodedText === lastScannedCode.current && now - lastScanTime.current < 1500) {
+                return;
+              }
+
+              // 3. Lock: Prevent multiple concurrent verification attempts
+              if (isScanning.current) return;
               
               // ── Token Extraction Logic ──
-              let token = decodedText.trim();
-              // Remove trailing slashes
-              token = token.replace(/\/+$/, "");
-              // Extract last segment if it's a URL
+              let token = decodedText.trim().replace(/\/+$/, "");
               if (token.includes("/verify/")) {
-                token = token.split("/verify/").pop() || token;
+                token = token.split("/verify/").pop() || "";
+                token = token.replace(/\/+$/, ""); // Handle trailing slash again after split
               }
+              token = token.trim();
+
+              // Final check on extracted token
+              if (!token || token.length < 5) return;
+
+              // Record scan to prevent immediate re-trigger
+              lastScannedCode.current = decodedText;
+              lastScanTime.current = now;
+              isScanning.current = true;
 
               console.log(`[Scanner] Raw: "${decodedText}" -> Extracted: "${token}"`);
               
-              isScanning.current = true;
-
               try {
                 const result = await validateTicketOffline(token);
                 
@@ -126,14 +147,14 @@ export const InbuiltScanner = ({ onClose }: InbuiltScannerProps) => {
 
                 loadUnsyncedCount();
                 
-                // Auto reset
+                // Active lockout period
                 setTimeout(() => {
                   setScanResult(null);
                   isScanning.current = false;
                 }, 1500);
 
               } catch (err) {
-                console.error(err);
+                console.error("[Scanner] Verification Error:", err);
                 setScanResult("error");
                 playSound("buzz");
                 
