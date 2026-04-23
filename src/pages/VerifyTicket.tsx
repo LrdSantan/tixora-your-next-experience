@@ -118,7 +118,7 @@ export default function VerifyTicketPage() {
   useEffect(() => {
     let buffer = "";
     let timeout: ReturnType<typeof setTimeout>;
-
+    const processScannedValue = (value: string) => {
       const token = extractTicketToken(value);
 
       setDebugRaw(value);
