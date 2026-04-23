@@ -435,9 +435,21 @@ export default function CheckoutPage() {
       return;
     }
 
+    const paystackMetadata = {
+      guest_email: attendee.email.trim(),
+      guest_name: attendee.name.trim(),
+      guest_phone: attendee.phone.trim(),
+      custom_fields: [
+        { display_name: "Guest Name", variable_name: "guest_name", value: attendee.name.trim() },
+        { display_name: "Guest Email", variable_name: "guest_email", value: attendee.email.trim() },
+        { display_name: "Guest Phone", variable_name: "guest_phone", value: attendee.phone.trim() }
+      ]
+    };
+
     setPaying(true);
     openPaystackInline({
       ...paystackConfig,
+      metadata: paystackMetadata,
       onSuccess: (response) => {
         void (async () => {
           try {

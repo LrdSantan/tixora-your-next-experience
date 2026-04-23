@@ -215,11 +215,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const amountKoboInt = Math.round(Number(amountKobo));
       console.error(`${LOG} Paystack: amount kobo (rounded)=${amountKoboInt}`);
 
-      const metadata = verifyJson.data?.metadata as any;
+      const paystackData = verifyJson.data as any;
+      const metadata = paystackData?.metadata;
       const customFields = metadata?.custom_fields || [];
       const guestName = customFields.find((f: any) => f.variable_name === "guest_name")?.value;
-      const guestEmail = customFields.find((f: any) => f.variable_name === "guest_email")?.value;
       const guestPhone = customFields.find((f: any) => f.variable_name === "guest_phone")?.value;
+
+      const guestEmail =
+        metadata?.guest_email ||
+        paystackData?.customer?.email ||
+        customFields.find((f: any) => f.variable_name === "guest_email")?.value ||
+        null;
 
       if (!user && !guestEmail) {
         console.error(`${LOG} Guest checkout failed: Missing guest_email in Paystack metadata`);
