@@ -5,6 +5,8 @@ import { validateTicketOffline, getUnsyncedCount } from "@/lib/db";
 import { useSync } from "@/hooks/useSync";
 import { Button } from "@/components/ui/button";
 
+import { extractTicketToken } from "@/lib/scanner";
+
 interface InbuiltScannerProps {
   onClose: () => void;
 }
@@ -117,12 +119,7 @@ export const InbuiltScanner = ({ onClose }: InbuiltScannerProps) => {
               if (isScanning.current) return;
               
               // ── Token Extraction Logic ──
-              let token = decodedText.trim().replace(/\/+$/, "");
-              if (token.includes("/verify/")) {
-                token = token.split("/verify/").pop() || "";
-                token = token.replace(/\/+$/, ""); // Handle trailing slash again after split
-              }
-              token = token.trim();
+              const token = extractTicketToken(decodedText);
 
               // Final check on extracted token
               if (!token || token.length < 5) return;

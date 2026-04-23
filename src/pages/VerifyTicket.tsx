@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { SyncQueue } from "@/lib/sync-queue";
 
+import { extractTicketToken } from "@/lib/scanner";
+
 const ADMIN_EMAIL = "yusufquadir50@gmail.com";
 
 type TicketData = {
@@ -117,26 +119,7 @@ export default function VerifyTicketPage() {
     let buffer = "";
     let timeout: ReturnType<typeof setTimeout>;
 
-    const processScannedValue = (value: string) => {
-      let token = value.trim();
-      
-      // If the string looks like a URL, extract the token
-      if (token.startsWith("http")) {
-        try {
-          const url = new URL(token);
-          // Look for /verify/TOKEN or ?token=TOKEN
-          if (url.pathname.includes("/verify/")) {
-            token = url.pathname.split("/verify/").pop() || token;
-          } else {
-            token = url.searchParams.get("token") || token;
-          }
-        } catch (e) {
-          // If parsing fails, use the original string
-        }
-      }
-
-      // Remove any trailing slashes
-      token = token.replace(/\/+$/, "");
+      const token = extractTicketToken(value);
 
       setDebugRaw(value);
       setDebugToken(token);
@@ -200,15 +183,7 @@ export default function VerifyTicketPage() {
         return;
       }
 
-      let cleanToken = activeToken.trim();
-      // Remove trailing slashes
-      cleanToken = cleanToken.replace(/\/+$/, "");
-
-      if (cleanToken.includes('/verify/')) {
-        cleanToken = cleanToken.split('/verify/').pop() || cleanToken;
-        // Re-handle trailing slash if it was site.com/verify/TOKEN/
-        cleanToken = cleanToken.replace(/\/+$/, "");
-      }
+      const cleanToken = extractTicketToken(activeToken);
 
       console.log(`[Verify] Fetching ticket for token: "${cleanToken}" (raw query/param: "${activeToken}")`);
 
@@ -230,7 +205,9 @@ export default function VerifyTicketPage() {
         for (const key of cacheKeys) {
           try {
             const cachedArray = JSON.parse(localStorage.getItem(key) || '[]');
-            const match = cachedArray.find((t: any) => t.qr_token === cleanToken);
+            const match = cachedArray.find((t: any) => 
+              t.qr_token === cleanToken || t.ticket_code === cleanToken
+            );
             if (match) {
               foundTicket = match;
               break;
@@ -275,8 +252,8 @@ export default function VerifyTicketPage() {
           events ( title, date, time, venue, city, organizer_id, is_multi_day, event_days ),
           ticket_tiers ( name )
         `)
-        .eq("qr_token", cleanToken)
-        .single();
+        .or(`qr_token.eq.${cleanToken},ticket_code.eq.${cleanToken}`)
+        .maybeSingle();
 
       if (error || !data) {
         setPageState("not_found");

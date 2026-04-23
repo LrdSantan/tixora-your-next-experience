@@ -1,9 +1,12 @@
 import Dexie, { type Table } from 'dexie';
 import { getSupabaseClient } from './supabase';
+import { extractTicketToken } from './scanner';
 
 export interface LocalTicket {
   id?: number;
-  ticket_id: string;
+  ticket_id: string; // The UUID from Supabase
+  qr_token: string | null;
+  ticket_code: string;
   event_id: string;
   status: 'active' | 'used';
   synced: boolean;
@@ -14,8 +17,8 @@ export class TixoraDB extends Dexie {
 
   constructor() {
     super('TixoraDB');
-    this.version(3).stores({
-      tickets: '++id, ticket_id, event_id, status, synced'
+    this.version(4).stores({
+      tickets: '++id, ticket_id, qr_token, ticket_code, event_id, status, synced'
     });
   }
 }
@@ -29,7 +32,7 @@ export async function syncTicketsToLocal(eventId: string) {
   // Fetch active tickets for the event from Supabase
   const { data: remoteTickets, error } = await supabase
     .from('tickets')
-    .select('id, qr_token, status')
+    .select('id, qr_token, ticket_code, status')
     .eq('event_id', eventId)
     .eq('status', 'active');
 
@@ -40,7 +43,9 @@ export async function syncTicketsToLocal(eventId: string) {
 
   if (remoteTickets && remoteTickets.length > 0) {
     const localTickets: LocalTicket[] = remoteTickets.map(t => ({
-      ticket_id: t.qr_token || t.id, // qr_token is what scanners read
+      ticket_id: t.id, 
+      qr_token: t.qr_token,
+      ticket_code: t.ticket_code,
       event_id: eventId,
       status: 'active',
       synced: true
@@ -50,19 +55,15 @@ export async function syncTicketsToLocal(eventId: string) {
 }
 
 export async function validateTicketOffline(ticketId: string) {
-  let cleanId = ticketId.trim();
-  // Remove trailing slashes
-  cleanId = cleanId.replace(/\/+$/, "");
-
-  if (cleanId.includes('/verify/')) {
-    cleanId = cleanId.split('/verify/').pop() || cleanId;
-    // Re-handle trailing slash if it was site.com/verify/TOKEN/
-    cleanId = cleanId.replace(/\/+$/, "");
-  }
+  const cleanId = extractTicketToken(ticketId);
   
   console.log(`[OfflineDB] Validating token: "${cleanId}" (raw input: "${ticketId}")`);
   
-  const ticket = await db.tickets.where('ticket_id').equals(cleanId).first();
+  // Search by either qr_token or ticket_code
+  const ticket = await db.tickets
+    .where('qr_token').equals(cleanId)
+    .or('ticket_code').equals(cleanId)
+    .first();
 
   if (!ticket) {
     if (navigator.onLine) {
@@ -71,8 +72,8 @@ export async function validateTicketOffline(ticketId: string) {
         const { data, error } = await supabase
           .from("tickets")
           .select("id, is_used, ticket_code")
-          .eq("qr_token", cleanId)
-          .single();
+          .or(`qr_token.eq.${cleanId},ticket_code.eq.${cleanId}`)
+          .maybeSingle();
 
         if (!error && data) {
           if (data.is_used) {
