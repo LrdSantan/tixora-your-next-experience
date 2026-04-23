@@ -44,9 +44,9 @@ function ticketEmailHtml(p: EmailPayload): string {
 
   const ticketsHtml = p.tickets.map((t, idx) => {
     // encodeURIComponent is safe for URL params
-    const tokenToUse = t.qrToken || t.ticketCode;
-    const verifyUrl = `https://tixoraafrica.com.ng/verify?token=${tokenToUse}`;
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&ecc=H&qzone=4&data=${encodeURIComponent(tokenToUse)}`;
+    const tokenToUse = t.qrToken || t.ticketCode || t.reference;
+    const fullVerifyUrl = `https://tixoraafrica.com.ng/verify/${tokenToUse}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&ecc=H&qzone=4&data=${encodeURIComponent(fullVerifyUrl)}`;
 
     return `
       <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4faf6;border:1px solid #d0ead9;border-radius:12px;padding:24px;margin-bottom:16px;">
