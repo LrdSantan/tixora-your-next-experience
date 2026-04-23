@@ -13,15 +13,16 @@ export function extractTicketToken(raw: string): string {
   let cleaned = raw.trim().replace(/[\n\r\t]/g, "");
 
   // 2. Handle URL formats with query parameters (e.g., from email/PDF)
-  if (cleaned.includes("?token=")) {
+  if (cleaned.includes("token=")) {
     try {
-      // Use a fake base if the URL is relative (though unlikely here)
-      const url = new URL(cleaned, "https://tixoraafrica.com.ng");
+      // Handle cases like ?token=TOKEN or &token=TOKEN
+      const urlStr = cleaned.includes("://") ? cleaned : `https://tixoraafrica.com.ng/${cleaned.startsWith("/") ? "" : "/"}${cleaned}`;
+      const url = new URL(urlStr);
       const t = url.searchParams.get("token");
       if (t) return t.trim().replace(/\/+$/, "");
     } catch (e) {
       // Manual fallback for malformed URLs
-      const match = cleaned.match(/\?token=([^&#\s]+)/);
+      const match = cleaned.match(/[?&]token=([^&#\s]+)/);
       if (match) return match[1].replace(/\/+$/, "").trim();
     }
   }

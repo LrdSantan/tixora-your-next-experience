@@ -41,7 +41,7 @@ export const TicketVisualCard = forwardRef<HTMLDivElement, TicketVisualCardProps
   ref,
 ) {
   const tokenToUse = ticket.qrToken || ticket.ticketCode || ticket.reference;
-  const qrValue = `https://tixoraafrica.com.ng/verify?token=${tokenToUse}`;
+  const qrValue = tokenToUse;
 
   return (
     <div className={cn("rounded-xl border border-border bg-card shadow-sm", className)}>
