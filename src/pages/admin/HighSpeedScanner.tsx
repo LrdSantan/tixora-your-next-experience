@@ -82,7 +82,10 @@ export default function HighSpeedScannerPage() {
       </div>
 
       <div className="flex-1 relative">
-        <InbuiltScanner onClose={() => navigate(`/events/${id}`)} />
+        <InbuiltScanner 
+          eventId={id}
+          onClose={() => navigate(`/events/${id}`)} 
+        />
       </div>
     </div>
   );

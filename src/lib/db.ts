@@ -54,10 +54,10 @@ export async function syncTicketsToLocal(eventId: string) {
   }
 }
 
-export async function validateTicketOffline(ticketId: string) {
+export async function validateTicketOffline(ticketId: string, eventId?: string) {
   const cleanId = extractTicketToken(ticketId);
   
-  console.log(`[OfflineDB] Validating token: "${cleanId}" (raw input: "${ticketId}")`);
+  console.log(`[OfflineDB] Validating token: "${cleanId}" (raw input: "${ticketId}")`, { eventId });
   
   // Search by either qr_token or ticket_code
   const ticket = await db.tickets
@@ -69,28 +69,52 @@ export async function validateTicketOffline(ticketId: string) {
     if (navigator.onLine) {
       const supabase = getSupabaseClient();
       if (supabase) {
+        console.log(`[OfflineDB] Ticket not found locally, checking online...`);
         const { data, error } = await supabase
           .from("tickets")
-          .select("id, is_used, ticket_code")
+          .select("id, is_used, ticket_code, event_id")
           .or(`qr_token.eq.${cleanId},ticket_code.eq.${cleanId}`)
           .maybeSingle();
 
-        if (!error && data) {
+        if (error) {
+          console.error("[OfflineDB] Online check error:", error);
+          return { success: false, message: `DB Error: ${error.message}` };
+        }
+
+        if (data) {
+          // Check if ticket belongs to the correct event
+          if (eventId && data.event_id !== eventId) {
+            console.warn(`[OfflineDB] Ticket belongs to different event: ${data.event_id} vs expected ${eventId}`);
+            return { success: false, message: "Ticket belongs to a different event" };
+          }
+
           if (data.is_used) {
             return { success: false, message: "Ticket already used" };
           }
+
           // Mark used online
-          const { error: markErr } = await supabase.rpc("mark_ticket_used", {
-            p_ticket_code: data.ticket_code
-          });
+          console.log(`[OfflineDB] Marking ticket used online: ${data.ticket_code}`);
+          const rpcParams = { p_ticket_code: data.ticket_code };
+          const { data: rpcData, error: markErr } = await supabase.rpc("mark_ticket_used", rpcParams);
           
+          console.log("[OfflineDB] RPC Response:", { data: rpcData, error: markErr, params: rpcParams });
+
           if (!markErr) {
             return { success: true, message: "Checked in online!" };
+          } else {
+            // Return the specific RPC error message (e.g. "Ticket already used" or "Unauthorized")
+            return { success: false, message: markErr.message || "Failed to mark used online" };
           }
         }
       }
     }
     return { success: false, message: "Invalid ticket" };
+  }
+
+  // Local ticket found
+  if (eventId && ticket.event_id !== eventId) {
+    console.warn(`[OfflineDB] Local ticket event mismatch: ${ticket.event_id} vs ${eventId}`);
+    return { success: false, message: "Ticket belongs to a different event" };
   }
 
   if (ticket.status === 'used') {

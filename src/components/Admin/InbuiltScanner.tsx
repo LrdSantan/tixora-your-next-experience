@@ -6,9 +6,11 @@ import { useSync } from "@/hooks/useSync";
 import { Button } from "@/components/ui/button";
 
 import { extractTicketToken } from "@/lib/scanner";
+import { cn } from "@/lib/utils";
 
 interface InbuiltScannerProps {
   onClose: () => void;
+  eventId?: string;
 }
 
 // Audio context helper for beep/buzz sounds
@@ -40,8 +42,9 @@ const playSound = (type: "beep" | "buzz") => {
   }
 };
 
-export const InbuiltScanner = ({ onClose }: InbuiltScannerProps) => {
-  const [scanResult, setScanResult] = useState<"success" | "error" | null>(null);
+export const InbuiltScanner = ({ onClose, eventId }: InbuiltScannerProps) => {
+  const [scanResult, setScanResult] = useState<"success" | "already-used" | "invalid" | "invalid-event" | "error" | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [unsyncedCount, setUnsyncedCount] = useState(0);
   const [isFlashlightOn, setIsFlashlightOn] = useState(false);
   const [hasFlashlight, setHasFlashlight] = useState(false);
@@ -132,13 +135,23 @@ export const InbuiltScanner = ({ onClose }: InbuiltScannerProps) => {
               console.log(`[Scanner] Raw: "${decodedText}" -> Extracted: "${token}"`);
               
               try {
-                const result = await validateTicketOffline(token);
+                const result = await validateTicketOffline(token, eventId);
                 
                 if (result.success) {
                   setScanResult("success");
                   playSound("beep");
                 } else {
-                  setScanResult("error");
+                  // Determine specific error state
+                  if (result.message?.toLowerCase().includes("already used")) {
+                    setScanResult("already-used");
+                  } else if (result.message?.toLowerCase().includes("different event")) {
+                    setScanResult("invalid-event");
+                  } else if (result.message?.toLowerCase().includes("invalid ticket")) {
+                    setScanResult("invalid");
+                  } else {
+                    setScanResult("error");
+                    setErrorMsg(result.message || "Unknown error");
+                  }
                   playSound("buzz");
                 }
 
@@ -147,16 +160,19 @@ export const InbuiltScanner = ({ onClose }: InbuiltScannerProps) => {
                 // Active lockout period
                 setTimeout(() => {
                   setScanResult(null);
+                  setErrorMsg(null);
                   isScanning.current = false;
                 }, 1500);
 
-              } catch (err) {
+              } catch (err: any) {
                 console.error("[Scanner] Verification Error:", err);
                 setScanResult("error");
+                setErrorMsg(err.message || "Verification failed");
                 playSound("buzz");
                 
                 setTimeout(() => {
                   setScanResult(null);
+                  setErrorMsg(null);
                   isScanning.current = false;
                 }, 1500);
               }
@@ -215,12 +231,32 @@ export const InbuiltScanner = ({ onClose }: InbuiltScannerProps) => {
         {scanResult && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-20 backdrop-blur-md transition-all duration-300">
             {scanResult === "success" ? (
-              <div className="bg-green-500/90 text-white p-8 rounded-full shadow-[0_0_50px_rgba(34,197,94,0.6)] animate-in zoom-in spin-in-12">
-                <CheckCircle className="h-24 w-24" />
+              <div className="flex flex-col items-center gap-4">
+                <div className="bg-green-500/90 text-white p-8 rounded-full shadow-[0_0_50px_rgba(34,197,94,0.6)] animate-in zoom-in spin-in-12">
+                  <CheckCircle className="h-24 w-24" />
+                </div>
+                <span className="text-white font-black text-2xl tracking-widest uppercase animate-in fade-in slide-in-from-bottom-4">Checked In</span>
               </div>
             ) : (
-              <div className="bg-red-500/90 text-white p-8 rounded-full shadow-[0_0_50px_rgba(239,68,68,0.6)] animate-in zoom-in fade-in">
-                <XCircle className="h-24 w-24" />
+              <div className="flex flex-col items-center gap-4">
+                <div className={cn(
+                  "text-white p-8 rounded-full shadow-lg animate-in zoom-in fade-in",
+                  scanResult === "already-used" ? "bg-amber-500/90 shadow-amber-500/40" : "bg-red-500/90 shadow-red-500/40"
+                )}>
+                  <XCircle className="h-24 w-24" />
+                </div>
+                <div className="flex flex-col items-center">
+                  <span className="text-white font-black text-2xl tracking-widest uppercase animate-in fade-in slide-in-from-bottom-4">
+                    {scanResult === "already-used" ? "Already Used" : 
+                     scanResult === "invalid-event" ? "Wrong Event" :
+                     scanResult === "invalid" ? "Invalid Ticket" : "Scan Failed"}
+                  </span>
+                  {errorMsg && (
+                    <span className="text-white/70 text-sm font-medium mt-1 animate-in fade-in">
+                      {errorMsg}
+                    </span>
+                  )}
+                </div>
               </div>
             )}
           </div>
