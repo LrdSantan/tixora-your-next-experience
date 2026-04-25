@@ -88,6 +88,8 @@ export async function fetchEvents(filterActive = true): Promise<Event[]> {
       account_number,
       account_name,
       payout_status,
+      organizer_email,
+      organizer_phone,
       ticket_tiers (
         id,
         event_id,
@@ -98,7 +100,8 @@ export async function fetchEvents(filterActive = true): Promise<Event[]> {
         remaining_quantity
       )
     `
-    );
+    )
+    .neq("status", "deleted");
 
   if (filterActive) {
     const today = new Date().toISOString().split("T")[0];
