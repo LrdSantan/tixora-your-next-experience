@@ -186,10 +186,12 @@ function AdminAddBlogModal({ onAdded, editPost }: { onAdded: () => void, editPos
           <div className="space-y-2">
             <label className="text-sm font-semibold">Cover Image</label>
             <div className="flex flex-col gap-3">
-              <div className="relative group cursor-pointer">
-                <Input 
+              <div className="relative">
+                <input 
                   type="file" 
                   accept="image/*" 
+                  className="hidden" 
+                  id="blog-image-input"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
@@ -197,26 +199,24 @@ function AdminAddBlogModal({ onAdded, editPost }: { onAdded: () => void, editPos
                       setImagePreview(URL.createObjectURL(file));
                     }
                   }} 
-                  className="hidden" 
-                  id="blog-image-upload" 
                 />
                 <label 
-                  htmlFor="blog-image-upload" 
-                  className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl hover:bg-muted/50 transition-colors cursor-pointer"
+                  htmlFor="blog-image-input" 
+                  className="inline-flex items-center justify-center px-4 h-10 rounded-lg border border-input bg-background hover:bg-muted transition-colors cursor-pointer text-sm font-medium"
                 >
-                  <Upload className="w-6 h-6 text-muted-foreground mb-2" />
-                  <span className="text-sm text-muted-foreground">Click to upload cover photo</span>
+                  <Plus className="w-4 h-4 mr-2" />
+                  {imageFile ? "Change Photo" : "Upload Photo"}
                 </label>
               </div>
               
               {imagePreview && (
-                <div className="relative aspect-[21/9] rounded-xl overflow-hidden border">
+                <div className="relative aspect-[21/9] rounded-xl overflow-hidden border bg-muted/20">
                   <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                   <Button 
                     type="button" 
                     variant="destructive" 
                     size="icon" 
-                    className="absolute top-2 right-2 h-7 w-7 rounded-full"
+                    className="absolute top-2 right-2 h-7 w-7 rounded-full shadow-lg"
                     onClick={() => {
                       setImageFile(null);
                       setImagePreview(null);
@@ -227,8 +227,8 @@ function AdminAddBlogModal({ onAdded, editPost }: { onAdded: () => void, editPos
                 </div>
               )}
               
-              <p className="text-[10px] text-muted-foreground italic">
-                Note: Ensure the <code className="bg-muted px-1 rounded">blog-images</code> bucket exists and is set to public in Supabase Storage.
+              <p className="text-[10px] text-muted-foreground">
+                Note: The <code className="bg-muted px-1 rounded">blog-images</code> bucket must exist and be public in Supabase Storage.
               </p>
             </div>
           </div>
