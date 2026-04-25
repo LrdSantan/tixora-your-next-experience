@@ -100,8 +100,11 @@ export default function BlogPost() {
       </div>
 
       {/* Content */}
-      <article className="container mx-auto px-4 max-w-3xl prose prose-slate md:prose-lg prose-primary prose-headings:font-extrabold prose-p:text-muted-foreground prose-p:leading-relaxed">
-        <div dangerouslySetInnerHTML={{ __html: post.content }} />
+      <article className="container mx-auto px-4 max-w-3xl">
+        <div 
+          className="prose prose-base md:prose-lg prose-primary max-w-none prose-headings:text-foreground prose-headings:font-black prose-p:text-muted-foreground prose-p:leading-relaxed prose-img:rounded-2xl"
+          dangerouslySetInnerHTML={{ __html: post.content }} 
+        />
       </article>
 
       {/* Footer Share/Next */}

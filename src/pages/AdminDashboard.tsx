@@ -77,6 +77,8 @@ function AdminAddBlogModal({ onAdded, editPost }: { onAdded: () => void, editPos
     title: "", excerpt: "", content: "", cover_image_url: "", published: false, author: "Tixora Team"
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   useEffect(() => {
     if (editPost) {
@@ -88,9 +90,12 @@ function AdminAddBlogModal({ onAdded, editPost }: { onAdded: () => void, editPos
         published: editPost.published,
         author: editPost.author
       });
+      setImagePreview(editPost.cover_image_url);
       setOpen(true);
     } else {
       setFormData({ title: "", excerpt: "", content: "", cover_image_url: "", published: false, author: "Tixora Team" });
+      setImagePreview(null);
+      setImageFile(null);
     }
   }, [editPost]);
 
@@ -107,8 +112,32 @@ function AdminAddBlogModal({ onAdded, editPost }: { onAdded: () => void, editPos
       setIsSubmitting(true);
       const slug = generateSlug(formData.title);
       
+      let coverUrl = formData.cover_image_url;
+
+      // Handle Image Upload [Blog Cover Image Upload]
+      if (imageFile) {
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from('blog-images')
+          .upload(fileName, imageFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage
+          .from('blog-images')
+          .getPublicUrl(fileName);
+        
+        coverUrl = publicUrlData.publicUrl;
+      }
+
+      if (!coverUrl && !editPost) {
+        return toast.error("Cover image is required");
+      }
+
       const payload = {
         ...formData,
+        cover_image_url: coverUrl,
         slug,
         published_at: formData.published ? new Date().toISOString() : null
       };
@@ -155,8 +184,53 @@ function AdminAddBlogModal({ onAdded, editPost }: { onAdded: () => void, editPos
             <Input placeholder="Short summary for listing" value={formData.excerpt} onChange={e => setFormData({ ...formData, excerpt: e.target.value })} />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-semibold">Cover Image URL</label>
-            <Input placeholder="https://..." value={formData.cover_image_url} onChange={e => setFormData({ ...formData, cover_image_url: e.target.value })} />
+            <label className="text-sm font-semibold">Cover Image</label>
+            <div className="flex flex-col gap-3">
+              <div className="relative group cursor-pointer">
+                <Input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setImageFile(file);
+                      setImagePreview(URL.createObjectURL(file));
+                    }
+                  }} 
+                  className="hidden" 
+                  id="blog-image-upload" 
+                />
+                <label 
+                  htmlFor="blog-image-upload" 
+                  className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl hover:bg-muted/50 transition-colors cursor-pointer"
+                >
+                  <Upload className="w-6 h-6 text-muted-foreground mb-2" />
+                  <span className="text-sm text-muted-foreground">Click to upload cover photo</span>
+                </label>
+              </div>
+              
+              {imagePreview && (
+                <div className="relative aspect-[21/9] rounded-xl overflow-hidden border">
+                  <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                  <Button 
+                    type="button" 
+                    variant="destructive" 
+                    size="icon" 
+                    className="absolute top-2 right-2 h-7 w-7 rounded-full"
+                    onClick={() => {
+                      setImageFile(null);
+                      setImagePreview(null);
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+              
+              <p className="text-[10px] text-muted-foreground italic">
+                Note: Ensure the <code className="bg-muted px-1 rounded">blog-images</code> bucket exists and is set to public in Supabase Storage.
+              </p>
+            </div>
           </div>
           <div className="space-y-2">
             <label className="text-sm font-semibold">Content (HTML/Markdown)</label>
