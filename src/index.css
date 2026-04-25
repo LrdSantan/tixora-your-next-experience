@@ -52,6 +52,14 @@
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary;
   }
+
+  .blog-content h1 { font-size: 2rem; font-weight: 700; margin-bottom: 1rem; }
+  .blog-content h2 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.75rem; }
+  .blog-content h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
+  .blog-content p  { font-size: 1rem; line-height: 1.7; margin-bottom: 1rem; }
+  .blog-content ul, .blog-content ol { padding-left: 1.5rem; margin-bottom: 1rem; }
+  .blog-content li { font-size: 1rem; line-height: 1.7; margin-bottom: 0.25rem; }
+  .blog-content strong { font-weight: 700; }
 }
 
 @keyframes fade-in-up {

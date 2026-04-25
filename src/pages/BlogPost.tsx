@@ -102,7 +102,8 @@ export default function BlogPost() {
       {/* Content */}
       <article className="container mx-auto px-4 max-w-3xl">
         <div 
-          className="prose prose-base md:prose-lg prose-primary max-w-none prose-headings:text-foreground prose-headings:font-black prose-p:text-muted-foreground prose-p:leading-relaxed prose-img:rounded-2xl"
+          className="blog-content text-foreground"
+          style={{ fontSize: '16px' }}
           dangerouslySetInnerHTML={{ __html: post.content }} 
         />
       </article>
