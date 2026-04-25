@@ -12,6 +12,7 @@ export interface Event {
   status?: string;
   organizer_id?: string;
   organizer_email?: string;
+  organizer_phone?: string;
   created_at: string;
   ticket_tiers: TicketTier[];
   bank_name?: string;

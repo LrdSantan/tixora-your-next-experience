@@ -49,6 +49,8 @@ export default function CreateEvent() {
     bankName: "",
     accountNumber: "",
     accountName: "",
+    organizerEmail: "",
+    organizerPhone: "",
   });
   const [bankSearchOpen, setBankSearchOpen] = useState(false);
   const [coverImage, setCoverImage] = useState<File | null>(null);
@@ -101,6 +103,18 @@ export default function CreateEvent() {
       errs.accountNumber = "Account number must be exactly 10 digits.";
     }
     if (!formData.accountName.trim()) errs.accountName = "Account name is required.";
+    
+    // Organizer Details Validation
+    if (!formData.organizerEmail.trim()) {
+      errs.organizerEmail = "Organizer email is required.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.organizerEmail)) {
+      errs.organizerEmail = "Please enter a valid email address.";
+    }
+    if (!formData.organizerPhone.trim()) {
+      errs.organizerPhone = "Organizer phone number is required.";
+    } else if (!/^\+?\d{10,15}$/.test(formData.organizerPhone.replace(/\s/g, ""))) {
+      errs.organizerPhone = "Please enter a valid phone number.";
+    }
     
     if (!isMultiDay) {
       if (!formData.date) {
@@ -209,7 +223,8 @@ export default function CreateEvent() {
           cover_image_url: publicUrlData.publicUrl,
           banner_url: publicUrlData.publicUrl,
           organizer_id: user!.id,
-          organizer_email: user!.email,
+          organizer_email: formData.organizerEmail.trim(),
+          organizer_phone: formData.organizerPhone.trim(),
           status: 'active',
           bank_name: formData.bankName,
           account_number: formData.accountNumber,
@@ -540,6 +555,36 @@ export default function CreateEvent() {
                 onChange={e => setFormData({ ...formData, accountName: e.target.value })} 
               />
               {errors.accountName && <p className="text-xs text-destructive">{errors.accountName}</p>}
+            </div>
+          </div>
+        </section>
+
+        {/* Section 5: Organizer Contact Details */}
+        <section className="space-y-6">
+          <h2 className="text-xl font-bold border-b pb-2">5. Organizer Contact</h2>
+          <p className="text-sm text-muted-foreground">This info will be used for official communication and invoice delivery.</p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Organizer Email <span className="text-destructive">*</span></label>
+              <Input 
+                type="email"
+                placeholder="e.g. organizer@example.com" 
+                value={formData.organizerEmail} 
+                onChange={e => setFormData({ ...formData, organizerEmail: e.target.value })} 
+              />
+              {errors.organizerEmail && <p className="text-xs text-destructive">{errors.organizerEmail}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Organizer Phone Number <span className="text-destructive">*</span></label>
+              <Input 
+                type="tel"
+                placeholder="e.g. 08012345678" 
+                value={formData.organizerPhone} 
+                onChange={e => setFormData({ ...formData, organizerPhone: e.target.value })} 
+              />
+              {errors.organizerPhone && <p className="text-xs text-destructive">{errors.organizerPhone}</p>}
             </div>
           </div>
         </section>

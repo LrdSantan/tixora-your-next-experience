@@ -279,6 +279,13 @@ function AdminSendInvoiceModal({ event, stats }: { event: Event; stats: { revenu
   const [isSending, setIsSending] = useState(false);
   const supabase = getSupabaseClient();
 
+  // Update email if event changes
+  useEffect(() => {
+    if (event.organizer_email) {
+      setEmail(event.organizer_email);
+    }
+  }, [event.organizer_email]);
+
   const handleSendInvoice = async () => {
     if (!supabase) return;
     if (!email) {
@@ -698,6 +705,13 @@ export default function AdminDashboard() {
                                 {e.status}
                               </Badge>
                               <span className="text-[10px] text-muted-foreground font-medium uppercase">{e.category}</span>
+                            </div>
+                            <div className="mt-2 pt-2 border-t border-border/50">
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Organizer Contact</p>
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-xs font-medium text-foreground/80 break-all">{e.organizer_email || "No email"}</span>
+                                <span className="text-[10px] text-muted-foreground">{e.organizer_phone || "No phone"}</span>
+                              </div>
                             </div>
                           </div>
                         </TableCell>
