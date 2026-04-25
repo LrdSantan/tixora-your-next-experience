@@ -83,8 +83,8 @@ export default function CreateEvent() {
     setTiers(tiers.filter((t) => t.id !== id));
   };
 
-  const handleTierChange = (id: string, field: keyof TierInput, value: string | number) => {
-    setTiers(tiers.map((t) => (t.id === id ? { ...t, [field]: value } : t)));
+  const handleTierChange = (id: string, field: keyof TierInput, value: any) => {
+    setTiers(prev => prev.map((t) => (t.id === id ? { ...t, [field]: value } : t)));
   };
 
   const errors = useMemo(() => {
@@ -439,10 +439,11 @@ export default function CreateEvent() {
                       id={`free-toggle-${tier.id}`}
                       checked={tier.isFree}
                       onCheckedChange={(checked) => {
-                        handleTierChange(tier.id, "isFree", checked);
-                        if (checked) {
-                          handleTierChange(tier.id, "price", 0);
-                        }
+                        setTiers(prev => prev.map(t => 
+                          t.id === tier.id 
+                            ? { ...t, isFree: checked, price: checked ? 0 : t.price }
+                            : t
+                        ));
                       }}
                     />
                     {tier.isFree && (

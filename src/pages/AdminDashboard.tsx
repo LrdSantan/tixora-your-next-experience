@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth-context";
@@ -647,7 +647,12 @@ export default function AdminDashboard() {
           <p className="text-muted-foreground">Comprehensive overview of platform activity and finances.</p>
         </div>
         <div className="flex items-center gap-2">
-           <Button variant="outline" className="text-muted-foreground hover:text-destructive border-dashed" onClick={handleCleanupTickets} disabled={isCleaningUp}>
+          <Link to="/">
+            <Button variant="secondary" className="text-muted-foreground hover:text-foreground h-9 font-medium" size="sm">
+              &larr; Back to Tixora
+            </Button>
+          </Link>
+          <Button variant="outline" className="text-muted-foreground hover:text-destructive border-dashed h-9" onClick={handleCleanupTickets} disabled={isCleaningUp} size="sm">
             <Trash2 className="w-4 h-4 mr-2" />
             {isCleaningUp ? "Cleaning..." : "Cleanup Used Tickets"}
           </Button>
@@ -909,7 +914,12 @@ export default function AdminDashboard() {
 
         <TabsContent value="blog" className="space-y-4">
           <div className="flex justify-between items-center bg-card p-4 rounded-2xl border shadow-sm">
-            <h3 className="font-bold text-lg text-foreground px-2">{blogPosts.length} Editorial Posts</h3>
+            <div className="flex items-center gap-4">
+              <h3 className="font-bold text-lg text-foreground px-2">{blogPosts.length} Editorial Posts</h3>
+              <a href="/blog" target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-primary hover:underline" style={{ color: BRAND_GREEN }}>
+                View Blog &rarr;
+              </a>
+            </div>
             <AdminAddBlogModal onAdded={loadData} editPost={editingPost} />
           </div>
           <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
