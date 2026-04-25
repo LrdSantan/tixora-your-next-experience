@@ -210,7 +210,13 @@ const SummaryContent = ({
     </div>
 
     {step === 0 && (
-      <Button type="button" className="mt-5 h-12 w-full rounded-xl font-semibold text-white" style={{ backgroundColor: finalTotal > 0 ? ACCENT : undefined }} disabled={finalTotal <= 0} onClick={() => setStep(isGuest ? 2 : 1)}>
+      <Button 
+        type="button" 
+        className="mt-5 h-12 w-full rounded-xl font-semibold text-white" 
+        style={{ backgroundColor: lineItems.length > 0 ? ACCENT : undefined }} 
+        disabled={lineItems.length === 0} 
+        onClick={() => setStep(isGuest ? 2 : 1)}
+      >
         Continue
       </Button>
     )}
@@ -402,8 +408,68 @@ export default function CheckoutPage() {
       navigate("/login", { state: { from: "/checkout" } });
       return;
     }
-    if (lineItems.length === 0 || finalTotal <= 0) {
+    if (lineItems.length === 0) {
       toast.error("Select at least one ticket.");
+      return;
+    }
+
+    // Handle Free Checkout end-to-end [Free Ticket Tier Support]
+    if (finalTotal === 0) {
+      setPaying(true);
+      const freeReference = `FREE-${crypto.randomUUID()}`;
+      
+      void (async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const payload: any = {
+            reference: freeReference,
+            lines: lineItems.map((i) => ({ tier_id: i.tierId, quantity: i.quantity })),
+            is_free: true,
+            guest_email: attendee.email.trim(),
+            guest_name: attendee.name.trim(),
+            guest_phone: attendee.phone.trim()
+          };
+          if (appliedCoupon) payload.coupon_code = appliedCoupon.code;
+
+          console.log("[Checkout] Processing free ticket with payload:", payload);
+
+          const { data: fnBody, error: fnError } = await supabase.functions.invoke<PaystackFnResponse>("complete-paystack-payment", {
+            body: payload,
+            headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
+          });
+
+          if (fnError || !fnBody?.ok) {
+            const errorMsg = fnError?.message || (fnBody as any)?.error || "Could not complete your free order.";
+            toast.error(errorMsg);
+            return;
+          }
+
+          const tickets: ConfirmationTicket[] = fnBody.data!.tickets.map((t) => ({
+            id: t.id,
+            reference: t.reference,
+            ticketCode: t.ticket_code,
+            qrToken: t.qr_token ?? undefined,
+            amountPaidKobo: t.amount_paid,
+            quantity: t.quantity,
+            eventTitle: t.event_title,
+            tierName: t.tier_name,
+            venue: t.venue,
+            city: t.city,
+            date: String(t.date),
+            time: t.time,
+          }));
+
+          clearCart();
+          toast.success("Free ticket issued successfully!");
+          navigate("/confirmation", {
+            state: { tickets, buyerName: attendee.name, buyerEmail: attendee.email, purchasedAt: new Date().toISOString(), isGuest: isGuest },
+          });
+        } catch (e) {
+          toast.error("Something went wrong processing your free ticket.");
+        } finally {
+          setPaying(false);
+        }
+      })();
       return;
     }
 
@@ -801,16 +867,18 @@ export default function CheckoutPage() {
             <div className="rounded-2xl bg-white p-6 md:p-8">
               <h2 className="mb-1 text-xl font-bold">Payment</h2>
               <p className="mb-6 text-sm text-neutral-500">Secured by Paystack. {!user && !isGuest && "Sign in required."}</p>
-              <div className="rounded-xl p-4 mb-6 space-y-3" style={{ backgroundColor: ACCENT_LIGHT, border: `1px solid ${ACCENT_BORDER}` }}>
-                <div className="flex justify-between border-t pt-2 font-bold text-neutral-900">
-                  <span>Total to Pay</span>
-                  <span style={{ color: ACCENT }}>{formatPrice(finalTotal)}</span>
+              {finalTotal > 0 && (
+                <div className="rounded-xl p-4 mb-6 space-y-3" style={{ backgroundColor: ACCENT_LIGHT, border: `1px solid ${ACCENT_BORDER}` }}>
+                  <div className="flex justify-between border-t pt-2 font-bold text-neutral-900">
+                    <span>Total to Pay</span>
+                    <span style={{ color: ACCENT }}>{formatPrice(finalTotal)}</span>
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="flex gap-3">
                 <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setStep(1)} disabled={paying}>Back</Button>
                 <Button className="flex-1 rounded-xl text-white" style={{ backgroundColor: ACCENT }} onClick={handlePayWithPaystack} disabled={paying || (!user && !isGuest)}>
-                  {paying ? "Processing..." : `Pay ${formatPrice(finalTotal)}`}
+                  {paying ? "Processing..." : (finalTotal === 0 ? "Get Free Ticket" : `Pay ${formatPrice(finalTotal)}`)}
                 </Button>
               </div>
             </div>

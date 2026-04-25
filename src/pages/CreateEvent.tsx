@@ -31,7 +31,7 @@ const NIGERIAN_BANKS = [
   "Jaiz Bank", "Opay", "Palmpay", "Kuda Bank", "Moniepoint"
 ].sort();
 
-type TierInput = { id: string; name: string; description: string; price: number | ""; quantity: number | "" };
+type TierInput = { id: string; name: string; description: string; price: number | ""; quantity: number | ""; isFree?: boolean };
 
 export default function CreateEvent() {
   const { user, loading } = useAuth();
@@ -55,7 +55,7 @@ export default function CreateEvent() {
   const [isMultiDay, setIsMultiDay] = useState(false);
   const [endDate, setEndDate] = useState("");
   const [tiers, setTiers] = useState<TierInput[]>([
-    { id: "1", name: "Regular", description: "General admission", price: 5000, quantity: 100 }
+    { id: "1", name: "Regular", description: "General admission", price: 5000, quantity: 100, isFree: false }
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
@@ -70,7 +70,7 @@ export default function CreateEvent() {
       toast.error("Maximum 5 ticket tiers allowed");
       return;
     }
-    setTiers([...tiers, { id: Math.random().toString(), name: "", description: "", price: 0, quantity: 0 }]);
+    setTiers([...tiers, { id: Math.random().toString(), name: "", description: "", price: 0, quantity: 0, isFree: false }]);
   };
 
   const handleRemoveTier = (id: string) => {
@@ -136,8 +136,9 @@ export default function CreateEvent() {
     } else {
       for (let i = 0; i < tiers.length; i++) {
         const t = tiers[i];
-        if (!t.name.trim() || t.price === "" || t.price < 0 || t.quantity === "" || t.quantity <= 0) {
-          errs.tiers = "Please ensure all tiers have a name, price >= 0, and quantity > 0.";
+        const isPriceValid = t.isFree ? true : (t.price !== "" && t.price >= 0);
+        if (!t.name.trim() || !isPriceValid || t.quantity === "" || t.quantity <= 0) {
+          errs.tiers = "Please ensure all tiers have a name, valid price, and quantity > 0.";
           break;
         }
       }
@@ -415,7 +416,25 @@ export default function CreateEvent() {
                   </Button>
                 </div>
                 
-                <h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-muted-foreground">Tier {index + 1}</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Tier {index + 1}</h3>
+                  <div className="flex items-center gap-2 pr-10">
+                    <Label htmlFor={`free-toggle-${tier.id}`} className="text-xs font-semibold text-muted-foreground uppercase cursor-pointer">Free Ticket</Label>
+                    <Switch 
+                      id={`free-toggle-${tier.id}`}
+                      checked={tier.isFree}
+                      onCheckedChange={(checked) => {
+                        handleTierChange(tier.id, "isFree", checked);
+                        if (checked) {
+                          handleTierChange(tier.id, "price", 0);
+                        }
+                      }}
+                    />
+                    {tier.isFree && (
+                      <span className="ml-2 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-bold border border-green-200">FREE</span>
+                    )}
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Tier Name <span className="text-destructive">*</span></label>
@@ -427,7 +446,15 @@ export default function CreateEvent() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Price (₦) <span className="text-destructive">*</span></label>
-                    <Input type="number" min="0" placeholder="e.g. 5000" value={tier.price} onChange={e => handleTierChange(tier.id, "price", e.target.value === "" ? "" : parseInt(e.target.value) || 0)} />
+                    <Input 
+                      type="number" 
+                      min="0" 
+                      placeholder={tier.isFree ? "0" : "e.g. 5000"} 
+                      value={tier.isFree ? 0 : tier.price} 
+                      onChange={e => handleTierChange(tier.id, "price", e.target.value === "" ? "" : parseInt(e.target.value) || 0)} 
+                      disabled={tier.isFree}
+                      className={tier.isFree ? "bg-muted/50" : ""}
+                    />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Description (Optional)</label>

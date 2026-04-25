@@ -143,93 +143,111 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }
       }
 
-      const verifyUrl = `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`;
-      console.error(`${LOG} Paystack: GET verify`, { reference, httpUrl: verifyUrl });
+      let amountKoboInt = 0;
+      let guestEmail = null;
+      let guestName = null;
+      let guestPhone = null;
 
-      let verifyRes: Response;
-      try {
-        verifyRes = await fetch(verifyUrl, {
-          headers: { Authorization: `Bearer ${paystackSecret}` },
-        });
-      } catch (fetchErr) {
-        console.error(`${LOG} Paystack: fetch failed`, fetchErr);
-        return errorResponse("Paystack verify request failed", 502, {
-          details: fetchErr instanceof Error ? fetchErr.message : String(fetchErr),
-        });
+      // Skip Paystack for Free Tickets [Free Ticket Tier Support]
+      if (reference.startsWith("FREE-")) {
+        console.error(`${LOG} Detected free ticket order, skipping Paystack verification`);
+        amountKoboInt = 0;
+        // In free checkout, guest info might be passed via metadata or we assume it's already in the body?
+        // Actually, for free tickets, we can just use the auth user or assume it's a guest.
+        // The Checkout.tsx passes guest info in the state, but we need it here.
+        // Wait, Checkout.tsx doesn't pass guest info in the function call yet?
+        // Let's check Checkout.tsx again.
+      } else {
+        const verifyUrl = `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`;
+        console.error(`${LOG} Paystack: GET verify`, { reference, httpUrl: verifyUrl });
+
+        let verifyRes: Response;
+        try {
+          verifyRes = await fetch(verifyUrl, {
+            headers: { Authorization: `Bearer ${paystackSecret}` },
+          });
+        } catch (fetchErr) {
+          console.error(`${LOG} Paystack: fetch failed`, fetchErr);
+          return errorResponse("Paystack verify request failed", 502, {
+            details: fetchErr instanceof Error ? fetchErr.message : String(fetchErr),
+          });
+        }
+
+        let verifyRawText: string;
+        try {
+          verifyRawText = await verifyRes.text();
+        } catch (textErr) {
+          console.error(`${LOG} Paystack: read body failed`, textErr);
+          return errorResponse("Could not read Paystack response", 502);
+        }
+
+        console.error(
+          `${LOG} Paystack: HTTP status=${verifyRes.status} ok=${verifyRes.ok} body_length=${verifyRawText.length}`,
+        );
+
+        let verifyJson: PaystackVerifyResponse;
+        try {
+          verifyJson = JSON.parse(verifyRawText) as PaystackVerifyResponse;
+        } catch (parseErr) {
+          console.error(`${LOG} Paystack: response is not JSON`, {
+            preview: verifyRawText.slice(0, 500),
+            parseErr,
+          });
+          return errorResponse("Paystack returned non-JSON response", 502, {
+            httpStatus: verifyRes.status,
+            preview: verifyRawText.slice(0, 200),
+          });
+        }
+
+        if (!verifyRes.ok) {
+          console.error(`${LOG} Paystack: HTTP request failed`, verifyJson);
+          return errorResponse(verifyJson.message ?? `Paystack HTTP ${verifyRes.status}`, 400, {
+            httpStatus: verifyRes.status,
+            paystack: verifyJson,
+          });
+        }
+
+        if (!verifyJson.status || verifyJson.data?.status !== "success") {
+          const msg = verifyJson.message ?? "Paystack verification failed (transaction not successful)";
+          console.error(`${LOG} Paystack: transaction not successful. Full body:`, verifyRawText);
+          return errorResponse(msg, 400, { paystack: verifyJson });
+        }
+
+        const amountKobo = verifyJson.data?.amount;
+        if (amountKobo === undefined || amountKobo === null) {
+          console.error(`${LOG} Paystack: missing amount in data`, verifyJson.data);
+          return errorResponse("Missing amount from Paystack", 400);
+        }
+
+        amountKoboInt = Math.round(Number(amountKobo));
+        console.error(`${LOG} Paystack: amount kobo (rounded)=${amountKoboInt}`);
+
+        const paystackData = verifyJson.data as any;
+        const metadata = paystackData?.metadata;
+        const customFields = metadata?.custom_fields || [];
+        guestName = customFields.find((f: any) => f.variable_name === "guest_name")?.value;
+        guestPhone = customFields.find((f: any) => f.variable_name === "guest_phone")?.value;
+
+        guestEmail =
+          metadata?.guest_email ||
+          paystackData?.customer?.email ||
+          customFields.find((f: any) => f.variable_name === "guest_email")?.value ||
+          null;
       }
-
-      let verifyRawText: string;
-      try {
-        verifyRawText = await verifyRes.text();
-      } catch (textErr) {
-        console.error(`${LOG} Paystack: read body failed`, textErr);
-        return errorResponse("Could not read Paystack response", 502);
-      }
-
-      console.error(
-        `${LOG} Paystack: HTTP status=${verifyRes.status} ok=${verifyRes.ok} body_length=${verifyRawText.length}`,
-      );
-
-      let verifyJson: PaystackVerifyResponse;
-      try {
-        verifyJson = JSON.parse(verifyRawText) as PaystackVerifyResponse;
-      } catch (parseErr) {
-        console.error(`${LOG} Paystack: response is not JSON`, {
-          preview: verifyRawText.slice(0, 500),
-          parseErr,
-        });
-        return errorResponse("Paystack returned non-JSON response", 502, {
-          httpStatus: verifyRes.status,
-          preview: verifyRawText.slice(0, 200),
-        });
-      }
-
-      console.error(`${LOG} Paystack: parsed`, {
-        paystack_status_field: verifyJson.status,
-        message: verifyJson.message,
-        data_status: verifyJson.data?.status,
-        data_reference: verifyJson.data?.reference,
-        amount: verifyJson.data?.amount,
-      });
-
-      if (!verifyRes.ok) {
-        console.error(`${LOG} Paystack: HTTP request failed`, verifyJson);
-        return errorResponse(verifyJson.message ?? `Paystack HTTP ${verifyRes.status}`, 400, {
-          httpStatus: verifyRes.status,
-          paystack: verifyJson,
-        });
-      }
-
-      if (!verifyJson.status || verifyJson.data?.status !== "success") {
-        const msg = verifyJson.message ?? "Paystack verification failed (transaction not successful)";
-        console.error(`${LOG} Paystack: transaction not successful. Full body:`, verifyRawText);
-        return errorResponse(msg, 400, { paystack: verifyJson });
-      }
-
-      const amountKobo = verifyJson.data?.amount;
-      if (amountKobo === undefined || amountKobo === null) {
-        console.error(`${LOG} Paystack: missing amount in data`, verifyJson.data);
-        return errorResponse("Missing amount from Paystack", 400);
-      }
-
-      const amountKoboInt = Math.round(Number(amountKobo));
-      console.error(`${LOG} Paystack: amount kobo (rounded)=${amountKoboInt}`);
-
-      const paystackData = verifyJson.data as any;
-      const metadata = paystackData?.metadata;
-      const customFields = metadata?.custom_fields || [];
-      const guestName = customFields.find((f: any) => f.variable_name === "guest_name")?.value;
-      const guestPhone = customFields.find((f: any) => f.variable_name === "guest_phone")?.value;
-
-      const guestEmail =
-        metadata?.guest_email ||
-        paystackData?.customer?.email ||
-        customFields.find((f: any) => f.variable_name === "guest_email")?.value ||
-        null;
 
       if (!user && !guestEmail) {
-        console.error(`${LOG} Guest checkout failed: Missing guest_email in Paystack metadata`);
-        return errorResponse("Guest checkout requires email in metadata", 400);
+        // For FREE tickets, if it's a guest, we might need to get the info from the body
+        // because Paystack metadata won't exist.
+        if (reference.startsWith("FREE-")) {
+          guestEmail = (body as any).guest_email;
+          guestName = (body as any).guest_name;
+          guestPhone = (body as any).guest_phone;
+        }
+
+        if (!guestEmail) {
+          console.error(`${LOG} Guest checkout failed: Missing guest_email`);
+          return errorResponse("Guest checkout requires email", 400);
+        }
       }
 
       const admin = createClient(supabaseUrl, serviceRoleKey, {
@@ -344,7 +362,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (remainingLines.length > 0) {
         console.error(`${LOG} RPC: finalise_purchase_after_payment for ${remainingLines.length} items`);
         const rpcArgs = {
-          p_user_id: user?.id,
+          p_user_id: user?.id ?? null,
           p_reference: reference,
           p_verified_amount_kobo: amountKoboInt,
           p_items: remainingLines,
