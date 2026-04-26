@@ -38,9 +38,8 @@ const Footer = () => (
           </ul>
         </div>
       </div>
-      <div className="mt-16 pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-muted-foreground">
+      <div className="mt-16 pt-8 border-t border-border flex flex-col md:flex-row justify-center items-center gap-4 text-xs text-muted-foreground">
         <p>© {new Date().getFullYear()} TIXORA TECHNOLOGY. All rights reserved.</p>
-        <p>Built with ❤️ for the Nigerian Event Community.</p>
       </div>
     </div>
   </footer>

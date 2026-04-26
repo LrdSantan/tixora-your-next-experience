@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CalendarDays, Plus, MapPin, Calendar, Ticket, Share2, Landmark, Check, ChevronsUpDown } from "lucide-react";
+import { CalendarDays, Plus, MapPin, Calendar, Ticket, Share2, Landmark, Check, ChevronsUpDown, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -188,6 +188,385 @@ function OrganizerPayoutModal({ event, onSuccess }: { event: OrganizerEvent, onS
   );
 }
 
+function OrganizerTiersEditor({ event, onSaved }: { event: OrganizerEvent, onSaved: () => void }) {
+  const supabase = getSupabaseClient();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [tiers, setTiers] = useState<any[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadTiers() {
+      if (!supabase) return;
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('ticket_tiers')
+        .select('id, event_id, name, description, price, total_quantity, remaining_quantity')
+        .eq('event_id', event.id)
+        .order('price', { ascending: true });
+        
+      if (!error && data && isMounted) {
+        setTiers(data.map(t => ({
+          ...t,
+          tickets_sold: t.total_quantity - t.remaining_quantity
+        })));
+      }
+      if (isMounted) setIsLoading(false);
+    }
+    loadTiers();
+    return () => { isMounted = false; };
+  }, [event.id, supabase]);
+
+  const updateTier = (index: number, field: string, value: any) => {
+    const newTiers = [...tiers];
+    newTiers[index] = { ...newTiers[index], [field]: value };
+    setTiers(newTiers);
+  };
+
+  const addTier = () => {
+    setTiers([...tiers, {
+      id: null,
+      event_id: event.id,
+      name: '',
+      description: '',
+      price: 0,
+      total_quantity: 0,
+      remaining_quantity: 0,
+      tickets_sold: 0
+    }]);
+  };
+
+  const removeTier = (index: number) => {
+    const tier = tiers[index];
+    if (tier.tickets_sold > 0) {
+      toast.error("Cannot delete a tier with existing sales");
+      return;
+    }
+    
+    if (!tier.id) {
+      const newTiers = [...tiers];
+      newTiers.splice(index, 1);
+      setTiers(newTiers);
+      return;
+    }
+    
+    const newTiers = [...tiers];
+    newTiers[index] = { ...tier, _deleted: true };
+    setTiers(newTiers);
+  };
+
+  const handleSave = async () => {
+    if (!supabase) return;
+    
+    // Basic validation
+    for (const t of tiers) {
+      if (!t._deleted && (!t.name.trim() || t.price === '' || t.price < 0 || t.total_quantity === '' || t.total_quantity < t.tickets_sold)) {
+        toast.error("Please fill all fields correctly. Capacity cannot be less than sold tickets.");
+        return;
+      }
+    }
+    
+    setIsSaving(true);
+    try {
+      const toDelete = tiers.filter(t => t.id && t._deleted);
+      for (const t of toDelete) {
+        const { error } = await supabase.from('ticket_tiers').delete().eq('id', t.id);
+        if (error) throw error;
+      }
+      
+      const toUpdate = tiers.filter(t => t.id && !t._deleted);
+      for (const t of toUpdate) {
+        const newRemaining = t.total_quantity - t.tickets_sold;
+        const { error } = await supabase.from('ticket_tiers').update({
+          name: t.name,
+          price: t.price,
+          total_quantity: t.total_quantity,
+          remaining_quantity: newRemaining
+        }).eq('id', t.id);
+        if (error) throw error;
+      }
+      
+      const toInsert = tiers.filter(t => !t.id && !t._deleted);
+      if (toInsert.length > 0) {
+        const insertPayload = toInsert.map(t => ({
+          event_id: t.event_id,
+          name: t.name,
+          description: t.name || 'Tier',
+          price: t.price,
+          total_quantity: t.total_quantity,
+          remaining_quantity: t.total_quantity
+        }));
+        const { error } = await supabase.from('ticket_tiers').insert(insertPayload);
+        if (error) throw error;
+      }
+      
+      toast.success("Ticket tiers updated successfully");
+      onSaved();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save ticket tiers");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="mt-2 pt-3 border-t border-border space-y-3 bg-muted/30 rounded-lg p-3 mx-4 mb-4">
+      <h4 className="text-sm font-semibold flex items-center gap-2">
+        <Ticket className="w-4 h-4 text-primary" /> Edit Tiers
+      </h4>
+      {isLoading ? (
+        <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+      ) : (
+        <div className="space-y-2">
+          {tiers.filter(t => !t._deleted).map((tier, idx) => {
+             const originalIdx = tiers.indexOf(tier);
+             return (
+              <div key={tier.id || idx} className="flex items-center gap-2">
+                <Input 
+                  className="h-8 text-sm flex-1 bg-background" 
+                  placeholder="Tier name" 
+                  value={tier.name} 
+                  onChange={e => updateTier(originalIdx, 'name', e.target.value)} 
+                />
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1.5 text-xs text-muted-foreground">₦</span>
+                  <Input 
+                    className="h-8 text-sm w-24 bg-background pl-6" 
+                    type="number"
+                    min="0"
+                    placeholder="Price" 
+                    value={tier.price} 
+                    onChange={e => updateTier(originalIdx, 'price', e.target.value === '' ? '' : parseFloat(e.target.value))} 
+                  />
+                </div>
+                <Input 
+                  className="h-8 text-sm w-20 bg-background" 
+                  type="number"
+                  min={tier.tickets_sold}
+                  placeholder="Cap" 
+                  value={tier.total_quantity} 
+                  onChange={e => updateTier(originalIdx, 'total_quantity', e.target.value === '' ? '' : parseInt(e.target.value, 10))} 
+                />
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 shrink-0"
+                  onClick={() => removeTier(originalIdx)}
+                  title={tier.tickets_sold > 0 ? "Cannot delete tier with existing sales" : "Delete tier row"}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            );
+          })}
+          
+          <Button variant="outline" size="sm" className="w-full h-8 border-dashed mt-2 bg-background" onClick={addTier}>
+            <Plus className="w-3.5 h-3.5 mr-1" /> Add tier
+          </Button>
+          
+          <div className="flex justify-end pt-2">
+             <Button size="sm" onClick={handleSave} disabled={isSaving} className="h-8 text-xs">
+               {isSaving && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+               Save changes
+             </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { event: OrganizerEvent, onUpdate: () => void, onShare: (e: React.MouseEvent) => void, onDelete: (id: string) => void, isPast?: boolean }) {
+  const [isTiersExpanded, setIsTiersExpanded] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const supabase = getSupabaseClient();
+  
+  const totalSold = event.ticket_tiers.reduce(
+    (sum, t) => sum + (t.total_quantity - t.remaining_quantity),
+    0
+  );
+
+  const handleDelete = async () => {
+    if (totalSold > 0) {
+      toast.error("Cannot delete an event with existing ticket sales. Contact support if needed.");
+      setShowDeleteDialog(false);
+      return;
+    }
+    
+    if (!supabase) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', event.id);
+        
+      if (error) throw error;
+      toast.success("Event deleted successfully");
+      setShowDeleteDialog(false);
+      onDelete(event.id);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete event");
+      setIsDeleting(false);
+    }
+  };
+
+  const totalCapacity = event.ticket_tiers.reduce((sum, t) => sum + t.total_quantity, 0);
+  const lowestPrice = event.ticket_tiers.length > 0
+    ? Math.min(...event.ticket_tiers.map((t) => t.price))
+    : null;
+  const statusClass = STATUS_STYLES[event.status] ?? STATUS_STYLES.pending;
+
+  return (
+    <div className={cn("group bg-card border border-border rounded-xl overflow-hidden hover:shadow-md transition-all hover:-translate-y-0.5 duration-200 flex flex-col", isPast && "opacity-80 grayscale-[0.3]")}>
+      <Link to={`/events/${event.id}`} className="block">
+        <div className="aspect-[16/9] overflow-hidden relative bg-muted">
+          <img
+            src={event.cover_image_url || `https://source.unsplash.com/800x450/?${event.category}`}
+            alt={event.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            loading="lazy"
+          />
+          <span
+            className={`absolute top-2 right-2 text-xs font-semibold px-2.5 py-1 rounded-full border capitalize ${isPast ? "bg-neutral-100 text-neutral-600 border-neutral-200" : statusClass}`}
+          >
+            {isPast ? "Past" : event.status}
+          </span>
+        </div>
+      </Link>
+
+      <div className="p-4 flex flex-col flex-1 pb-0">
+        <Link to={`/events/${event.id}`}>
+          <h3 className="font-bold text-foreground text-base leading-snug line-clamp-2 hover:text-primary transition-colors">
+            {event.title}
+          </h3>
+        </Link>
+
+        <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5 shrink-0" />
+            <span>{formatEventDateDisplay(event.date, event.is_multi_day || false, event.event_days || [])} · {event.time}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5 shrink-0" />
+            <span className="line-clamp-1">{event.venue}, {event.city}</span>
+          </div>
+        </div>
+
+        <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <Ticket className="w-3.5 h-3.5" />
+            {totalSold} / {totalCapacity} sold
+          </span>
+          {lowestPrice !== null && (
+            <span className="font-semibold text-primary">
+              {lowestPrice === 0 ? "Free" : `From ${formatPrice(lowestPrice)}`}
+            </span>
+          )}
+        </div>
+
+        <div className="mt-3 pt-3 pb-3 border-t border-border flex items-center gap-2">
+          {!isPast && (
+            <>
+              <EditCoverImageButton 
+                eventId={event.id} 
+                onSuccess={onUpdate}
+                className="flex-1"
+              />
+              <OrganizerCouponsModal eventId={event.id} eventTitle={event.title} />
+              
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn("h-9 gap-1.5 px-3 border-border hover:bg-muted", isTiersExpanded && "bg-muted")}
+                onClick={() => setIsTiersExpanded(!isTiersExpanded)}
+                title="Edit Tiers"
+              >
+                <Ticket className="w-3.5 h-3.5" />
+              </Button>
+
+              <OrganizerPayoutModal event={event} onSuccess={onUpdate} />
+
+              <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 gap-1.5 px-3 border-border hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+                    title="Delete Event"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Delete Event</DialogTitle>
+                  </DialogHeader>
+                  <div className="py-4 text-sm text-muted-foreground">
+                    This will permanently delete the event. This cannot be undone.
+                  </div>
+                  <div className="flex justify-end gap-3 mt-4">
+                    <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={isDeleting}>Cancel</Button>
+                    <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+                      {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                      Delete
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </>
+          )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            className={cn("h-9 gap-1.5 px-3 border-border hover:bg-muted", isPast && "flex-1")}
+            onClick={onShare}
+            title="Share Event"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            {isPast && <span className="ml-1">Share</span>}
+          </Button>
+        </div>
+
+        {/* Quick Share buttons */}
+        <div className="pb-4 flex items-center justify-center gap-3">
+          <a
+            href={`https://wa.me/?text=${encodeURIComponent(`Check out this event: ${event.title} ${SITE_URL}/events/${event.id}`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-border text-muted-foreground hover:text-green-600 hover:border-green-100 hover:bg-green-50 transition-all duration-200"
+            title="Share on WhatsApp"
+          >
+            <svg viewBox="0 0 24 24" className="w-4.5 h-4.5" fill="currentColor">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+              <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.532 5.854L.054 23.446a.5.5 0 0 0 .613.613l5.63-1.476A11.95 11.95 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.891 0-3.667-.513-5.195-1.41l-.372-.217-3.853 1.01 1.027-3.749-.237-.384A9.96 9.96 0 0 1 2 12c0-5.514 4.486-10 10-10s10 4.486 10 10-4.486 10-10 10z"/>
+            </svg>
+          </a>
+
+          <a
+            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out this event: ${event.title}`)}&url=${encodeURIComponent(`${SITE_URL}/events/${event.id}`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-foreground hover:bg-neutral-50 transition-all duration-200"
+            title="Share on X / Twitter"
+          >
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.253 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+      
+      {isTiersExpanded && (
+        <OrganizerTiersEditor event={event} onSaved={() => { setIsTiersExpanded(false); onUpdate(); }} />
+      )}
+    </div>
+  );
+}
 export default function OrganizerEventsPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -195,6 +574,28 @@ export default function OrganizerEventsPage() {
 
   const [events, setEvents] = useState<OrganizerEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"active" | "past">("active");
+
+  const now = new Date();
+  
+  const isEventPast = (event: OrganizerEvent) => {
+    if (event.is_multi_day && event.event_days && event.event_days.length > 0) {
+      const latestDateStr = [...event.event_days].sort().reverse()[0];
+      const latestDate = new Date(`${latestDateStr}T23:59:59`);
+      return latestDate < now;
+    } else {
+      const eventDate = new Date(`${event.date}T23:59:59`);
+      return eventDate < now;
+    }
+  };
+
+  const activeEvents = events.filter(e => !isEventPast(e));
+  const pastEvents = events.filter(e => isEventPast(e));
+  const displayedEvents = activeTab === "active" ? activeEvents : pastEvents;
+
+  const handleLocalDelete = (eventId: string) => {
+    setEvents(prev => prev.filter(e => e.id !== eventId));
+  };
 
   const handleShare = (event: OrganizerEvent, e: React.MouseEvent) => {
     e.preventDefault();
@@ -224,6 +625,7 @@ export default function OrganizerEventsPage() {
          ticket_tiers ( id, name, price, total_quantity, remaining_quantity )`
       )
       .eq("organizer_id", user.id)
+      .neq("status", "deleted")
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
         if (error) toast.error("Failed to load your events");
@@ -267,12 +669,28 @@ export default function OrganizerEventsPage() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">Events you've created on Tixora.</p>
         </div>
-        <Button asChild className="bg-primary text-primary-foreground gap-2 shrink-0">
-          <Link to="/create-event">
-            <Plus className="w-4 h-4" />
-            Create Event
-          </Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
+            <button
+              onClick={() => setActiveTab("active")}
+              className={cn("inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50", activeTab === "active" && "bg-background text-foreground shadow")}
+            >
+              Active Events
+            </button>
+            <button
+              onClick={() => setActiveTab("past")}
+              className={cn("inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50", activeTab === "past" && "bg-background text-foreground shadow")}
+            >
+              Past Events
+            </button>
+          </div>
+          <Button asChild className="bg-primary text-primary-foreground gap-2 shrink-0">
+            <Link to="/create-event">
+              <Plus className="w-4 h-4" />
+              Create Event
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Loading skeletons */}
@@ -293,145 +711,40 @@ export default function OrganizerEventsPage() {
             </div>
           ))}
         </div>
-      ) : events.length === 0 ? (
+      ) : displayedEvents.length === 0 ? (
         /* Empty state */
         <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-6 py-20 text-center">
           <CalendarDays className="w-14 h-14 text-primary mx-auto mb-5 opacity-60" />
           <h2 className="text-xl font-semibold text-foreground mb-2">
-            You haven't created any events yet
+            {activeTab === "active" ? "No active events yet. Create your first event." : "No past events found."}
           </h2>
           <p className="text-sm text-muted-foreground mb-8 max-w-sm mx-auto">
-            Get started by creating your first event — set up tiers, accept payments, and manage attendees all in one place.
+            {activeTab === "active" 
+              ? "Get started by creating your first event — set up tiers, accept payments, and manage attendees all in one place."
+              : "Your previously hosted events will appear here once their dates have passed."}
           </p>
-          <Button asChild className="bg-primary text-primary-foreground gap-2">
-            <Link to="/create-event">
-              <Plus className="w-4 h-4" />
-              Create Event
-            </Link>
-          </Button>
+          {activeTab === "active" && (
+            <Button asChild className="bg-primary text-primary-foreground gap-2">
+              <Link to="/create-event">
+                <Plus className="w-4 h-4" />
+                Create Event
+              </Link>
+            </Button>
+          )}
         </div>
       ) : (
         /* Events grid */
         <div className="grid gap-5 sm:grid-cols-2">
-          {events.map((event) => {
-            const totalSold = event.ticket_tiers.reduce(
-              (sum, t) => sum + (t.total_quantity - t.remaining_quantity),
-              0
-            );
-            const totalCapacity = event.ticket_tiers.reduce((sum, t) => sum + t.total_quantity, 0);
-            const lowestPrice = event.ticket_tiers.length > 0
-              ? Math.min(...event.ticket_tiers.map((t) => t.price))
-              : null;
-            const statusClass = STATUS_STYLES[event.status] ?? STATUS_STYLES.pending;
-
-            return (
-              <div
-                key={event.id}
-                className="group bg-card border border-border rounded-xl overflow-hidden hover:shadow-md transition-all hover:-translate-y-0.5 duration-200 flex flex-col"
-              >
-                {/* Cover image — clicking navigates to the event */}
-                <Link to={`/events/${event.id}`} className="block">
-                  <div className="aspect-[16/9] overflow-hidden relative bg-muted">
-                    <img
-                      src={event.cover_image_url || `https://source.unsplash.com/800x450/?${event.category}`}
-                      alt={event.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      loading="lazy"
-                    />
-                    <span
-                      className={`absolute top-2 right-2 text-xs font-semibold px-2.5 py-1 rounded-full border capitalize ${statusClass}`}
-                    >
-                      {event.status}
-                    </span>
-                  </div>
-                </Link>
-
-                {/* Details */}
-                <div className="p-4 flex flex-col flex-1">
-                  <Link to={`/events/${event.id}`}>
-                    <h3 className="font-bold text-foreground text-base leading-snug line-clamp-2 hover:text-primary transition-colors">
-                      {event.title}
-                    </h3>
-                  </Link>
-
-                  <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5 shrink-0" />
-                      <span>{formatEventDateDisplay(event.date, event.is_multi_day || false, event.event_days || [])} · {event.time}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 shrink-0" />
-                      <span className="line-clamp-1">{event.venue}, {event.city}</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Ticket className="w-3.5 h-3.5" />
-                      {totalSold} / {totalCapacity} sold
-                    </span>
-                    {lowestPrice !== null && (
-                      <span className="font-semibold text-primary">
-                        From {formatPrice(lowestPrice)}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Actions row */}
-                  <div className="mt-3 pt-3 border-t border-border flex items-center gap-2">
-                    <EditCoverImageButton 
-                      eventId={event.id} 
-                      onSuccess={fetchEvents}
-                      className="flex-1"
-                    />
-                    <OrganizerCouponsModal eventId={event.id} eventTitle={event.title} />
-                    <OrganizerPayoutModal event={event} onSuccess={fetchEvents} />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-9 gap-1.5 px-3 border-border hover:bg-muted"
-                      onClick={(e) => handleShare(event, e)}
-                      title="Share Event"
-                    >
-                      <Share2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-
-                  {/* Quick Share buttons */}
-                  <div className="mt-2.5 flex items-center justify-center gap-3">
-                      {/* WhatsApp */}
-                      <a
-                        href={`https://wa.me/?text=${encodeURIComponent(`Check out this event: ${event.title} ${SITE_URL}/events/${event.id}`)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-border text-muted-foreground hover:text-green-600 hover:border-green-100 hover:bg-green-50 transition-all duration-200"
-                        title="Share on WhatsApp"
-                      >
-                        <svg viewBox="0 0 24 24" className="w-4.5 h-4.5" fill="currentColor">
-                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-                          <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.532 5.854L.054 23.446a.5.5 0 0 0 .613.613l5.63-1.476A11.95 11.95 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.891 0-3.667-.513-5.195-1.41l-.372-.217-3.853 1.01 1.027-3.749-.237-.384A9.96 9.96 0 0 1 2 12c0-5.514 4.486-10 10-10s10 4.486 10 10-4.486 10-10 10z"/>
-                        </svg>
-                      </a>
-
-                      {/* Twitter / X */}
-                      <a
-                        href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out this event: ${event.title}`)}&url=${encodeURIComponent(`${SITE_URL}/events/${event.id}`)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-foreground hover:bg-neutral-50 transition-all duration-200"
-                        title="Share on X / Twitter"
-                      >
-                        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
-                          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.253 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                        </svg>
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+          {displayedEvents.map((event) => (
+            <OrganizerEventCard 
+              key={event.id} 
+              event={event} 
+              onUpdate={fetchEvents} 
+              onShare={(e) => handleShare(event, e)}
+              onDelete={handleLocalDelete}
+              isPast={activeTab === "past"}
+            />
+          ))}
         </div>
       )}
     </div>
