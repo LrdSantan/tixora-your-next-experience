@@ -30,7 +30,7 @@ type TicketItem = {
   qrToken: string;
 };
 
-type EmailPayload = {
+type TicketConfirmationPayload = {
   type: "ticket_confirmation";
   buyerName: string;
   buyerEmail: string;
@@ -39,11 +39,20 @@ type EmailPayload = {
   tickets: TicketItem[];
 };
 
-function ticketEmailHtml(p: EmailPayload): string {
+type WelcomePayload = {
+  type: "welcome";
+  buyerName: string;
+  buyerEmail: string;
+};
+
+type EmailPayload = TicketConfirmationPayload | WelcomePayload;
+
+// ─── Ticket confirmation email ────────────────────────────────────────────────
+
+function ticketEmailHtml(p: TicketConfirmationPayload): string {
   const showQRCodes = p.tickets.length <= 3;
 
   const ticketsHtml = p.tickets.map((t, idx) => {
-    // encodeURIComponent is safe for URL params
     const tokenToUse = t.qrToken || t.ticketCode || t.reference;
     const fullVerifyUrl = `https://tixoraafrica.com.ng/verify/${tokenToUse}`;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&ecc=H&qzone=4&data=${encodeURIComponent(fullVerifyUrl)}`;
@@ -145,6 +154,64 @@ function ticketEmailHtml(p: EmailPayload): string {
 </html>`;
 }
 
+// ─── Welcome email ────────────────────────────────────────────────────────────
+
+function welcomeEmailHtml(p: WelcomePayload): string {
+  const firstName = p.buyerName?.split(" ")[0] || "there";
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4faf6;font-family:sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+
+        <!-- Header -->
+        <tr><td style="background:#1A7A4A;padding:32px 40px;">
+          <p style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">🎟 TIXORA</p>
+          <p style="margin:8px 0 0;color:#a8dfc0;font-size:14px;">Welcome to Africa's event experience</p>
+        </td></tr>
+
+        <!-- Greeting -->
+        <tr><td style="padding:40px 40px 0;">
+          <p style="margin:0;font-size:20px;font-weight:700;color:#1a1a1a;">Welcome, ${firstName}! 🎉</p>
+          <p style="margin:16px 0 0;font-size:15px;color:#555;line-height:1.7;">
+            You're now part of the Tixora community — Nigeria's home for discovering and experiencing the best events.
+          </p>
+          <p style="margin:12px 0 0;font-size:15px;color:#555;line-height:1.7;">Here's what you can do:</p>
+          <ul style="margin:12px 0 0;padding-left:20px;color:#444;font-size:14px;line-height:2.2;">
+            <li>🔍 Discover concerts, festivals, workshops and more</li>
+            <li>🎟 Buy tickets with ease — pay securely via Paystack</li>
+            <li>📅 Create and sell tickets for your own events</li>
+            <li>🔄 Transfer or resell tickets if your plans change</li>
+          </ul>
+        </td></tr>
+
+        <!-- CTA -->
+        <tr><td style="padding:32px 40px 40px;text-align:center;">
+          <a href="https://tixoraafrica.com.ng"
+            style="display:inline-block;background:#1A7A4A;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 40px;border-radius:10px;letter-spacing:0.2px;">
+            Explore Events
+          </a>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="background:#f9f9f9;padding:20px 40px;border-top:1px solid #eee;">
+          <p style="margin:0;font-size:12px;color:#aaa;text-align:center;">
+            © ${new Date().getFullYear()} Tixora · This is an automated email, please do not reply.
+          </p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+// ─── Handler ──────────────────────────────────────────────────────────────────
+
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -154,8 +221,25 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const payload = await req.json() as EmailPayload;
 
-    if (!payload.buyerEmail || !payload.eventTitle || !payload.tickets) {
-      return errorResponse("Missing required fields");
+    if (!payload.buyerEmail) {
+      return errorResponse("Missing required field: buyerEmail");
+    }
+
+    let subject: string;
+    let html: string;
+
+    if (payload.type === "welcome") {
+      const firstName = payload.buyerName?.split(" ")[0] || "there";
+      subject = `Welcome to Tixora, ${firstName}!`;
+      html = welcomeEmailHtml(payload as WelcomePayload);
+    } else {
+      // ticket_confirmation (default)
+      const p = payload as TicketConfirmationPayload;
+      if (!p.eventTitle || !p.tickets) {
+        return errorResponse("Missing required fields for ticket_confirmation");
+      }
+      subject = `Your ticket for ${p.eventTitle} ✓`;
+      html = ticketEmailHtml(p);
     }
 
     const emailRes = await fetch("https://api.resend.com/emails", {
@@ -165,10 +249,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from:"Tixora <tickets@tixoraafrica.com.ng>",
+        from: "Tixora <tickets@tixoraafrica.com.ng>",
         to: [payload.buyerEmail],
-        subject: `Your ticket for ${payload.eventTitle} ✓`,
-        html: ticketEmailHtml(payload),
+        subject,
+        html,
       }),
     });
 

@@ -44,6 +44,23 @@ const SignupPage = () => {
     }
     if (data.session) {
       toast.success("Account created", { description: "You are signed in." });
+      // Fire welcome email (non-blocking) — only for fresh full sign-ups with an immediate session
+      const supabaseUrlEnv = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKeyEnv = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      if (supabaseUrlEnv && data.session.access_token) {
+        void fetch(`${supabaseUrlEnv}/functions/v1/send-ticket-email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${supabaseAnonKeyEnv}`,
+          },
+          body: JSON.stringify({
+            type: "welcome",
+            buyerName: name.trim() || email.trim().split("@")[0],
+            buyerEmail: email.trim(),
+          }),
+        }).catch(() => {/* non-fatal */});
+      }
       navigate("/");
     } else {
       toast.success("Check your email", {

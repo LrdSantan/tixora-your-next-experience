@@ -16,6 +16,12 @@ type Body = {
   reference?: string;
   lines?: { tier_id: string; quantity: number }[];
   coupon_code?: string;
+  // Guest / friend purchase fields
+  guest_email?: string;
+  guest_name?: string;
+  guest_phone?: string;
+  recipient_email?: string; // set when buyer is buying for a friend
+  is_free?: boolean;
 };
 
 type PaystackVerifyData = {
@@ -126,6 +132,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
       const reference = body.reference?.trim();
       const lines = body.lines;
+      const recipientEmail = body.recipient_email?.trim().toLowerCase() || null;
 
       if (!reference || !lines?.length) {
         console.error(`${LOG} Validation: reference or lines missing`, {
@@ -144,19 +151,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
 
       let amountKoboInt = 0;
-      let guestEmail = null;
-      let guestName = null;
-      let guestPhone = null;
+      let guestEmail: string | null = null;
+      let guestName: string | null = null;
+      let guestPhone: string | null = null;
 
-      // Skip Paystack for Free Tickets [Free Ticket Tier Support]
+      // Skip Paystack for Free Tickets
       if (reference.startsWith("FREE-")) {
         console.error(`${LOG} Detected free ticket order, skipping Paystack verification`);
         amountKoboInt = 0;
-        // In free checkout, guest info might be passed via metadata or we assume it's already in the body?
-        // Actually, for free tickets, we can just use the auth user or assume it's a guest.
-        // The Checkout.tsx passes guest info in the state, but we need it here.
-        // Wait, Checkout.tsx doesn't pass guest info in the function call yet?
-        // Let's check Checkout.tsx again.
       } else {
         const verifyUrl = `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`;
         console.error(`${LOG} Paystack: GET verify`, { reference, httpUrl: verifyUrl });
@@ -236,12 +238,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
 
       if (!user && !guestEmail) {
-        // For FREE tickets, if it's a guest, we might need to get the info from the body
-        // because Paystack metadata won't exist.
+        // For FREE tickets passed via body
         if (reference.startsWith("FREE-")) {
-          guestEmail = (body as any).guest_email;
-          guestName = (body as any).guest_name;
-          guestPhone = (body as any).guest_phone;
+          guestEmail = body.guest_email?.trim() || null;
+          guestName = body.guest_name?.trim() || null;
+          guestPhone = body.guest_phone?.trim() || null;
         }
 
         if (!guestEmail) {
@@ -250,115 +251,21 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }
       }
 
+      // For authenticated users buying for a friend, pick up body fields
+      if (user && !guestEmail) {
+        guestEmail = body.guest_email?.trim() || null;
+        guestName = body.guest_name?.trim() || null;
+        guestPhone = body.guest_phone?.trim() || null;
+      }
+
       const admin = createClient(supabaseUrl, serviceRoleKey, {
         auth: { persistSession: false, autoRefreshToken: false },
       });
 
       const finalizedTickets: any[] = [];
-      // RESELL POOL CHECK - disabled until resell feature launches
       const remainingLines = lines;
 
-      /*
-      const remainingLines: { tier_id: string; quantity: number }[] = [];
-
-      for (const line of lines) {
-        let fulfilledCount = 0;
-
-        try {
-          // Get event context for this tier
-          const { data: tierData } = await admin
-            .from("ticket_tiers")
-            .select("event_id")
-            .eq("id", line.tier_id)
-            .single();
-
-          if (tierData?.event_id) {
-            // Look for oldest pending resales for this tier/event
-            const { data: resells } = await admin
-              .from("ticket_resells")
-              .select("id, ticket_id, tickets!inner(tier_id, event_id)")
-              .eq("status", "pending")
-              .eq("tickets.tier_id", line.tier_id)
-              .eq("tickets.event_id", tierData.event_id)
-              .order("created_at", { ascending: true })
-              .limit(line.quantity);
-
-            if (resells && resells.length > 0) {
-              console.error(`${LOG} Found ${resells.length} resales for tier ${line.tier_id}`);
-              for (const resell of resells) {
-                try {
-                  const completeResellUrl = `${supabaseUrl}/functions/v1/complete-resell`;
-                  console.error(`${LOG} Calling complete-resell for resell_id=${resell.id}`);
-                  const resellRes = await fetch(completeResellUrl, {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      "Authorization": `Bearer ${jwt}`,
-                    },
-                    body: JSON.stringify({
-                      ticket_resell_id: resell.id,
-                      new_buyer_id: user?.id,
-                      paystack_reference: reference,
-                    }),
-                  });
-
-                  console.error(`${LOG} complete-resell response status=${resellRes.status}`);
-                  const resellBody = await resellRes.text();
-                  console.error(`${LOG} complete-resell response body=${resellBody}`);
-
-                  if (resellRes.ok) {
-                    // Fetch the updated ticket details to match the RPC format
-                    const { data: t } = await admin
-                      .from("tickets")
-                      .select(`
-                        id, 
-                        ticket_code, 
-                        reference, 
-                        amount_paid, 
-                        quantity, 
-                        qr_token,
-                        events (title, venue, city, date, time),
-                        ticket_tiers (name)
-                      `)
-                      .eq("id", resell.ticket_id)
-                      .single();
-
-                    if (t) {
-                      finalizedTickets.push({
-                        id: t.id,
-                        ticket_code: t.ticket_code,
-                        reference: reference,
-                        amount_paid: t.amount_paid,
-                        quantity: t.quantity,
-                        qr_token: t.qr_token,
-                        event_title: (t.events as any)?.title,
-                        tier_name: (t.ticket_tiers as any)?.name,
-                        venue: (t.events as any)?.venue,
-                        city: (t.events as any)?.city,
-                        date: (t.events as any)?.date,
-                        time: (t.events as any)?.time,
-                      });
-                      fulfilledCount++;
-                    }
-                  }
-                } catch (err) {
-                  console.error(`${LOG} complete-resell error:`, err);
-                }
-              }
-            }
-          }
-        } catch (resellErr) {
-          console.error(`${LOG} Resell check pool failed for tier ${line.tier_id}, falling back to new tickets:`, resellErr);
-        }
-
-        const remainingQty = line.quantity - fulfilledCount;
-        if (remainingQty > 0) {
-          remainingLines.push({ tier_id: line.tier_id, quantity: remainingQty });
-        }
-      }
-      */
-
-      // If there are still new tickets to create
+      // Create new tickets via RPC
       if (remainingLines.length > 0) {
         console.error(`${LOG} RPC: finalise_purchase_after_payment for ${remainingLines.length} items`);
         const rpcArgs = {
@@ -369,6 +276,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           p_guest_name: guestName,
           p_guest_email: guestEmail,
           p_guest_phone: guestPhone,
+          p_recipient_email: recipientEmail,
         };
 
         const { data: rpcData, error: rpcError } = await admin.rpc("finalize_purchase_after_payment", rpcArgs);
@@ -388,6 +296,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
       const rpcData = { tickets: finalizedTickets };
 
+      // Apply coupon if provided
       if (body.coupon_code) {
         try {
           console.error(`${LOG} Applying coupon logic for: ${body.coupon_code}`);
@@ -408,11 +317,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }
       }
 
+      // Send ticket confirmation email
       if (finalizedTickets.length > 0) {
         try {
+          // Determine recipient: friend's email takes priority for "buy for a friend",
+          // otherwise use guest email or authenticated user's email.
+          const emailRecipient = recipientEmail || guestEmail || user?.email;
           const recipientName = guestName || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "Ticket buyer";
-          const recipientEmail = guestEmail || user?.email;
-          
           const eventTitle = finalizedTickets[0].event_title || "Your Event";
 
           const emailTickets = finalizedTickets.map(t => ({
@@ -431,7 +342,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           const emailPayload = {
             type: "ticket_confirmation",
             buyerName: recipientName,
-            buyerEmail: recipientEmail,
+            buyerEmail: emailRecipient,
             eventTitle,
             purchasedAt: new Date().toISOString(),
             tickets: emailTickets
@@ -445,13 +356,50 @@ Deno.serve(async (req: Request): Promise<Response> => {
             },
             body: JSON.stringify(emailPayload),
           });
-          
+
           if (!emailRes.ok) {
             console.error(`${LOG} send-ticket-email failed status=${emailRes.status}`);
           }
         } catch (emailErr) {
           console.error(`${LOG} Error sending email`, emailErr);
         }
+      }
+
+      // ── Post-purchase guest account setup (non-blocking fire-and-forget) ────
+      // Determines who needs a guest account:
+      //   1. Buying for a friend → set up account for recipient_email
+      //   2. Guest checkout (no user session) → set up account for guestEmail
+      // Existing auth users are excluded.
+      const guestSetupEmail = recipientEmail || (!user ? guestEmail : null);
+      const guestSetupName = guestName || guestSetupEmail?.split("@")[0] || "Guest";
+
+      if (guestSetupEmail && finalizedTickets.length > 0) {
+        const ticketIds = finalizedTickets.map((t: any) => t.id).filter(Boolean);
+        const setupPayload = {
+          guestEmail: guestSetupEmail,
+          guestName: guestSetupName,
+          eventTitle: finalizedTickets[0].event_title || "Your Event",
+          ticketIds,
+        };
+
+        // Fire and forget — don't await, don't block response
+        fetch(`${supabaseUrl}/functions/v1/post-purchase-guest-setup`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceRoleKey}`,
+          },
+          body: JSON.stringify(setupPayload),
+        }).then(async (r) => {
+          if (!r.ok) {
+            const body = await r.text().catch(() => "");
+            console.error(`${LOG} post-purchase-guest-setup failed status=${r.status} body=${body}`);
+          } else {
+            console.error(`${LOG} post-purchase-guest-setup triggered for ${guestSetupEmail}`);
+          }
+        }).catch((err) => {
+          console.error(`${LOG} post-purchase-guest-setup fetch error`, err);
+        });
       }
 
       return successResponse(rpcData);

@@ -427,7 +427,10 @@ export default function CheckoutPage() {
             is_free: true,
             guest_email: attendee.email.trim(),
             guest_name: attendee.name.trim(),
-            guest_phone: attendee.phone.trim()
+            guest_phone: attendee.phone.trim(),
+            ...(isBuyingForFriend && user
+              ? { recipient_email: attendee.email.trim() }
+              : {}),
           };
           if (appliedCoupon) payload.coupon_code = appliedCoupon.code;
 
@@ -527,6 +530,14 @@ export default function CheckoutPage() {
             const payload: any = {
               reference,
               lines: lineItems.map((i) => ({ tier_id: i.tierId, quantity: i.quantity })),
+              ...(isBuyingForFriend && user
+                ? {
+                    // Friend purchase: tag with recipient_email so ownership goes to the friend
+                    recipient_email: attendee.email.trim(),
+                    guest_name: attendee.name.trim(),
+                    guest_phone: attendee.phone.trim(),
+                  }
+                : {}),
             };
             if (appliedCoupon) payload.coupon_code = appliedCoupon.code;
 

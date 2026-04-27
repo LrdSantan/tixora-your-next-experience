@@ -35,6 +35,8 @@ type TicketRow = {
   resell_status: string | null;
   transfer_status: string | null;
   transfer_token: string | null;
+  user_id: string | null;
+  recipient_email: string | null;
   events: {
     title: string;
     date: string;
@@ -113,11 +115,14 @@ const MyTicketsPage = () => {
           resell_status,
           transfer_status,
           transfer_token,
+          user_id,
+          recipient_email,
           events ( title, date, time, venue, city ),
           ticket_tiers ( name )
         `,
         )
-        .eq("user_id", user.id)
+        // No .eq("user_id") filter here — RLS handles visibility.
+        // The policy returns rows where user_id = auth.uid() OR recipient_email = auth.email().
         .order("created_at", { ascending: false });
 
       if (error) throw error;

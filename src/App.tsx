@@ -41,6 +41,7 @@ const ClaimTicket = React.lazy(() => import("./pages/ClaimTicket"));
 const SettingsPage = React.lazy(() => import("./pages/Settings"));
 const AdminPayoutsPage = React.lazy(() => import("./pages/AdminPayouts"));
 const HighSpeedScannerPage = React.lazy(() => import("./pages/admin/HighSpeedScanner"));
+const SetPasswordPage = React.lazy(() => import("./pages/SetPassword"));
 
 const queryClient = new QueryClient();
 
@@ -109,6 +110,7 @@ const App = () => (
                 <Route path="/admin/payouts" element={<AppLayout showNav={false}><AdminPayoutsPage /></AppLayout>} />
                 <Route path="/admin/events/:id/scan" element={<AppLayout><HighSpeedScannerPage /></AppLayout>} />
                 <Route path="/verify/:qrToken?" element={<VerifyTicketPage />} />
+                <Route path="/set-password" element={<AppLayout showNav={false}><SetPasswordPage /></AppLayout>} />
                 <Route path="*" element={<AppLayout><NotFound /></AppLayout>} />
               </Routes>
             </Suspense>
