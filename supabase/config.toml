@@ -32,3 +32,5 @@ verify_jwt = false
 
 [functions.send-ticket-email]
 verify_jwt = false
+[functions.post-purchase-guest-setup]
+verify_jwt = false

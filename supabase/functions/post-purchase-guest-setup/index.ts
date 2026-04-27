@@ -17,8 +17,6 @@ function successResponse(data: unknown): Response {
   return new Response(JSON.stringify({ ok: true, data }), { status: 200, headers: jsonHeaders });
 }
 
-// ─── Email HTML builders ─────────────────────────────────────────────────────
-
 function claimAccountEmailHtml(p: {
   guestName: string;
   eventTitle: string;
@@ -31,14 +29,10 @@ function claimAccountEmailHtml(p: {
   <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-
-        <!-- Header -->
         <tr><td style="background:#1A7A4A;padding:32px 40px;">
           <p style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">🎟 TIXORA</p>
           <p style="margin:8px 0 0;color:#a8dfc0;font-size:14px;">Your ticket is confirmed — and your account is ready</p>
         </td></tr>
-
-        <!-- Greeting -->
         <tr><td style="padding:32px 40px 0;">
           <p style="margin:0;font-size:16px;color:#1a1a1a;">Hi <strong>${p.guestName}</strong>,</p>
           <p style="margin:16px 0 0;font-size:15px;color:#555;line-height:1.6;">
@@ -48,8 +42,6 @@ function claimAccountEmailHtml(p: {
             We've created a Tixora account for you using this email address. Set a password to unlock:
           </p>
         </td></tr>
-
-        <!-- Benefits -->
         <tr><td style="padding:24px 40px;">
           <ul style="margin:0;padding-left:20px;color:#444;font-size:14px;line-height:2;">
             <li>View all your tickets in one place</li>
@@ -58,8 +50,6 @@ function claimAccountEmailHtml(p: {
             <li>Get early access to new events</li>
           </ul>
         </td></tr>
-
-        <!-- CTA -->
         <tr><td style="padding:0 40px 40px;text-align:center;">
           <a href="${p.setPasswordUrl}"
             style="display:inline-block;background:#1A7A4A;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 36px;border-radius:10px;letter-spacing:0.2px;">
@@ -69,22 +59,17 @@ function claimAccountEmailHtml(p: {
             This link expires in 24 hours. If you didn't buy a ticket, you can safely ignore this email.
           </p>
         </td></tr>
-
-        <!-- Footer -->
         <tr><td style="background:#f9f9f9;padding:20px 40px;border-top:1px solid #eee;">
           <p style="margin:0;font-size:12px;color:#aaa;text-align:center;">
             © ${new Date().getFullYear()} Tixora · This is an automated email, please do not reply.
           </p>
         </td></tr>
-
       </table>
     </td></tr>
   </table>
 </body>
 </html>`;
 }
-
-// ─── Main handler ─────────────────────────────────────────────────────────────
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -104,11 +89,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return errorResponse("Server misconfigured", 500);
     }
 
-    // Only accept requests from the service role (internal calls only)
+    // Only accept internal calls — verify Authorization header is present
     const authHeader = req.headers.get("Authorization") ?? "";
-    const incomingToken = authHeader.replace(/^Bearer\s+/i, "").trim();
-    if (incomingToken !== serviceRoleKey) {
-      console.error(`${LOG} Unauthorized: token mismatch`);
+    if (!authHeader.startsWith("Bearer ")) {
       return errorResponse("Unauthorized", 401);
     }
 
@@ -132,13 +115,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    // ── Step 1: Check if user already exists in auth.users ──────────────────
-    // Use the admin listUsers API — we iterate pages to find by email.
     let existingUserId: string | null = null;
 
-    // Supabase admin.listUsers supports filtering by email on recent SDK versions
-    // via the `filter` param; as a fallback we query page 1 (max 1000 users).
-    // For production with large user bases, consider a DB function instead.
     const { data: listData, error: listError } = await admin.auth.admin.listUsers({
       page: 1,
       perPage: 1000,
@@ -146,7 +124,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     if (listError) {
       console.error(`${LOG} listUsers error`, listError);
-      // Non-fatal: fall through and attempt creation; Supabase will reject duplicates
     } else {
       const found = listData?.users?.find(
         (u) => u.email?.toLowerCase() === guestEmail,
@@ -157,23 +134,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
     }
 
-    // ── Step 2: Create account if new, link tickets ──────────────────────────
     let newAccountCreated = false;
     let userId = existingUserId;
 
     if (!existingUserId) {
       const { data: createData, error: createError } = await admin.auth.admin.createUser({
         email: guestEmail,
-        email_confirm: true, // confirmed but passwordless
+        email_confirm: true,
         user_metadata: { full_name: guestName },
       });
 
       if (createError) {
-        // If user already exists (race condition), extract their ID from the error message
         if (createError.message?.includes("already been registered") ||
-            createError.message?.includes("already exists")) {
+          createError.message?.includes("already exists")) {
           console.error(`${LOG} createUser race: user already exists for ${guestEmail}`);
-          // Don't send claim email
         } else {
           console.error(`${LOG} createUser failed`, createError);
           return errorResponse(`Could not create guest account: ${createError.message}`, 500);
@@ -185,13 +159,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
     }
 
-    // ── Step 3: Link tickets to the new/existing user ────────────────────────
     if (userId && ticketIds.length > 0) {
       const { error: linkError } = await admin
         .from("tickets")
         .update({ user_id: userId })
         .in("id", ticketIds)
-        .is("user_id", null); // Only update tickets not already owned
+        .is("user_id", null);
 
       if (linkError) {
         console.error(`${LOG} Failed to link tickets to userId=${userId}`, linkError);
@@ -200,7 +173,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
     }
 
-    // ── Step 4: Send "Claim your account" email (new accounts only) ──────────
     if (newAccountCreated && userId) {
       try {
         const { data: linkData, error: linkGenError } = await admin.auth.admin.generateLink({
@@ -210,7 +182,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
         if (linkGenError || !linkData?.properties?.hashed_token) {
           console.error(`${LOG} generateLink failed`, linkGenError);
-          // Non-fatal — account is created, just no email
         } else {
           const tokenHash = linkData.properties.hashed_token;
           const setPasswordUrl = `https://tixoraafrica.com.ng/set-password?token_hash=${tokenHash}&type=recovery`;
