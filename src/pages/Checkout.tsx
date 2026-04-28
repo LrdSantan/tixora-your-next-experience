@@ -121,6 +121,8 @@ interface SummaryContentProps {
     discount_type: 'percentage' | 'fixed';
     discount_value: number;
     event_id?: string | null;
+    uses_count: number;
+    max_uses: number | null;
   } | null;
   removeCoupon: () => void;
   couponCode: string;
@@ -128,6 +130,7 @@ interface SummaryContentProps {
   handleApplyCoupon: () => void;
   validatingCoupon: boolean;
   step: number;
+  discountAmount: number;
   finalTotal: number;
   setStep: (step: number) => void;
   isGuest: boolean;
@@ -145,6 +148,7 @@ const SummaryContent = ({
   handleApplyCoupon,
   validatingCoupon,
   step,
+  discountAmount,
   finalTotal,
   setStep,
   isGuest
@@ -184,7 +188,7 @@ const SummaryContent = ({
       {appliedCoupon && (
         <li className="flex justify-between gap-3 text-green-600 font-medium">
           <span>Discount ({appliedCoupon.code}) <button onClick={removeCoupon} className="text-xs text-red-500 underline ml-1 font-normal">Remove</button></span>
-          <span className="tabular-nums">-{formatPrice(discountAmount(appliedCoupon, rawSubtotal))}</span>
+          <span className="tabular-nums">-{formatPrice(discountAmount)}</span>
         </li>
       )}
     </ul>
@@ -223,14 +227,6 @@ const SummaryContent = ({
   </div>
 );
 
-// Helper to avoid passing discountAmount as prop if we can calculate it
-const discountAmount = (coupon: any, subtotal: number) => {
-  if (!coupon) return 0;
-  if (coupon.discount_type === 'percentage') {
-    return subtotal * ((Number(coupon.discount_value) || 0) / 100);
-  }
-  return Number(coupon.discount_value) || 0;
-};
 
 
 export default function CheckoutPage() {
@@ -258,6 +254,8 @@ export default function CheckoutPage() {
     discount_type: 'percentage' | 'fixed';
     discount_value: number;
     event_id?: string | null;
+    uses_count: number;
+    max_uses: number | null;
   } | null>(null);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
 
@@ -297,14 +295,46 @@ export default function CheckoutPage() {
   // Safeguard: Ensure rawSubtotal is always a number [cite: 26]
   const rawSubtotal = Number(subtotal()) || 0;
 
-  let discountAmount = 0;
-  if (appliedCoupon) {
-    if (appliedCoupon.discount_type === 'percentage') {
-      discountAmount = rawSubtotal * ((Number(appliedCoupon.discount_value) || 0) / 100);
-    } else {
-      discountAmount = Number(appliedCoupon.discount_value) || 0;
+  const discountAmount = useMemo(() => {
+    if (!appliedCoupon) return 0;
+    
+    let discountedTicketsCount = 0;
+    let totalDiscountVal = 0;
+    const maxDiscountable = appliedCoupon.max_uses === null 
+      ? Infinity 
+      : Math.max(0, appliedCoupon.max_uses - appliedCoupon.uses_count);
+
+    // Sort items so we apply to qualifying items first (if any scoping exists)
+    const sortedItems = [...lineItems].sort((a, b) => {
+      const aQualifies = !appliedCoupon.event_id || a.eventId === appliedCoupon.event_id;
+      const bQualifies = !appliedCoupon.event_id || b.eventId === appliedCoupon.event_id;
+      if (aQualifies && !bQualifies) return -1;
+      if (!aQualifies && bQualifies) return 1;
+      return 0;
+    });
+
+    for (const item of sortedItems) {
+      const qualifies = !appliedCoupon.event_id || item.eventId === appliedCoupon.event_id;
+      if (!qualifies) continue;
+
+      for (let i = 0; i < item.quantity; i++) {
+        if (discountedTicketsCount < maxDiscountable) {
+          let ticketDiscount = 0;
+          if (appliedCoupon.discount_type === 'percentage') {
+            ticketDiscount = (item.unitPrice * (appliedCoupon.discount_value / 100));
+          } else {
+            ticketDiscount = appliedCoupon.discount_value;
+          }
+          // Cap discount at ticket price
+          ticketDiscount = Math.min(ticketDiscount, item.unitPrice);
+          
+          totalDiscountVal += ticketDiscount;
+          discountedTicketsCount++;
+        }
+      }
     }
-  }
+    return totalDiscountVal;
+  }, [appliedCoupon, lineItems]);
 
   const finalTotal = Math.max(0, rawSubtotal + fees - discountAmount);
 
@@ -345,9 +375,6 @@ export default function CheckoutPage() {
           toast.error("This coupon is not valid for this event");
           return;
         }
-      } else {
-        toast.error("Invalid coupon configuration");
-        return;
       }
 
       setAppliedCoupon(data);
@@ -625,6 +652,7 @@ export default function CheckoutPage() {
     handleApplyCoupon,
     validatingCoupon,
     step,
+    discountAmount,
     finalTotal,
     setStep,
     isGuest,
