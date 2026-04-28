@@ -1,6 +1,10 @@
--- Migration: Atomic coupon validation and increment in finalize_purchase_after_payment
--- This ensures that coupons are properly validated, their usage count is incremented atomically,
--- and the total amount paid is verified against the discounted price.
+-- Migration: Refined atomic coupon logic for finalize_purchase_after_payment
+-- Corrected behavior:
+-- 1. max_uses counts individual tickets, not transactions.
+-- 2. Partial Application: Discount applies to min(requested_tickets, remaining_uses).
+-- 3. uses_count increments by the number of tickets covered.
+-- 4. Underpayment check reflects partial discount.
+-- 5. Blocking: If uses_count >= max_uses initially, block the coupon.
 
 CREATE OR REPLACE FUNCTION public.finalize_purchase_after_payment(
   p_user_id uuid,
@@ -21,7 +25,7 @@ AS $$
 DECLARE
   tier_line record;
   tier_rec public.ticket_tiers%rowtype;
-  expected_total bigint := 0;
+  expected_total_kobo bigint := 0;
   result_rows jsonb;
   i int;
   generated_code text;
@@ -29,9 +33,16 @@ DECLARE
   
   -- Coupon variables
   v_coupon_rec record;
-  v_discount_amount bigint := 0;
+  v_total_discount_amount_kobo bigint := 0;
   v_coupon_id uuid := NULL;
   v_cart_has_event boolean := false;
+  v_total_requested_tickets int := 0;
+  v_remaining_uses int;
+  v_tickets_to_discount int := 0;
+  v_discounted_counter int := 0;
+  v_this_ticket_discount_kobo bigint;
+  v_tier_price_kobo bigint;
+  v_amount_to_pay_for_this_ticket_kobo bigint;
 BEGIN
   IF p_reference IS NULL OR length(trim(p_reference)) = 0 THEN
     RAISE EXCEPTION 'invalid reference';
@@ -43,7 +54,6 @@ BEGIN
 
   -- Check if reference already exists (idempotency guard)
   IF EXISTS (SELECT 1 FROM public.tickets WHERE reference = p_reference LIMIT 1) THEN
-    -- ... (idempotency logic same as before)
     IF EXISTS (
       SELECT 1 FROM public.tickets
       WHERE reference = p_reference
@@ -85,7 +95,46 @@ BEGIN
     RETURN jsonb_build_object('tickets', result_rows);
   END IF;
 
-  -- Validate stock and calculate base expected total
+  -- 1. Calculate total requested tickets
+  SELECT sum((el.value->>'quantity')::int)
+  INTO v_total_requested_tickets
+  FROM jsonb_array_elements(p_items) AS el;
+
+  -- 2. Coupon Validation & Partial Application Logic
+  IF p_coupon_code IS NOT NULL AND trim(p_coupon_code) <> '' THEN
+    -- Find and lock the coupon for update
+    SELECT * INTO v_coupon_rec 
+    FROM public.coupons 
+    WHERE upper(code) = upper(trim(p_coupon_code)) 
+      AND is_active = true 
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Invalid or inactive coupon code';
+    END IF;
+
+    IF v_coupon_rec.expires_at IS NOT NULL AND v_coupon_rec.expires_at < now() THEN
+      RAISE EXCEPTION 'This coupon has expired';
+    END IF;
+
+    -- Block if no uses left at all
+    IF v_coupon_rec.max_uses IS NOT NULL AND v_coupon_rec.uses_count >= v_coupon_rec.max_uses THEN
+      RAISE EXCEPTION 'the coupon has reached its usage limit';
+    END IF;
+
+    -- Calculate how many tickets can be discounted
+    IF v_coupon_rec.max_uses IS NULL THEN
+      v_tickets_to_discount := v_total_requested_tickets;
+    ELSE
+      v_remaining_uses := v_coupon_rec.max_uses - v_coupon_rec.uses_count;
+      v_tickets_to_discount := least(v_total_requested_tickets, v_remaining_uses);
+    END IF;
+
+    v_coupon_id := v_coupon_rec.id;
+  END IF;
+
+  -- 3. First Loop: Validate stock and calculate expected total + discount
+  v_discounted_counter := 0;
   FOR tier_line IN
     SELECT
       (el.value->>'tier_id')::uuid as tid,
@@ -110,63 +159,66 @@ BEGIN
       RAISE EXCEPTION 'insufficient stock';
     END IF;
 
-    expected_total := expected_total + (tier_rec.price::bigint * 100 * tier_line.qty);
-  END LOOP;
-
-  -- Coupon Processing
-  IF p_coupon_code IS NOT NULL AND trim(p_coupon_code) <> '' THEN
-    -- Find and lock the coupon for update
-    SELECT * INTO v_coupon_rec 
-    FROM public.coupons 
-    WHERE upper(code) = upper(trim(p_coupon_code)) 
-      AND is_active = true 
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'Invalid or inactive coupon code';
-    END IF;
-
-    IF v_coupon_rec.expires_at IS NOT NULL AND v_coupon_rec.expires_at < now() THEN
-      RAISE EXCEPTION 'This coupon has expired';
-    END IF;
-
-    IF v_coupon_rec.max_uses IS NOT NULL AND v_coupon_rec.uses_count >= v_coupon_rec.max_uses THEN
-      RAISE EXCEPTION 'the coupon has reached its usage limit';
-    END IF;
-
-    -- Scoping check
-    IF v_coupon_rec.event_id IS NOT NULL THEN
-      SELECT EXISTS (
-        SELECT 1 
-        FROM jsonb_array_elements(p_items) AS el
-        JOIN public.ticket_tiers tt ON tt.id = (el.value->>'tier_id')::uuid
-        WHERE tt.event_id = v_coupon_rec.event_id
-      ) INTO v_cart_has_event;
-      
-      IF NOT v_cart_has_event THEN
-        RAISE EXCEPTION 'This coupon is not valid for the items in your cart';
+    v_tier_price_kobo := (tier_rec.price::bigint * 100);
+    
+    -- Check event scoping if coupon is present
+    IF v_coupon_id IS NOT NULL AND v_coupon_rec.event_id IS NOT NULL THEN
+      IF tier_rec.event_id = v_coupon_rec.event_id THEN
+        v_cart_has_event := true;
       END IF;
     END IF;
 
-    -- Calculate discount
-    IF v_coupon_rec.discount_type = 'percentage' THEN
-      v_discount_amount := (expected_total * v_coupon_rec.discount_value / 100)::bigint;
-    ELSE
-      v_discount_amount := (v_coupon_rec.discount_value * 100)::bigint;
-    END IF;
+    -- Calculate expected total and discount for this tier
+    FOR i IN 1..tier_line.qty LOOP
+      expected_total_kobo := expected_total_kobo + v_tier_price_kobo;
+      
+      -- Apply discount if applicable to this ticket
+      -- Note: If the coupon is event-scoped, we only discount tickets for that event.
+      -- If it's NOT event-scoped, we discount any ticket until v_tickets_to_discount is reached.
+      IF v_discounted_counter < v_tickets_to_discount THEN
+        IF v_coupon_rec.event_id IS NULL OR tier_rec.event_id = v_coupon_rec.event_id THEN
+          IF v_coupon_rec.discount_type = 'percentage' THEN
+            v_this_ticket_discount_kobo := (v_tier_price_kobo * v_coupon_rec.discount_value / 100)::bigint;
+          ELSE
+            v_this_ticket_discount_kobo := (v_coupon_rec.discount_value * 100)::bigint;
+          END IF;
+          
+          -- Cap discount at ticket price
+          IF v_this_ticket_discount_kobo > v_tier_price_kobo THEN
+            v_this_ticket_discount_kobo := v_tier_price_kobo;
+          END IF;
+          
+          v_total_discount_amount_kobo := v_total_discount_amount_kobo + v_this_ticket_discount_kobo;
+          v_discounted_counter := v_discounted_counter + 1;
+        END IF;
+      END IF;
+    END LOOP;
+  END LOOP;
 
-    v_coupon_id := v_coupon_rec.id;
+  -- 4. Final Coupon validation checks
+  IF v_coupon_id IS NOT NULL THEN
+    -- If scoped to an event, ensure at least one item was from that event
+    IF v_coupon_rec.event_id IS NOT NULL AND NOT v_cart_has_event THEN
+      RAISE EXCEPTION 'This coupon is not valid for the items in your cart';
+    END IF;
     
-    -- Increment uses_count atomically
-    UPDATE public.coupons 
-    SET uses_count = uses_count + 1 
-    WHERE id = v_coupon_id;
+    -- If no tickets were discounted (e.g. all tickets were non-scoped), this is also an error
+    IF v_discounted_counter = 0 AND v_total_requested_tickets > 0 THEN
+       RAISE EXCEPTION 'This coupon cannot be applied to your selection';
+    END IF;
   END IF;
 
-  -- Underpayment check (account for discount)
-  -- Allow a small margin for rounding if necessary, but here we expect exact match or overpayment.
-  IF expected_total > 0 AND p_verified_amount_kobo < (expected_total - v_discount_amount) THEN
-    RAISE EXCEPTION 'Underpayment detected: expected % (with discount %), paid %', (expected_total - v_discount_amount), v_discount_amount, p_verified_amount_kobo;
+  -- 5. Underpayment check (reflect partial discount)
+  IF expected_total_kobo > 0 AND p_verified_amount_kobo < (expected_total_kobo - v_total_discount_amount_kobo) THEN
+    RAISE EXCEPTION 'Underpayment detected: expected % (with % discount), paid %', 
+      (expected_total_kobo - v_total_discount_amount_kobo), v_total_discount_amount_kobo, p_verified_amount_kobo;
+  END IF;
+
+  -- 6. Update uses_count atomically by the number of tickets actually discounted
+  IF v_coupon_id IS NOT NULL AND v_discounted_counter > 0 THEN
+    UPDATE public.coupons 
+    SET uses_count = uses_count + v_discounted_counter 
+    WHERE id = v_coupon_id;
   END IF;
 
   -- Determine the effective user_id
@@ -176,7 +228,8 @@ BEGIN
     v_user_id := p_user_id;
   END IF;
 
-  -- Insert individual ticket rows
+  -- 7. Second Loop: Insert tickets with correct amount_paid per row
+  v_discounted_counter := 0;
   FOR tier_line IN
     SELECT
       (el.value->>'tier_id')::uuid as tid,
@@ -190,7 +243,29 @@ BEGIN
     SET remaining_quantity = remaining_quantity - tier_line.qty
     WHERE id = tier_line.tid;
 
+    v_tier_price_kobo := (tier_rec.price::bigint * 100);
+
     FOR i IN 1..tier_line.qty LOOP
+      v_this_ticket_discount_kobo := 0;
+      
+      -- Determine discount for THIS specific ticket row
+      IF v_coupon_id IS NOT NULL AND v_discounted_counter < v_tickets_to_discount THEN
+        IF v_coupon_rec.event_id IS NULL OR tier_rec.event_id = v_coupon_rec.event_id THEN
+          IF v_coupon_rec.discount_type = 'percentage' THEN
+            v_this_ticket_discount_kobo := (v_tier_price_kobo * v_coupon_rec.discount_value / 100)::bigint;
+          ELSE
+            v_this_ticket_discount_kobo := (v_coupon_rec.discount_value * 100)::bigint;
+          END IF;
+          
+          IF v_this_ticket_discount_kobo > v_tier_price_kobo THEN
+            v_this_ticket_discount_kobo := v_tier_price_kobo;
+          END IF;
+          
+          v_discounted_counter := v_discounted_counter + 1;
+        END IF;
+      END IF;
+
+      v_amount_to_pay_for_this_ticket_kobo := v_tier_price_kobo - v_this_ticket_discount_kobo;
       generated_code := 'TIX-' || upper(substring(gen_random_uuid()::text, 1, 8));
 
       INSERT INTO public.tickets (
@@ -213,11 +288,7 @@ BEGIN
         tier_rec.event_id,
         tier_line.tid,
         p_reference,
-        -- If we have multiple items, how do we distribute the discount?
-        -- For simplicity, we record the tier price, but the total paid is what matters.
-        -- Actually, the current RPC records (tier_rec.price * 100).
-        -- We'll keep that, as amount_paid per ticket usually reflects the face value.
-        (tier_rec.price::bigint * 100)::integer,
+        v_amount_to_pay_for_this_ticket_kobo::integer,
         1,
         'confirmed',
         generated_code,
