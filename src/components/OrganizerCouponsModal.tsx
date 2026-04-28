@@ -33,6 +33,7 @@ type Coupon = {
   expires_at: string | null;
   is_active: boolean;
   event_id: string;
+  allowed_tiers: string[] | null;
   created_by: string;
   created_at: string;
 };
@@ -52,7 +53,9 @@ export function OrganizerCouponsModal({ eventId, eventTitle }: { eventId: string
     discount_value: "",
     max_uses: "",
     expires_at: "",
+    allowed_tiers: [] as string[],
   });
+  const [availableTiers, setAvailableTiers] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   async function loadData() {
@@ -67,6 +70,14 @@ export function OrganizerCouponsModal({ eventId, eventTitle }: { eventId: string
       
       if (error) throw error;
       setCoupons(cpData ?? []);
+
+      // Fetch available tiers for this event
+      const { data: tiersData } = await supabase
+        .from("ticket_tiers")
+        .select("name")
+        .eq("event_id", eventId);
+      
+      setAvailableTiers(Array.from(new Set(tiersData?.map(t => t.name) ?? [])));
     } catch (err: any) {
       toast.error(err.message || "Failed to load coupons");
     } finally {
@@ -98,11 +109,12 @@ export function OrganizerCouponsModal({ eventId, eventTitle }: { eventId: string
         event_id: eventId,
         created_by: user.id,
         is_active: true,
+        allowed_tiers: form.allowed_tiers.length > 0 ? form.allowed_tiers : null,
       });
       if (error) throw error;
       toast.success("Coupon created!");
       setCreateOpen(false);
-      setForm({ code: "", discount_type: "percentage", discount_value: "", max_uses: "", expires_at: "" });
+      setForm({ code: "", discount_type: "percentage", discount_value: "", max_uses: "", expires_at: "", allowed_tiers: [] });
       loadData();
     } catch (err: any) {
       toast.error(err.message || "Failed to create coupon");
@@ -207,6 +219,37 @@ export function OrganizerCouponsModal({ eventId, eventTitle }: { eventId: string
                       onChange={(e) => setForm({ ...form, expires_at: e.target.value })}
                     />
                   </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Allowed Tiers (optional)</label>
+                    <div className="p-3 border rounded-lg max-h-32 overflow-y-auto space-y-2 bg-muted/20">
+                      {availableTiers.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No tiers found for this event</p>
+                      ) : (
+                        availableTiers.map((tier) => (
+                          <label key={tier} className="flex items-center gap-2 cursor-pointer group">
+                            <input
+                              type="checkbox"
+                              className="rounded border-border text-primary focus:ring-primary h-4 w-4"
+                              checked={form.allowed_tiers.includes(tier)}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setForm(f => ({
+                                  ...f,
+                                  allowed_tiers: checked 
+                                    ? [...f.allowed_tiers, tier] 
+                                    : f.allowed_tiers.filter(t => t !== tier)
+                                }));
+                              }}
+                            />
+                            <span className="text-sm text-neutral-700 group-hover:text-foreground transition-colors">{tier}</span>
+                          </label>
+                        ))
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Leave all unchecked to apply to all tiers.</p>
+                  </div>
+
                   <Button type="submit" className="w-full bg-primary text-primary-foreground" disabled={submitting}>
                     {submitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating…</> : "Create Coupon"}
                   </Button>
@@ -254,7 +297,14 @@ export function OrganizerCouponsModal({ eventId, eventTitle }: { eventId: string
                           <span className="font-bold font-mono text-foreground">{c.code}</span>
                         </td>
                         <td className="px-4 py-3 font-medium">
-                          {c.discount_type === "percentage" ? `${c.discount_value}%` : formatPrice(c.discount_value)}
+                          <div className="flex flex-col">
+                            <span>{c.discount_type === "percentage" ? `${c.discount_value}%` : formatPrice(c.discount_value)}</span>
+                            {c.allowed_tiers && (
+                              <span className="text-[10px] text-muted-foreground truncate max-w-[100px]" title={c.allowed_tiers.join(", ")}>
+                                Tiers: {c.allowed_tiers.join(", ")}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
                           {c.uses_count}{c.max_uses ? ` / ${c.max_uses}` : " (∞)"}

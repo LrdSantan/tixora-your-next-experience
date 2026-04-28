@@ -123,6 +123,7 @@ interface SummaryContentProps {
     event_id?: string | null;
     uses_count: number;
     max_uses: number | null;
+    allowed_tiers: string[] | null;
   } | null;
   removeCoupon: () => void;
   couponCode: string;
@@ -256,6 +257,7 @@ export default function CheckoutPage() {
     event_id?: string | null;
     uses_count: number;
     max_uses: number | null;
+    allowed_tiers: string[] | null;
   } | null>(null);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
 
@@ -306,16 +308,24 @@ export default function CheckoutPage() {
 
     // Sort items so we apply to qualifying items first (if any scoping exists)
     const sortedItems = [...lineItems].sort((a, b) => {
-      const aQualifies = !appliedCoupon.event_id || a.eventId === appliedCoupon.event_id;
-      const bQualifies = !appliedCoupon.event_id || b.eventId === appliedCoupon.event_id;
+      const aEventQualifies = !appliedCoupon.event_id || a.eventId === appliedCoupon.event_id;
+      const bEventQualifies = !appliedCoupon.event_id || b.eventId === appliedCoupon.event_id;
+      const aTierQualifies = !appliedCoupon.allowed_tiers || appliedCoupon.allowed_tiers.includes(a.tierName);
+      const bTierQualifies = !appliedCoupon.allowed_tiers || appliedCoupon.allowed_tiers.includes(b.tierName);
+      
+      const aQualifies = aEventQualifies && aTierQualifies;
+      const bQualifies = bEventQualifies && bTierQualifies;
+
       if (aQualifies && !bQualifies) return -1;
       if (!aQualifies && bQualifies) return 1;
       return 0;
     });
 
     for (const item of sortedItems) {
-      const qualifies = !appliedCoupon.event_id || item.eventId === appliedCoupon.event_id;
-      if (!qualifies) continue;
+      const eventQualifies = !appliedCoupon.event_id || item.eventId === appliedCoupon.event_id;
+      const tierQualifies = !appliedCoupon.allowed_tiers || appliedCoupon.allowed_tiers.includes(item.tierName);
+      
+      if (!eventQualifies || !tierQualifies) continue;
 
       for (let i = 0; i < item.quantity; i++) {
         if (discountedTicketsCount < maxDiscountable) {
@@ -373,6 +383,14 @@ export default function CheckoutPage() {
         const cartHasEvent = items.some((i) => i.eventId === data.event_id);
         if (!cartHasEvent) {
           toast.error("This coupon is not valid for this event");
+          return;
+        }
+      }
+
+      if (data.allowed_tiers && data.allowed_tiers.length > 0) {
+        const cartHasAllowedTier = items.some((i) => data.allowed_tiers.includes(i.tierName));
+        if (!cartHasAllowedTier) {
+          toast.error("This coupon is not valid for the selected ticket type");
           return;
         }
       }

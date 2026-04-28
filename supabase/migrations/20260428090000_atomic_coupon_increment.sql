@@ -1,10 +1,11 @@
--- Migration: Refined atomic coupon logic for finalize_purchase_after_payment
+-- Migration: Refined atomic coupon logic for finalize_purchase_after_payment with tier restrictions
 -- Corrected behavior:
 -- 1. max_uses counts individual tickets, not transactions.
 -- 2. Partial Application: Discount applies to min(requested_tickets, remaining_uses).
 -- 3. uses_count increments by the number of tickets covered.
 -- 4. Underpayment check reflects partial discount.
 -- 5. Blocking: If uses_count >= max_uses initially, block the coupon.
+-- 6. Tier Restrictions: Only applies to tickets whose tier name is in allowed_tiers (if not null).
 
 CREATE OR REPLACE FUNCTION public.finalize_purchase_after_payment(
   p_user_id uuid,
@@ -36,6 +37,7 @@ DECLARE
   v_total_discount_amount_kobo bigint := 0;
   v_coupon_id uuid := NULL;
   v_cart_has_event boolean := false;
+  v_cart_has_allowed_tier boolean := false;
   v_total_requested_tickets int := 0;
   v_remaining_uses int;
   v_tickets_to_discount int := 0;
@@ -161,10 +163,16 @@ BEGIN
 
     v_tier_price_kobo := (tier_rec.price::bigint * 100);
     
-    -- Check event scoping if coupon is present
-    IF v_coupon_id IS NOT NULL AND v_coupon_rec.event_id IS NOT NULL THEN
-      IF tier_rec.event_id = v_coupon_rec.event_id THEN
+    -- Check event scoping and tier restrictions if coupon is present
+    IF v_coupon_id IS NOT NULL THEN
+      -- Check event match
+      IF v_coupon_rec.event_id IS NULL OR tier_rec.event_id = v_coupon_rec.event_id THEN
         v_cart_has_event := true;
+        
+        -- Check tier match
+        IF v_coupon_rec.allowed_tiers IS NULL OR tier_rec.name = ANY(v_coupon_rec.allowed_tiers) THEN
+          v_cart_has_allowed_tier := true;
+        END IF;
       END IF;
     END IF;
 
@@ -173,23 +181,25 @@ BEGIN
       expected_total_kobo := expected_total_kobo + v_tier_price_kobo;
       
       -- Apply discount if applicable to this ticket
-      -- Note: If the coupon is event-scoped, we only discount tickets for that event.
-      -- If it's NOT event-scoped, we discount any ticket until v_tickets_to_discount is reached.
       IF v_discounted_counter < v_tickets_to_discount THEN
+        -- Condition 1: Event match (or global)
         IF v_coupon_rec.event_id IS NULL OR tier_rec.event_id = v_coupon_rec.event_id THEN
-          IF v_coupon_rec.discount_type = 'percentage' THEN
-            v_this_ticket_discount_kobo := (v_tier_price_kobo * v_coupon_rec.discount_value / 100)::bigint;
-          ELSE
-            v_this_ticket_discount_kobo := (v_coupon_rec.discount_value * 100)::bigint;
+          -- Condition 2: Tier match (or all tiers allowed)
+          IF v_coupon_rec.allowed_tiers IS NULL OR tier_rec.name = ANY(v_coupon_rec.allowed_tiers) THEN
+            IF v_coupon_rec.discount_type = 'percentage' THEN
+              v_this_ticket_discount_kobo := (v_tier_price_kobo * v_coupon_rec.discount_value / 100)::bigint;
+            ELSE
+              v_this_ticket_discount_kobo := (v_coupon_rec.discount_value * 100)::bigint;
+            END IF;
+            
+            -- Cap discount at ticket price
+            IF v_this_ticket_discount_kobo > v_tier_price_kobo THEN
+              v_this_ticket_discount_kobo := v_tier_price_kobo;
+            END IF;
+            
+            v_total_discount_amount_kobo := v_total_discount_amount_kobo + v_this_ticket_discount_kobo;
+            v_discounted_counter := v_discounted_counter + 1;
           END IF;
-          
-          -- Cap discount at ticket price
-          IF v_this_ticket_discount_kobo > v_tier_price_kobo THEN
-            v_this_ticket_discount_kobo := v_tier_price_kobo;
-          END IF;
-          
-          v_total_discount_amount_kobo := v_total_discount_amount_kobo + v_this_ticket_discount_kobo;
-          v_discounted_counter := v_discounted_counter + 1;
         END IF;
       END IF;
     END LOOP;
@@ -200,6 +210,11 @@ BEGIN
     -- If scoped to an event, ensure at least one item was from that event
     IF v_coupon_rec.event_id IS NOT NULL AND NOT v_cart_has_event THEN
       RAISE EXCEPTION 'This coupon is not valid for the items in your cart';
+    END IF;
+
+    -- If scoped to specific tiers, ensure at least one item matched
+    IF v_coupon_rec.allowed_tiers IS NOT NULL AND NOT v_cart_has_allowed_tier THEN
+      RAISE EXCEPTION 'This coupon is not valid for the selected ticket type';
     END IF;
     
     -- If no tickets were discounted (e.g. all tickets were non-scoped), this is also an error
@@ -251,17 +266,19 @@ BEGIN
       -- Determine discount for THIS specific ticket row
       IF v_coupon_id IS NOT NULL AND v_discounted_counter < v_tickets_to_discount THEN
         IF v_coupon_rec.event_id IS NULL OR tier_rec.event_id = v_coupon_rec.event_id THEN
-          IF v_coupon_rec.discount_type = 'percentage' THEN
-            v_this_ticket_discount_kobo := (v_tier_price_kobo * v_coupon_rec.discount_value / 100)::bigint;
-          ELSE
-            v_this_ticket_discount_kobo := (v_coupon_rec.discount_value * 100)::bigint;
+          IF v_coupon_rec.allowed_tiers IS NULL OR tier_rec.name = ANY(v_coupon_rec.allowed_tiers) THEN
+            IF v_coupon_rec.discount_type = 'percentage' THEN
+              v_this_ticket_discount_kobo := (v_tier_price_kobo * v_coupon_rec.discount_value / 100)::bigint;
+            ELSE
+              v_this_ticket_discount_kobo := (v_coupon_rec.discount_value * 100)::bigint;
+            END IF;
+            
+            IF v_this_ticket_discount_kobo > v_tier_price_kobo THEN
+              v_this_ticket_discount_kobo := v_tier_price_kobo;
+            END IF;
+            
+            v_discounted_counter := v_discounted_counter + 1;
           END IF;
-          
-          IF v_this_ticket_discount_kobo > v_tier_price_kobo THEN
-            v_this_ticket_discount_kobo := v_tier_price_kobo;
-          END IF;
-          
-          v_discounted_counter := v_discounted_counter + 1;
         END IF;
       END IF;
 
