@@ -102,7 +102,7 @@ export const InbuiltScanner = ({ onClose, eventId }: InbuiltScannerProps) => {
             { facingMode: "environment" },
             {
               fps: 10, // Optimized scan speed (100ms interval)
-              qrbox: 250,
+              qrbox: 320,
               aspectRatio: 1.0,
               formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
             },
@@ -157,24 +157,14 @@ export const InbuiltScanner = ({ onClose, eventId }: InbuiltScannerProps) => {
 
                 loadUnsyncedCount();
                 
-                // Active lockout period
-                setTimeout(() => {
-                  setScanResult(null);
-                  setErrorMsg(null);
-                  isScanning.current = false;
-                }, 1500);
+                // We no longer use a timeout to reset. 
+                // The user must click "Confirm / Next" to resume.
 
               } catch (err: any) {
                 console.error("[Scanner] Verification Error:", err);
                 setScanResult("error");
                 setErrorMsg(err.message || "Verification failed");
                 playSound("buzz");
-                
-                setTimeout(() => {
-                  setScanResult(null);
-                  setErrorMsg(null);
-                  isScanning.current = false;
-                }, 1500);
               }
             },
             (error) => {
@@ -224,16 +214,27 @@ export const InbuiltScanner = ({ onClose, eventId }: InbuiltScannerProps) => {
       </div>
 
       {/* Reader Container */}
-      <div className="relative w-full max-w-md aspect-square bg-black/50 overflow-hidden">
+      <div className="relative w-full max-w-md aspect-square bg-black/50 overflow-hidden border-2 border-white/10 rounded-3xl">
         <div id="reader" className="w-full h-full object-cover"></div>
+        
+        {/* Scanning Frame / Overlay */}
+        <div className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center">
+           <div className="w-[320px] h-[320px] border-2 border-white/50 rounded-2xl relative">
+              {/* Corner Markers */}
+              <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-lg" />
+              <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-lg" />
+              <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-lg" />
+              <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-lg" />
+           </div>
+        </div>
         
         {/* Success/Error Overlay */}
         {scanResult && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-20 backdrop-blur-md transition-all duration-300">
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-20 backdrop-blur-md transition-all duration-300 p-6 text-center">
             {scanResult === "success" ? (
               <div className="flex flex-col items-center gap-4">
                 <div className="bg-green-500/90 text-white p-8 rounded-full shadow-[0_0_50px_rgba(34,197,94,0.6)] animate-in zoom-in spin-in-12">
-                  <CheckCircle className="h-24 w-24" />
+                  <CheckCircle className="h-20 w-20" />
                 </div>
                 <span className="text-white font-black text-2xl tracking-widest uppercase animate-in fade-in slide-in-from-bottom-4">Checked In</span>
               </div>
@@ -243,10 +244,10 @@ export const InbuiltScanner = ({ onClose, eventId }: InbuiltScannerProps) => {
                   "text-white p-8 rounded-full shadow-lg animate-in zoom-in fade-in",
                   scanResult === "already-used" ? "bg-amber-500/90 shadow-amber-500/40" : "bg-red-500/90 shadow-red-500/40"
                 )}>
-                  <XCircle className="h-24 w-24" />
+                  <XCircle className="h-20 w-20" />
                 </div>
                 <div className="flex flex-col items-center">
-                  <span className="text-white font-black text-2xl tracking-widest uppercase animate-in fade-in slide-in-from-bottom-4">
+                  <span className="text-white font-black text-xl tracking-widest uppercase">
                     {scanResult === "already-used" ? "Already Used" : 
                      scanResult === "invalid-event" ? "Wrong Event" :
                      scanResult === "invalid" ? "Invalid Ticket" : "Scan Failed"}
@@ -259,6 +260,27 @@ export const InbuiltScanner = ({ onClose, eventId }: InbuiltScannerProps) => {
                 </div>
               </div>
             )}
+
+            {/* Manual Confirmation Buttons */}
+            <div className="mt-8 flex flex-col gap-3 w-full max-w-[240px]">
+              <Button 
+                onClick={() => {
+                  setScanResult(null);
+                  setErrorMsg(null);
+                  isScanning.current = false;
+                }}
+                className="w-full bg-white text-black hover:bg-white/90 font-bold h-12 rounded-xl"
+              >
+                ✅ Confirm / Next
+              </Button>
+              <Button 
+                variant="ghost"
+                onClick={onClose}
+                className="w-full text-white hover:bg-white/10 font-medium h-12 rounded-xl"
+              >
+                ❌ Dismiss / Close
+              </Button>
+            </div>
           </div>
         )}
       </div>
