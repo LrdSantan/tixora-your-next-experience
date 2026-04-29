@@ -111,12 +111,16 @@ export function OrganizerCouponsModal({ eventId, eventTitle }: { eventId: string
     }
 
     if (form.discount_type === "fixed") {
-      const cheapestTier = availableTiers.length > 0 
-        ? Math.min(...availableTiers.map(t => t.price))
+      const relevantTiers = form.allowed_tiers.length > 0
+        ? availableTiers.filter(t => form.allowed_tiers.includes(t.name))
+        : availableTiers;
+
+      const minPrice = relevantTiers.length > 0 
+        ? Math.min(...relevantTiers.map(t => t.price))
         : 0;
       
-      if (cheapestTier > 0 && val > cheapestTier) {
-        toast.error(`Discount cannot exceed the ticket price (${formatPrice(cheapestTier)})`);
+      if (minPrice > 0 && val > minPrice) {
+        toast.error(`Discount cannot exceed the ticket price (${formatPrice(minPrice)})`);
         return;
       }
     }
