@@ -220,7 +220,7 @@ const SummaryContent = ({
         className="mt-5 h-12 w-full rounded-xl font-semibold text-white" 
         style={{ backgroundColor: lineItems.length > 0 ? ACCENT : undefined }} 
         disabled={lineItems.length === 0} 
-        onClick={() => setStep(isGuest ? 2 : 1)}
+        onClick={() => setStep(1)}
       >
         Continue
       </Button>
@@ -418,11 +418,7 @@ export default function CheckoutPage() {
       toast.error("Please enter a valid email address.");
       return false;
     }
-    if (!attendee.phone.trim()) {
-      toast.error("Please enter your phone number.");
-      return false;
-    }
-    if (!isValidPhone(attendee.phone)) {
+    if (attendee.phone.trim() && !isValidPhone(attendee.phone)) {
       toast.error("Please enter a valid Nigerian phone number.");
       return false;
     }
@@ -446,11 +442,6 @@ export default function CheckoutPage() {
     }
     if (!supabase || !isSupabaseConfigured) {
       toast.error("Supabase is not configured.");
-      return;
-    }
-    if (!isGuest && !user?.email) {
-      toast.error("Sign in to complete payment or continue as guest.");
-      navigate("/login", { state: { from: "/checkout" } });
       return;
     }
     if (lineItems.length === 0) {
@@ -910,8 +901,8 @@ export default function CheckoutPage() {
                 ))}
               </div>
               <div className="mt-8 flex flex-col sm:flex-row gap-3">
-                <Button variant="outline" className="w-full sm:flex-1 h-12 rounded-xl" onClick={() => isGuest ? setIsGuest(false) || setStep(0) : setStep(0)}>Back</Button>
-                <Button className="w-full sm:flex-1 h-12 rounded-xl text-white" style={{ backgroundColor: ACCENT }} onClick={() => validateAttendee() && setStep(isGuest ? 0 : 2)}>Continue</Button>
+                <Button variant="outline" className="w-full sm:flex-1 h-12 rounded-xl" onClick={() => setStep(0)}>Back</Button>
+                <Button className="w-full sm:flex-1 h-12 rounded-xl text-white" style={{ backgroundColor: ACCENT }} onClick={() => validateAttendee() && setStep(2)}>Continue</Button>
               </div>
             </div>
             <aside><SummaryContent {...summaryProps} /></aside>
@@ -934,7 +925,7 @@ export default function CheckoutPage() {
               )}
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button variant="outline" className="w-full sm:flex-1 h-12 rounded-xl" onClick={() => setStep(1)} disabled={paying}>Back</Button>
-                <Button className="w-full sm:flex-1 h-12 rounded-xl text-white" style={{ backgroundColor: ACCENT }} onClick={handlePayWithPaystack} disabled={paying || (!user && !isGuest)}>
+                <Button className="w-full sm:flex-1 h-12 rounded-xl text-white" style={{ backgroundColor: ACCENT }} onClick={handlePayWithPaystack} disabled={paying}>
                   {paying ? "Processing..." : (finalTotal === 0 ? "Get Free Ticket" : `Pay ${formatPrice(finalTotal)}`)}
                 </Button>
               </div>
