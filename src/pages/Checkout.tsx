@@ -126,10 +126,6 @@ interface SummaryContentProps {
     allowed_tiers: string[] | null;
   } | null;
   removeCoupon: () => void;
-  couponCode: string;
-  setCouponCode: (val: string) => void;
-  handleApplyCoupon: () => void;
-  validatingCoupon: boolean;
   step: number;
   discountAmount: number;
   finalTotal: number;
@@ -146,10 +142,6 @@ const SummaryContent = ({
   rawSubtotal,
   appliedCoupon,
   removeCoupon,
-  couponCode,
-  setCouponCode,
-  handleApplyCoupon,
-  validatingCoupon,
   step,
   discountAmount,
   finalTotal,
@@ -219,21 +211,6 @@ const SummaryContent = ({
         </li>
       )}
     </ul>
-
-    {!appliedCoupon && (
-      <div className="mt-4 flex items-center gap-2 border border-neutral-200 rounded-xl px-3 py-1">
-        <input 
-          type="text" 
-          value={couponCode} 
-          onChange={(e) => setCouponCode(e.target.value)} 
-          placeholder="Discount code" 
-          className="flex-1 h-12 text-base md:text-sm outline-none bg-transparent" 
-        />
-        <button onClick={handleApplyCoupon} disabled={validatingCoupon || !couponCode.trim()} className="h-12 px-2 text-sm font-semibold" style={{ color: ACCENT }}>
-          {validatingCoupon ? "..." : "Apply"}
-        </button>
-      </div>
-    )}
 
       <div className="mt-4 flex justify-between border-t pt-4 text-base font-bold text-neutral-900" style={{ borderColor: ACCENT_BORDER }}>
         <span>Total</span>
@@ -937,7 +914,6 @@ export default function CheckoutPage() {
                   [
                     { label: isBuyingForFriend ? "Friend's Name" : "Full Name", key: "name" as const, type: "text" },
                     { label: isBuyingForFriend ? "Friend's Email address" : "Email address", key: "email" as const, type: "email" },
-                    { label: isBuyingForFriend ? "Friend's Phone Number" : "Phone Number", key: "phone" as const, type: "tel" },
                   ] as const
                 ).map((f) => (
                   <div key={f.key} className="space-y-1.5">
@@ -946,6 +922,23 @@ export default function CheckoutPage() {
                   </div>
                 ))}
               </div>
+
+              {/* Coupon Input in Main Content */}
+              {!appliedCoupon && (
+                <div className="mt-6 flex items-center gap-2 border border-neutral-200 rounded-xl px-3 py-1">
+                  <input 
+                    type="text" 
+                    value={couponCode} 
+                    onChange={(e) => setCouponCode(e.target.value)} 
+                    placeholder="Discount code" 
+                    className="flex-1 h-12 text-base md:text-sm outline-none bg-transparent" 
+                  />
+                  <button onClick={handleApplyCoupon} disabled={validatingCoupon || !couponCode.trim()} className="h-12 px-2 text-sm font-semibold" style={{ color: ACCENT }}>
+                    {validatingCoupon ? "..." : "Apply"}
+                  </button>
+                </div>
+              )}
+
               <div className="mt-8 flex flex-col sm:flex-row gap-3">
                 <Button variant="outline" className="w-full sm:flex-1 h-12 rounded-xl" onClick={() => setStep(0)}>Back</Button>
                 <Button className="w-full sm:flex-1 h-12 rounded-xl text-white" style={{ backgroundColor: ACCENT }} onClick={() => validateAttendee() && setStep(2)}>Continue</Button>
