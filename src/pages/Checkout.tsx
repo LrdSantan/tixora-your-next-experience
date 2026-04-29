@@ -137,6 +137,8 @@ interface SummaryContentProps {
   isGuest: boolean;
 }
 
+import { ChevronDown, ChevronUp } from "lucide-react";
+
 const SummaryContent = ({
   lineItems,
   itemsByEvent,
@@ -153,9 +155,33 @@ const SummaryContent = ({
   finalTotal,
   setStep,
   isGuest
-}: SummaryContentProps) => (
-  <div className="rounded-2xl bg-white p-6 shadow-sm">
-    {lineItems.length === 0 ? (
+}: SummaryContentProps) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const totalQty = lineItems.reduce((acc, item) => acc + (Number(item.quantity) || 0), 0);
+  const eventName = itemsByEvent.length > 0 ? itemsByEvent[0].eventTitle : "Your Order";
+
+  return (
+  <div className="rounded-2xl bg-white p-4 lg:p-6 shadow-sm border border-neutral-100 lg:border-transparent">
+    {/* Mobile Minimal Header (Sticky content) */}
+    <div 
+      className="flex items-center justify-between lg:hidden cursor-pointer"
+      onClick={() => setIsExpanded(!isExpanded)}
+    >
+      <div>
+        <p className="font-bold text-neutral-900 line-clamp-1">{eventName}</p>
+        <p className="text-xs text-neutral-500 mt-0.5">{totalQty} ticket{totalQty !== 1 && 's'}</p>
+      </div>
+      <div className="flex items-center gap-3 text-right">
+        <p className="font-bold text-lg" style={{ color: ACCENT }}>{formatPrice(finalTotal)}</p>
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-50 text-neutral-500">
+          {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </div>
+      </div>
+    </div>
+
+    {/* Desktop Content / Mobile Expanded Content */}
+    <div className={cn("mt-4 lg:mt-0 pt-4 lg:pt-0 border-t border-neutral-100 lg:border-none", isExpanded ? "block" : "hidden lg:block")}>
+      {lineItems.length === 0 ? (
       <p className="text-neutral-400 text-sm">No tickets selected yet.</p>
     ) : (
       <ul className="space-y-4 text-sm">
@@ -209,22 +235,23 @@ const SummaryContent = ({
       </div>
     )}
 
-    <div className="mt-4 flex justify-between border-t pt-4 text-base font-bold text-neutral-900" style={{ borderColor: ACCENT_BORDER }}>
-      <span>Total</span>
-      <span className="tabular-nums" style={{ color: ACCENT }}>{formatPrice(finalTotal)}</span>
-    </div>
+      <div className="mt-4 flex justify-between border-t pt-4 text-base font-bold text-neutral-900" style={{ borderColor: ACCENT_BORDER }}>
+        <span>Total</span>
+        <span className="tabular-nums" style={{ color: ACCENT }}>{formatPrice(finalTotal)}</span>
+      </div>
 
-    {step === 0 && (
-      <Button 
-        type="button" 
-        className="mt-5 h-12 w-full rounded-xl font-semibold text-white" 
-        style={{ backgroundColor: lineItems.length > 0 ? ACCENT : undefined }} 
-        disabled={lineItems.length === 0} 
-        onClick={() => setStep(1)}
-      >
-        Continue
-      </Button>
-    )}
+      {step === 0 && (
+        <Button 
+          type="button" 
+          className="mt-5 h-12 w-full rounded-xl font-semibold text-white hidden lg:flex" 
+          style={{ backgroundColor: lineItems.length > 0 ? ACCENT : undefined }} 
+          disabled={lineItems.length === 0} 
+          onClick={() => setStep(1)}
+        >
+          Continue
+        </Button>
+      )}
+    </div>
   </div>
 );
 
@@ -734,8 +761,8 @@ export default function CheckoutPage() {
 
         {/* STEP 0: Choose Tickets */}
         {step === 0 && (
-          <div className="grid gap-8 lg:grid-cols-[1fr_min(100%,380px)] lg:items-start">
-            <div className="rounded-2xl bg-white p-5 shadow-sm md:p-8">
+          <div className="flex flex-col lg:grid gap-6 lg:gap-8 lg:grid-cols-[1fr_min(100%,380px)] lg:items-start">
+            <div className="order-2 lg:order-1 rounded-2xl bg-white p-5 shadow-sm md:p-8">
               {!user && !isGuest ? (
                 <div className="text-center py-8">
                   <h2 className="text-2xl font-bold mb-4">Ready to checkout?</h2>
@@ -770,7 +797,6 @@ export default function CheckoutPage() {
                                 const cartQty = getTierQuantity(tier.id);
                                 const remaining = (Number(tier.remaining_quantity) || 0) + cartQty;
                                 const soldOut = remaining <= 0 && cartQty === 0;
-                                console.log(`${tier.name} | DB: ${tier.remaining_quantity} | cart: ${cartQty} | remaining: ${remaining} | soldOut: ${soldOut}`);
                                 const qty = cartQty;
                                 return (
                                   <li key={tier.id} className={cn("flex flex-col gap-4 py-6 sm:flex-row sm:items-start sm:justify-between", soldOut && "opacity-60")}>
@@ -818,8 +844,9 @@ export default function CheckoutPage() {
                 </>
               )}
             </div>
-            <aside className="lg:sticky lg:top-24">
-              <h2 className="mb-3 text-lg font-bold text-neutral-900">Summary</h2>
+            
+            <aside className="order-1 lg:order-2 sticky top-4 z-10 lg:top-24">
+              <h2 className="mb-3 text-lg font-bold text-neutral-900 hidden lg:block">Summary</h2>
               <SummaryContent {...summaryProps} />
             </aside>
           </div>
@@ -827,8 +854,8 @@ export default function CheckoutPage() {
 
         {/* STEP 1: Contact */}
         {step === 1 && (
-          <div className="grid gap-8 lg:grid-cols-[1fr_min(100%,380px)] lg:items-start">
-            <div className="rounded-2xl bg-white p-6 md:p-8">
+          <div className="flex flex-col lg:grid gap-6 lg:gap-8 lg:grid-cols-[1fr_min(100%,380px)] lg:items-start">
+            <div className="order-2 lg:order-1 rounded-2xl bg-white p-6 md:p-8">
               {isGuest && showSignInHint && (
                 <div className="mb-8 overflow-hidden rounded-2xl border animate-in fade-in slide-in-from-top-4 duration-500" style={{ backgroundColor: ACCENT_LIGHT, borderColor: ACCENT_BORDER }}>
                   <div className="p-5 sm:p-6">
@@ -923,14 +950,18 @@ export default function CheckoutPage() {
                 <Button className="w-full sm:flex-1 h-12 rounded-xl text-white" style={{ backgroundColor: ACCENT }} onClick={() => validateAttendee() && setStep(2)}>Continue</Button>
               </div>
             </div>
-            <aside><SummaryContent {...summaryProps} /></aside>
+            
+            <aside className="order-1 lg:order-2 sticky top-4 z-10 lg:top-24">
+              <h2 className="mb-3 text-lg font-bold text-neutral-900 hidden lg:block">Summary</h2>
+              <SummaryContent {...summaryProps} />
+            </aside>
           </div>
         )}
 
         {/* STEP 2: Payment */}
         {step === 2 && (
-          <div className="grid gap-8 lg:grid-cols-[1fr_min(100%,380px)] lg:items-start">
-            <div className="rounded-2xl bg-white p-6 md:p-8">
+          <div className="flex flex-col lg:grid gap-6 lg:gap-8 lg:grid-cols-[1fr_min(100%,380px)] lg:items-start">
+            <div className="order-2 lg:order-1 rounded-2xl bg-white p-6 md:p-8">
               <h2 className="mb-1 text-xl font-bold">Payment</h2>
               <p className="mb-6 text-sm text-neutral-500">Secured by Paystack. {!user && !isGuest && "Sign in required."}</p>
               {finalTotal > 0 && (
@@ -948,7 +979,11 @@ export default function CheckoutPage() {
                 </Button>
               </div>
             </div>
-            <aside><SummaryContent {...summaryProps} /></aside>
+            
+            <aside className="order-1 lg:order-2 sticky top-4 z-10 lg:top-24">
+              <h2 className="mb-3 text-lg font-bold text-neutral-900 hidden lg:block">Summary</h2>
+              <SummaryContent {...summaryProps} />
+            </aside>
           </div>
         )}
       </div>
