@@ -253,7 +253,8 @@ const SummaryContent = ({
       )}
     </div>
   </div>
-);
+  );
+};
 
 
 
