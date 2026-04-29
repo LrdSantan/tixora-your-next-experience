@@ -55,7 +55,7 @@ export function OrganizerCouponsModal({ eventId, eventTitle }: { eventId: string
     expires_at: "",
     allowed_tiers: [] as string[],
   });
-  const [availableTiers, setAvailableTiers] = useState<string[]>([]);
+  const [availableTiers, setAvailableTiers] = useState<{name: string, price: number}[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   async function loadData() {
@@ -74,10 +74,10 @@ export function OrganizerCouponsModal({ eventId, eventTitle }: { eventId: string
       // Fetch available tiers for this event
       const { data: tiersData } = await supabase
         .from("ticket_tiers")
-        .select("name")
+        .select("name, price")
         .eq("event_id", eventId);
       
-      setAvailableTiers(Array.from(new Set(tiersData?.map(t => t.name) ?? [])));
+      setAvailableTiers(tiersData ?? []);
     } catch (err: any) {
       toast.error(err.message || "Failed to load coupons");
     } finally {
@@ -98,6 +98,29 @@ export function OrganizerCouponsModal({ eventId, eventTitle }: { eventId: string
       toast.error("Code and value are required");
       return;
     }
+
+    const val = Number(form.discount_value);
+    if (val <= 0) {
+      toast.error("Discount value must be greater than 0");
+      return;
+    }
+
+    if (form.discount_type === "percentage" && val > 100) {
+      toast.error("Percentage cannot exceed 100%");
+      return;
+    }
+
+    if (form.discount_type === "fixed") {
+      const cheapestTier = availableTiers.length > 0 
+        ? Math.min(...availableTiers.map(t => t.price))
+        : 0;
+      
+      if (cheapestTier > 0 && val > cheapestTier) {
+        toast.error(`Discount cannot exceed the ticket price (${formatPrice(cheapestTier)})`);
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const { error } = await supabase.from("coupons").insert({
@@ -195,7 +218,9 @@ export function OrganizerCouponsModal({ eventId, eventTitle }: { eventId: string
                     <Input
                       required
                       type="number"
-                      min="1"
+                      min="0.01"
+                      step="any"
+                      max={form.discount_type === "percentage" ? "100" : undefined}
                       placeholder={form.discount_type === "percentage" ? "e.g. 20" : "e.g. 500"}
                       value={form.discount_value}
                       onChange={(e) => setForm({ ...form, discount_value: e.target.value })}
@@ -227,22 +252,22 @@ export function OrganizerCouponsModal({ eventId, eventTitle }: { eventId: string
                         <p className="text-xs text-muted-foreground">No tiers found for this event</p>
                       ) : (
                         availableTiers.map((tier) => (
-                          <label key={tier} className="flex items-center gap-2 cursor-pointer group">
+                          <label key={tier.name} className="flex items-center gap-2 cursor-pointer group">
                             <input
                               type="checkbox"
                               className="rounded border-border text-primary focus:ring-primary h-4 w-4"
-                              checked={form.allowed_tiers.includes(tier)}
+                              checked={form.allowed_tiers.includes(tier.name)}
                               onChange={(e) => {
                                 const checked = e.target.checked;
                                 setForm(f => ({
                                   ...f,
                                   allowed_tiers: checked 
-                                    ? [...f.allowed_tiers, tier] 
-                                    : f.allowed_tiers.filter(t => t !== tier)
+                                    ? [...f.allowed_tiers, tier.name] 
+                                    : f.allowed_tiers.filter(t => t !== tier.name)
                                 }));
                               }}
                             />
-                            <span className="text-sm text-neutral-700 group-hover:text-foreground transition-colors">{tier}</span>
+                            <span className="text-sm text-neutral-700 group-hover:text-foreground transition-colors">{tier.name} ({formatPrice(tier.price)})</span>
                           </label>
                         ))
                       )}
