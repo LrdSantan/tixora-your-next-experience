@@ -1,7 +1,7 @@
-import React, { Suspense } from "react";
+import React, { Suspense, useEffect } from "react";
 import { HelmetProvider } from "react-helmet-async";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -45,6 +45,16 @@ const SetPasswordPage = React.lazy(() => import("./pages/SetPassword"));
 
 const queryClient = new QueryClient();
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+}
+
 function DelayedFallback() {
   const [show, setShow] = React.useState(false);
   
@@ -80,6 +90,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <ScrollToTop />
             <Suspense fallback={<DelayedFallback />}>
               <Routes>
                 <Route path="/" element={<AppLayout><Index /></AppLayout>} />
