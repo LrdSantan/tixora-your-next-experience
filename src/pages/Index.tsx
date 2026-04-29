@@ -113,8 +113,8 @@ const HomePage = () => {
       </Helmet>
       <section className="bg-hero text-primary-foreground">
         <div className="container mx-auto px-4 py-20 md:py-28 text-center space-y-6">
-          <h1 className="text-4xl md:text-6xl font-extrabold leading-tight animate-fade-in-up">
-            Your Next Experience<br />Starts Here
+          <h1 className="text-3xl md:text-6xl font-extrabold leading-tight animate-fade-in-up px-2">
+            Your Next Experience<br className="hidden sm:block" />Starts Here
           </h1>
           <p
             className="text-base md:text-lg text-primary-foreground/70 max-w-xl mx-auto"
@@ -137,7 +137,7 @@ const HomePage = () => {
             />
             <Button
               type="button"
-              className="bg-secondary text-secondary-foreground font-semibold h-12 px-6 rounded-full whitespace-nowrap"
+              className="bg-secondary text-secondary-foreground font-semibold h-12 px-6 rounded-full w-full sm:w-auto"
               onClick={scrollToBrowse}
             >
               Find Events <ArrowRight className="w-4 h-4 ml-1" />

@@ -81,7 +81,7 @@ function QtyInput({
       <div className="flex items-center rounded-lg border border-neutral-200 bg-white overflow-hidden">
         <button
           type="button"
-          className="flex h-10 w-9 items-center justify-center text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors disabled:opacity-30"
+          className="flex h-12 w-11 items-center justify-center text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors disabled:opacity-30"
           onClick={() => onChange(Math.max(0, (Number(value) || 0) - 1))}
           disabled={(Number(value) || 0) <= 0}
         >
@@ -95,11 +95,11 @@ function QtyInput({
           onChange={(e) => setInputVal(e.target.value)}
           onBlur={(e) => commit(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && commit(inputVal)}
-          className="w-14 text-center text-sm font-medium text-neutral-900 outline-none border-x border-neutral-200 h-10 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          className="w-16 text-center text-base font-medium text-neutral-900 outline-none border-x border-neutral-200 h-12 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
         <button
           type="button"
-          className="flex h-10 w-9 items-center justify-center text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors disabled:opacity-30"
+          className="flex h-12 w-11 items-center justify-center text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 transition-colors disabled:opacity-30"
           onClick={() => onChange(Math.min(max, (Number(value) || 0) + 1))}
           disabled={(Number(value) || 0) >= max}
         >
@@ -195,16 +195,16 @@ const SummaryContent = ({
     </ul>
 
     {!appliedCoupon && (
-      <div className="mt-4 flex items-center gap-2 border border-neutral-200 rounded-xl px-3 py-2.5">
+      <div className="mt-4 flex items-center gap-2 border border-neutral-200 rounded-xl px-3 py-1">
         <input 
           type="text" 
           value={couponCode} 
           onChange={(e) => setCouponCode(e.target.value)} 
           placeholder="Discount code" 
-          className="flex-1 text-sm outline-none bg-transparent" 
+          className="flex-1 h-12 text-base md:text-sm outline-none bg-transparent" 
         />
-        <button onClick={handleApplyCoupon} disabled={validatingCoupon || !couponCode.trim()} className="text-xs font-semibold" style={{ color: ACCENT }}>
-          {validatingCoupon ? "Validating..." : "Apply"}
+        <button onClick={handleApplyCoupon} disabled={validatingCoupon || !couponCode.trim()} className="h-12 px-2 text-sm font-semibold" style={{ color: ACCENT }}>
+          {validatingCoupon ? "..." : "Apply"}
         </button>
       </div>
     )}
@@ -732,12 +732,12 @@ export default function CheckoutPage() {
                   <h2 className="text-2xl font-bold mb-4">Ready to checkout?</h2>
                   <p className="text-neutral-500 mb-8">Choose how you'd like to proceed with your booking.</p>
                   <div className="grid gap-4 max-w-sm mx-auto">
-                    <Button onClick={() => setIsGuest(true) || setStep(1)} style={{ backgroundColor: ACCENT }} className="h-12 rounded-xl text-lg font-semibold text-white">Continue as Guest</Button>
+                    <Button onClick={() => setIsGuest(true) || setStep(1)} style={{ backgroundColor: ACCENT }} className="h-12 w-full rounded-xl text-lg font-semibold text-white">Continue as Guest</Button>
                     <div className="relative">
                       <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-neutral-200" /></div>
                       <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-neutral-500">Or</span></div>
                     </div>
-                    <Button onClick={() => navigate("/login", { state: { from: "/checkout" } })} variant="outline" className="h-12 rounded-xl text-lg font-semibold">Sign in / Sign up</Button>
+                    <Button onClick={() => navigate("/login", { state: { from: "/checkout" } })} variant="outline" className="h-12 w-full rounded-xl text-lg font-semibold">Sign in / Sign up</Button>
                   </div>
                 </div>
               ) : (
@@ -905,13 +905,13 @@ export default function CheckoutPage() {
                 ).map((f) => (
                   <div key={f.key} className="space-y-1.5">
                     <label className="text-sm font-medium text-neutral-700">{f.label}</label>
-                    <input type={f.type} value={attendee[f.key]} onChange={(e) => setAttendee({ ...attendee, [f.key]: e.target.value })} className={cn("h-11 w-full rounded-xl border bg-white px-4 text-sm outline-none", f.key === "phone" && isPhoneError ? "border-red-500" : "border-neutral-200")} />
+                    <input type={f.type} value={attendee[f.key]} onChange={(e) => setAttendee({ ...attendee, [f.key]: e.target.value })} className={cn("h-12 w-full rounded-xl border bg-white px-4 text-base md:text-sm outline-none", f.key === "phone" && isPhoneError ? "border-red-500" : "border-neutral-200")} />
                   </div>
                 ))}
               </div>
-              <div className="mt-8 flex gap-3">
-                <Button variant="outline" className="flex-1 rounded-xl" onClick={() => isGuest ? setIsGuest(false) || setStep(0) : setStep(0)}>Back</Button>
-                <Button className="flex-1 rounded-xl text-white" style={{ backgroundColor: ACCENT }} onClick={() => validateAttendee() && setStep(isGuest ? 0 : 2)}>Continue</Button>
+              <div className="mt-8 flex flex-col sm:flex-row gap-3">
+                <Button variant="outline" className="w-full sm:flex-1 h-12 rounded-xl" onClick={() => isGuest ? setIsGuest(false) || setStep(0) : setStep(0)}>Back</Button>
+                <Button className="w-full sm:flex-1 h-12 rounded-xl text-white" style={{ backgroundColor: ACCENT }} onClick={() => validateAttendee() && setStep(isGuest ? 0 : 2)}>Continue</Button>
               </div>
             </div>
             <aside><SummaryContent {...summaryProps} /></aside>
@@ -932,9 +932,9 @@ export default function CheckoutPage() {
                   </div>
                 </div>
               )}
-              <div className="flex gap-3">
-                <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setStep(1)} disabled={paying}>Back</Button>
-                <Button className="flex-1 rounded-xl text-white" style={{ backgroundColor: ACCENT }} onClick={handlePayWithPaystack} disabled={paying || (!user && !isGuest)}>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button variant="outline" className="w-full sm:flex-1 h-12 rounded-xl" onClick={() => setStep(1)} disabled={paying}>Back</Button>
+                <Button className="w-full sm:flex-1 h-12 rounded-xl text-white" style={{ backgroundColor: ACCENT }} onClick={handlePayWithPaystack} disabled={paying || (!user && !isGuest)}>
                   {paying ? "Processing..." : (finalTotal === 0 ? "Get Free Ticket" : `Pay ${formatPrice(finalTotal)}`)}
                 </Button>
               </div>
