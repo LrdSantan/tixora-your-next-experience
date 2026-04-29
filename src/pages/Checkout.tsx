@@ -472,18 +472,27 @@ export default function CheckoutPage() {
 
           console.log("[Checkout] Processing free ticket with payload:", payload);
 
+          const timeoutId = setTimeout(() => {
+            toast.info("Still processing your order, please wait...", { duration: 10000 });
+          }, 10000);
+
           const { data: fnBody, error: fnError } = await supabase.functions.invoke<PaystackFnResponse>("complete-paystack-payment", {
             body: payload,
             headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
           });
 
-          if (fnError || !fnBody?.ok) {
+          clearTimeout(timeoutId);
+
+          const responseData = fnBody?.data || (fnError as any)?.context?.data || (fnError as any)?.details?.data || (fnBody as any)?.details?.data;
+          const hasExistingTickets = Array.isArray(responseData?.tickets) && responseData.tickets.length > 0;
+
+          if (!hasExistingTickets && (fnError || !fnBody?.ok)) {
             const errorMsg = fnError?.message || (fnBody as any)?.error || "Could not complete your free order.";
             toast.error(errorMsg);
             return;
           }
 
-          const tickets: ConfirmationTicket[] = fnBody.data!.tickets.map((t) => ({
+          const tickets: ConfirmationTicket[] = responseData.tickets.map((t: any) => ({
             id: t.id,
             reference: t.reference,
             ticketCode: t.ticket_code,
@@ -579,18 +588,27 @@ export default function CheckoutPage() {
 
             console.log("[Checkout] Calling complete-paystack-payment with payload:", payload);
 
+            const timeoutId = setTimeout(() => {
+              toast.info("Still processing your order, please wait...", { duration: 10000 });
+            }, 10000);
+
             const { data: fnBody, error: fnError } = await supabase.functions.invoke<PaystackFnResponse>("complete-paystack-payment", {
               body: payload,
               headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
             });
 
-            if (fnError || !fnBody?.ok) {
+            clearTimeout(timeoutId);
+
+            const responseData = fnBody?.data || (fnError as any)?.context?.data || (fnError as any)?.details?.data || (fnBody as any)?.details?.data;
+            const hasExistingTickets = Array.isArray(responseData?.tickets) && responseData.tickets.length > 0;
+
+            if (!hasExistingTickets && (fnError || !fnBody?.ok)) {
               const errorMsg = fnError?.message || (fnBody as any)?.error || "Could not complete your order.";
               toast.error(errorMsg);
               return;
             }
 
-            const tickets: ConfirmationTicket[] = fnBody.data!.tickets.map((t) => ({
+            const tickets: ConfirmationTicket[] = responseData.tickets.map((t: any) => ({
               id: t.id,
               reference: t.reference,
               ticketCode: t.ticket_code,
