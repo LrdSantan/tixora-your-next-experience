@@ -132,8 +132,8 @@ export const TicketVisualCard = forwardRef<HTMLDivElement, TicketVisualCardProps
             )}
           </div>
 
-          <div className="relative flex shrink-0 flex-col items-center gap-2 lg:w-[140px]">
-            <div className="relative rounded-lg border border-neutral-200 bg-white p-3 flex min-h-[146px] min-w-[146px] items-center justify-center">
+          <div className="relative flex shrink-0 flex-col items-center gap-2 lg:w-[240px]">
+            <div className="relative rounded-lg border border-neutral-200 bg-white p-3 flex min-h-[246px] min-w-[246px] items-center justify-center">
               {ticket.isUsed ? (
                 <div className="text-center">
                   <Ticket className="mx-auto h-8 w-8 text-neutral-300 mb-2 rotate-[-15deg]" />
@@ -146,7 +146,7 @@ export const TicketVisualCard = forwardRef<HTMLDivElement, TicketVisualCardProps
                     size={300} 
                     level="H" 
                     includeMargin={true}
-                    className="h-full w-full max-w-[120px] max-h-[120px]"
+                    className="h-full w-full max-w-[220px] max-h-[220px]"
                   />
                   {expired && (
                     <div

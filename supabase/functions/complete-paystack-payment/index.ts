@@ -310,17 +310,30 @@ Deno.serve(async (req: Request): Promise<Response> => {
           const recipientName = guestName || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "Ticket buyer";
           const eventTitle = finalizedTickets[0].event_title || "Your Event";
 
-          const emailTickets = finalizedTickets.map(t => ({
-            tierName: t.tier_name || "General Admission",
+          // Fetch all individual tickets for this reference from the DB to get the qr_code and other details
+          const { data: allTickets, error: fetchError } = await admin
+            .from("tickets")
+            .select("*, ticket_tiers(name)")
+            .eq("reference", reference);
+
+          if (fetchError) {
+            console.error(`${LOG} Error fetching tickets for email:`, fetchError);
+          }
+
+          const ticketsToProcess = allTickets && allTickets.length > 0 ? allTickets : finalizedTickets;
+
+          const emailTickets = ticketsToProcess.map((t: any) => ({
+            tierName: t.tier_name || t.ticket_tiers?.name || "General Admission",
             quantity: t.quantity || 1,
             amountPaid: `₦${(Number(t.amount_paid || 0) / 100).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-            venue: t.venue || "Venue",
-            city: t.city || "",
-            date: t.date || "",
-            time: t.time || "",
+            venue: t.venue || finalizedTickets[0]?.venue || "Venue",
+            city: t.city || finalizedTickets[0]?.city || "",
+            date: t.date || finalizedTickets[0]?.date || "",
+            time: t.time || finalizedTickets[0]?.time || "",
             reference: t.reference || reference,
             ticketCode: t.ticket_code,
-            qrToken: t.qr_token || t.ticket_code
+            qrToken: t.qr_token || t.ticket_code,
+            qrCode: t.qr_code // Use the stored qr_code value from DB
           }));
 
           const emailPayload = {

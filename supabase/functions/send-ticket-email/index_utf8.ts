@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const LOG = "[send-ticket-email]";
 
@@ -28,7 +28,6 @@ type TicketItem = {
   reference: string;
   ticketCode: string;
   qrToken: string;
-  qrCode?: string;
 };
 
 type TicketConfirmationPayload = {
@@ -48,17 +47,10 @@ type WelcomePayload = {
 
 type EmailPayload = TicketConfirmationPayload | WelcomePayload;
 
-// ─── Ticket confirmation email ────────────────────────────────────────────────
-
-function ticketEmailHtml(p: TicketConfirmationPayload): string {
-  const ticketsHtml = p.tickets.map((t, idx) => {
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${t.qrToken}`;
-    const qrSource = t.qrCode || qrUrl;
-    
-    return `
+// â”€â”€â”€ Ticket confirmation email â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â    return `
       <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4faf6;border:1px solid #d0ead9;border-radius:12px;padding:24px;margin-bottom:16px;">
         <tr><td>
-          <p style="margin:0 0 16px;font-size:18px;font-weight:700;color:#1a1a1a;">${p.eventTitle} - Ticket ${idx + 1} of ${p.tickets.length}</p>
+          <p style="margin:0 0 16px;font-size:18px;font-weight:700;color:#1a1a1a;">${p.eventTitle} - Ticket ${idx + 1}</p>
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
               <td style="padding:6px 0;font-size:13px;color:#888;width:140px;">Ticket code</td>
@@ -91,9 +83,15 @@ function ticketEmailHtml(p: TicketConfirmationPayload): string {
           </table>
           
           <div style="margin-top:24px;text-align:center;">
-            <img src="${qrSource}" alt="QR Code" width="220" height="220" style="display:block;margin:0 auto;border:4px solid #fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);width:220px;height:220px;"/>
+            <img src="${qrUrl}" alt="QR Code" width="150" height="150" style="display:block;margin:0 auto;border:4px solid #fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);"/>
             <p style="margin-top:8px;font-size:11px;color:#888;font-family:monospace;">${t.ticketCode}</p>
           </div>
+        </td></tr>
+      </table>
+    `;
+A;">My Tickets</a></p>
+            </div>
+          ` : ``)}
         </td></tr>
       </table>
     `;
@@ -110,7 +108,7 @@ function ticketEmailHtml(p: TicketConfirmationPayload): string {
         
         <!-- Header -->
         <tr><td style="background:#1A7A4A;padding:32px 40px;">
-          <p style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">🎟 TIXORA</p>
+          <p style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">ðŸŽŸ TIXORA</p>
           <p style="margin:8px 0 0;color:#a8dfc0;font-size:14px;">Your order is confirmed</p>
         </td></tr>
 
@@ -135,7 +133,7 @@ function ticketEmailHtml(p: TicketConfirmationPayload): string {
         <!-- Footer -->
         <tr><td style="background:#f9f9f9;padding:20px 40px;border-top:1px solid #eee;">
           <p style="margin:0;font-size:12px;color:#aaa;text-align:center;">
-            © ${new Date().getFullYear()} Tixora · This is an automated email, please do not reply.
+            Â© ${new Date().getFullYear()} Tixora Â· This is an automated email, please do not reply.
           </p>
         </td></tr>
 
@@ -146,7 +144,7 @@ function ticketEmailHtml(p: TicketConfirmationPayload): string {
 </html>`;
 }
 
-// ─── Welcome email ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Welcome email â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function welcomeEmailHtml(p: WelcomePayload): string {
   const firstName = p.buyerName?.split(" ")[0] || "there";
@@ -161,22 +159,22 @@ function welcomeEmailHtml(p: WelcomePayload): string {
 
         <!-- Header -->
         <tr><td style="background:#1A7A4A;padding:32px 40px;">
-          <p style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">🎟 TIXORA</p>
+          <p style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">ðŸŽŸ TIXORA</p>
           <p style="margin:8px 0 0;color:#a8dfc0;font-size:14px;">Welcome to Africa's event experience</p>
         </td></tr>
 
         <!-- Greeting -->
         <tr><td style="padding:40px 40px 0;">
-          <p style="margin:0;font-size:20px;font-weight:700;color:#1a1a1a;">Welcome, ${firstName}! 🎉</p>
+          <p style="margin:0;font-size:20px;font-weight:700;color:#1a1a1a;">Welcome, ${firstName}! ðŸŽ‰</p>
           <p style="margin:16px 0 0;font-size:15px;color:#555;line-height:1.7;">
-            You're now part of the Tixora community — Nigeria's home for discovering and experiencing the best events.
+            You're now part of the Tixora community â€” Nigeria's home for discovering and experiencing the best events.
           </p>
           <p style="margin:12px 0 0;font-size:15px;color:#555;line-height:1.7;">Here's what you can do:</p>
           <ul style="margin:12px 0 0;padding-left:20px;color:#444;font-size:14px;line-height:2.2;">
-            <li>🔍 Discover concerts, festivals, workshops and more</li>
-            <li>🎟 Buy tickets with ease — pay securely via Paystack</li>
-            <li>📅 Create and sell tickets for your own events</li>
-            <li>🔄 Transfer or resell tickets if your plans change</li>
+            <li>ðŸ” Discover concerts, festivals, workshops and more</li>
+            <li>ðŸŽŸ Buy tickets with ease â€” pay securely via Paystack</li>
+            <li>ðŸ“… Create and sell tickets for your own events</li>
+            <li>ðŸ”„ Transfer or resell tickets if your plans change</li>
           </ul>
         </td></tr>
 
@@ -191,7 +189,7 @@ function welcomeEmailHtml(p: WelcomePayload): string {
         <!-- Footer -->
         <tr><td style="background:#f9f9f9;padding:20px 40px;border-top:1px solid #eee;">
           <p style="margin:0;font-size:12px;color:#aaa;text-align:center;">
-            © ${new Date().getFullYear()} Tixora · This is an automated email, please do not reply.
+            Â© ${new Date().getFullYear()} Tixora Â· This is an automated email, please do not reply.
           </p>
         </td></tr>
 
@@ -202,7 +200,7 @@ function welcomeEmailHtml(p: WelcomePayload): string {
 </html>`;
 }
 
-// ─── Handler ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -230,7 +228,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (!p.eventTitle || !p.tickets) {
         return errorResponse("Missing required fields for ticket_confirmation");
       }
-      subject = `Your ticket for ${p.eventTitle} ✓`;
+      subject = `Your ticket for ${p.eventTitle} âœ“`;
       html = ticketEmailHtml(p);
     }
 
