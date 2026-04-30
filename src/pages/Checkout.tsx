@@ -252,6 +252,7 @@ export default function CheckoutPage() {
   const { data: events = [], loading: eventsLoading } = useEvents(); // Track loading state [cite: 19]
   const { user, loading: authLoading } = useAuth();
   const [paying, setPaying] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [attendee, setAttendee] = useState({ name: "", email: "", phone: "" });
 
   const [couponCode, setCouponCode] = useState("");
@@ -439,6 +440,11 @@ export default function CheckoutPage() {
   const isPhoneError = phoneHasInput && !isValidPhone(attendee.phone);
 
   const handlePayWithPaystack = () => {
+    if (!agreedToTerms) {
+      toast.error("Please agree to the terms before proceeding.");
+      return;
+    }
+
     const supabase = getSupabaseClient();
     const pk = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY?.trim();
     if (!pk) {
@@ -966,9 +972,23 @@ export default function CheckoutPage() {
                   </div>
                 </div>
               )}
+
+              <div className="flex items-start gap-3 mb-6">
+                <input 
+                  type="checkbox" 
+                  id="terms" 
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="mt-1 h-4 w-4 accent-green-700 cursor-pointer"
+                />
+                <label htmlFor="terms" className="text-sm text-neutral-600 leading-relaxed">
+                  I agree to the <a href="/terms" target="_blank" className="text-green-700 underline font-medium">Terms of Service</a> and <a href="/privacy" target="_blank" className="text-green-700 underline font-medium">Privacy Policy</a>. I understand that all ticket sales are final and non-refundable unless the event is cancelled.
+                </label>
+              </div>
+
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button variant="outline" className="w-full sm:flex-1 h-12 rounded-xl" onClick={() => setStep(1)} disabled={paying}>Back</Button>
-                <Button className="w-full sm:flex-1 h-12 rounded-xl text-white" style={{ backgroundColor: ACCENT }} onClick={handlePayWithPaystack} disabled={paying}>
+                <Button className="w-full sm:flex-1 h-12 rounded-xl text-white" style={{ backgroundColor: ACCENT }} onClick={handlePayWithPaystack} disabled={paying || !agreedToTerms}>
                   {paying ? "Processing..." : (finalTotal === 0 ? "Get Free Ticket" : `Pay ${formatPrice(finalTotal)}`)}
                 </Button>
               </div>
