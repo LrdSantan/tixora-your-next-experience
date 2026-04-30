@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CalendarDays, Plus, MapPin, Calendar, Ticket, Share2, Landmark, Check, ChevronsUpDown, Loader2, Trash2 } from "lucide-react";
+import { CalendarDays, Plus, MapPin, Calendar, Ticket, Share2, Landmark, Check, ChevronsUpDown, Loader2, Trash2, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -376,8 +376,114 @@ function OrganizerTiersEditor({ event, onSaved }: { event: OrganizerEvent, onSav
   );
 }
 
+function OrganizerEventStats({ eventId }: { eventId: string }) {
+  const supabase = getSupabaseClient();
+  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState<{ totalRevenue: number; tiers: { name: string; count: number; revenue: number }[] } | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadStats() {
+      if (!supabase) return;
+      setIsLoading(true);
+      
+      const { data, error } = await supabase
+        .from('tickets')
+        .select('amount_paid, tier_id, ticket_tiers(name)')
+        .eq('event_id', eventId)
+        .eq('status', 'confirmed');
+        
+      if (error) {
+        toast.error("Failed to load event stats");
+        if (isMounted) setIsLoading(false);
+        return;
+      }
+
+      if (data && isMounted) {
+        let totalRevenue = 0;
+        const tierMap = new Map<string, { count: number; revenue: number }>();
+        
+        data.forEach((ticket: any) => {
+          const amount = ticket.amount_paid || 0;
+          const tierName = ticket.ticket_tiers?.name || 'Unknown Tier';
+          
+          totalRevenue += amount;
+          
+          if (!tierMap.has(tierName)) {
+            tierMap.set(tierName, { count: 0, revenue: 0 });
+          }
+          
+          const tierStat = tierMap.get(tierName)!;
+          tierStat.count += 1;
+          tierStat.revenue += amount;
+        });
+
+        const tiers = Array.from(tierMap.entries()).map(([name, stat]) => ({
+          name,
+          ...stat
+        }));
+        
+        setStats({ totalRevenue, tiers });
+      }
+      if (isMounted) setIsLoading(false);
+    }
+    
+    loadStats();
+    return () => { isMounted = false; };
+  }, [eventId, supabase]);
+
+  return (
+    <div className="mt-2 pt-3 border-t border-border space-y-3 bg-muted/30 rounded-lg p-4 mx-4 mb-4">
+      <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+        <BarChart3 className="w-4 h-4 text-green-600" /> Revenue & Sales Breakdown
+      </h4>
+      {isLoading ? (
+        <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+      ) : stats ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between bg-background border border-border rounded-md p-3">
+            <span className="text-sm font-medium text-muted-foreground">Total Revenue</span>
+            <span className="text-lg font-bold text-green-600">{formatPrice(stats.totalRevenue)}</span>
+          </div>
+          
+          {stats.tiers.length > 0 ? (
+            <div className="space-y-2">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Per Tier Breakdown</span>
+              <div className="border border-border rounded-md overflow-hidden bg-background">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 text-xs text-muted-foreground border-b border-border">
+                    <tr>
+                      <th className="text-left font-medium p-2">Tier</th>
+                      <th className="text-right font-medium p-2">Sold</th>
+                      <th className="text-right font-medium p-2">Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {stats.tiers.map((tier, idx) => (
+                      <tr key={idx} className="hover:bg-muted/30 transition-colors">
+                        <td className="p-2 font-medium">{tier.name}</td>
+                        <td className="p-2 text-right text-muted-foreground">{tier.count}</td>
+                        <td className="p-2 text-right text-green-600 font-medium">{formatPrice(tier.revenue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-center text-muted-foreground py-2">No confirmed tickets yet.</div>
+          )}
+        </div>
+      ) : (
+        <div className="text-sm text-center text-muted-foreground py-2">Failed to load stats.</div>
+      )}
+    </div>
+  );
+}
+
 function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { event: OrganizerEvent, onUpdate: () => void, onShare: (e: React.MouseEvent) => void, onDelete: (id: string) => void, isPast?: boolean }) {
   const [isTiersExpanded, setIsTiersExpanded] = useState(false);
+  const [isStatsExpanded, setIsStatsExpanded] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const supabase = getSupabaseClient();
@@ -530,10 +636,22 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
           </Button>
         </div>
 
-        {/* Quick Share buttons */}
-        <div className="pb-4 flex items-center justify-center gap-3">
-          <a
-            href={`https://wa.me/?text=${encodeURIComponent(`Check out this event: ${event.title} ${SITE_URL}/events/${event.id}`)}`}
+        {/* Quick Share and Stats buttons */}
+        <div className="pb-4 px-4 flex items-center justify-between gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            className={cn("h-9 gap-1.5 px-3 text-muted-foreground hover:text-foreground hover:bg-muted/50", isStatsExpanded && "bg-muted text-foreground")}
+            onClick={() => setIsStatsExpanded(!isStatsExpanded)}
+            title="View Stats"
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">View Stats</span>
+          </Button>
+
+          <div className="flex items-center gap-2">
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(`Check out this event: ${event.title} ${SITE_URL}/events/${event.id}`)}`}
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
@@ -558,11 +676,16 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.253 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
             </svg>
           </a>
+          </div>
         </div>
       </div>
       
       {isTiersExpanded && (
         <OrganizerTiersEditor event={event} onSaved={() => { setIsTiersExpanded(false); onUpdate(); }} />
+      )}
+      
+      {isStatsExpanded && (
+        <OrganizerEventStats eventId={event.id} />
       )}
     </div>
   );
