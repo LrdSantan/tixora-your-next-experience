@@ -98,13 +98,17 @@ export function EditCoverImageButton({
         }}
       >
         {isUpdating ? (
-          <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
+          <Loader2 className="w-3.5 h-3.5 sm:mr-2 animate-spin" />
         ) : size === "icon" ? (
           <ImageIcon className="w-4 h-4" />
         ) : (
-          <Upload className="w-3.5 h-3.5 mr-2" />
+          <Upload className="w-3.5 h-3.5 sm:mr-2" />
         )}
-        {size !== "icon" && (isUpdating ? "Updating..." : label)}
+        {size !== "icon" && (
+          <span className="hidden sm:inline">
+            {isUpdating ? "Updating..." : label}
+          </span>
+        )}
       </Button>
     </>
   );
