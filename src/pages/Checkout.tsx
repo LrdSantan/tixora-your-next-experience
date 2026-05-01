@@ -220,7 +220,7 @@ const SummaryContent = ({
       {step === 0 && (
         <Button 
           type="button" 
-          className="mt-5 h-12 w-full rounded-xl font-semibold text-white hidden lg:flex" 
+          className="mt-5 h-12 w-full rounded-xl font-semibold text-white flex" 
           style={{ backgroundColor: lineItems.length > 0 ? ACCENT : undefined }} 
           disabled={lineItems.length === 0} 
           onClick={() => setStep(1)}
@@ -833,6 +833,21 @@ export default function CheckoutPage() {
               <h2 className="mb-3 text-lg font-bold text-neutral-900 hidden lg:block">Summary</h2>
               <SummaryContent {...summaryProps} />
             </aside>
+
+            {/* Mobile sticky Continue button */}
+            {(user || isGuest) && (
+              <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-neutral-100 px-4 py-4 shadow-lg">
+                <Button
+                  type="button"
+                  className="h-12 w-full rounded-xl font-semibold text-white"
+                  style={{ backgroundColor: lineItems.length > 0 ? ACCENT : undefined }}
+                  disabled={lineItems.length === 0}
+                  onClick={() => setStep(1)}
+                >
+                  Continue
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
