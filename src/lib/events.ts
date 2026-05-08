@@ -101,7 +101,8 @@ export async function fetchEvents(filterActive = true): Promise<Event[]> {
       )
     `
     )
-    .neq("status", "deleted");
+    .neq("status", "deleted")
+    .eq("is_private", false);
 
   if (filterActive) {
     const today = new Date().toISOString().split("T")[0];
@@ -212,6 +213,7 @@ export async function fetchEventSearch(searchQuery: string): Promise<Event[]> {
     `
     )
     .eq("status", "active")
+    .eq("is_private", false)
     .gte("date", today)
     .or(`title.ilike.%${searchQuery}%,venue.ilike.%${searchQuery}%,city.ilike.%${searchQuery}%`)
     .order("date", { ascending: true })

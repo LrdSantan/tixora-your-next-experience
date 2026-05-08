@@ -21,6 +21,7 @@ export interface Event {
   payout_status?: string;
   is_multi_day?: boolean;
   event_days?: string[];
+  is_private?: boolean;
 }
 
 export interface TicketTier {

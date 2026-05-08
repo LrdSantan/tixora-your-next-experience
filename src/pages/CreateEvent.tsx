@@ -51,6 +51,7 @@ export default function CreateEvent() {
     accountName: "",
     organizerEmail: "",
     organizerPhone: "",
+    isPrivate: false,
   });
   const [bankSearchOpen, setBankSearchOpen] = useState(false);
   const [coverImage, setCoverImage] = useState<File | null>(null);
@@ -231,6 +232,7 @@ export default function CreateEvent() {
           account_name: formData.accountName,
           is_multi_day: isMultiDay,
           event_days: isMultiDay ? generateEventDays(formData.date, endDate) : [],
+          is_private: formData.isPrivate,
         })
         .select()
         .single();
@@ -587,6 +589,20 @@ export default function CreateEvent() {
               />
               {errors.organizerPhone && <p className="text-xs text-destructive">{errors.organizerPhone}</p>}
             </div>
+          </div>
+        </section>
+
+        <section className="space-y-6">
+          <h2 className="text-xl font-bold border-b pb-2">6. Privacy Settings</h2>
+          <div className="flex items-center justify-between p-4 rounded-xl bg-muted/40 border border-border">
+            <div className="space-y-0.5">
+              <label className="text-sm font-semibold">Private Event</label>
+              <p className="text-xs text-muted-foreground">Only people with the link can find and register for this event.</p>
+            </div>
+            <Switch
+              checked={formData.isPrivate}
+              onCheckedChange={(checked) => setFormData({ ...formData, isPrivate: checked })}
+            />
           </div>
         </section>
 
