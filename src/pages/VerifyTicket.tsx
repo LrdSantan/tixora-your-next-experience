@@ -814,6 +814,7 @@ export default function VerifyTicketPage() {
               Verified
             </div>
           </div>
+          </div>
         </div>
       </div>
     );
