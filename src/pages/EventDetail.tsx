@@ -276,7 +276,7 @@ const EventDetailPage = () => {
                       {sidebarTier.description}
                     </p>
                     <p className="text-xl font-extrabold text-primary tabular-nums">
-                      {formatPrice(sidebarTier.price)}
+                      {sidebarTier.price === 0 ? "Free" : formatPrice(sidebarTier.price)}
                     </p>
                     <div className="flex gap-2 mt-1">
                       <div className="flex items-center rounded-md border border-neutral-200 bg-white">
@@ -319,8 +319,8 @@ const EventDetailPage = () => {
                   sidebarTier ? "opacity-0 pointer-events-none" : "opacity-100",
                 )}
               >
-                <p className="text-sm text-muted-foreground">Starting from</p>
-                <p className="text-2xl font-bold text-primary">{formatPrice(lowestPrice)}</p>
+                <p className="text-sm text-muted-foreground">{lowestPrice === 0 ? "Price" : "Starting from"}</p>
+                <p className="text-2xl font-bold text-primary">{lowestPrice === 0 ? "Free" : formatPrice(lowestPrice)}</p>
               </div>
 
             </div>

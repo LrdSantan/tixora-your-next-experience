@@ -79,7 +79,7 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
           </div>
           {/* Push price + button to bottom of card always */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-3 mt-auto border-t border-border gap-3">
-            <p className="text-sm font-bold text-primary">From {formatPrice(lowestPrice)}</p>
+            <p className="text-sm font-bold text-primary">{lowestPrice === 0 ? "Free" : `From ${formatPrice(lowestPrice)}`}</p>
             <Button size="sm" className="bg-primary text-primary-foreground text-xs h-10 px-4 w-full sm:w-auto">
               Get Tickets
             </Button>

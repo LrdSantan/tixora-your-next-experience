@@ -103,8 +103,8 @@ export const TicketTiersCarousel = React.memo(function TicketTiersCarousel({ tie
                     <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4">
                       <div className="flex items-end justify-between">
                         <div>
-                          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">From</p>
-                          <p className="text-2xl font-extrabold tabular-nums text-primary">{formatPrice(tier.price)}</p>
+                          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{tier.price === 0 ? "Price" : "From"}</p>
+                          <p className="text-2xl font-extrabold tabular-nums text-primary">{tier.price === 0 ? "Free" : formatPrice(tier.price)}</p>
                         </div>
                         {soldOut ? (
                           <div className="h-9 truncate flex px-3 items-center text-sm font-medium border text-muted-foreground bg-muted/50 rounded-md">Unavailable</div>
