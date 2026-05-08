@@ -44,6 +44,7 @@ const playSound = (type: "beep" | "buzz") => {
 
 export const InbuiltScanner = ({ onClose, eventId }: InbuiltScannerProps) => {
   const [scanResult, setScanResult] = useState<"success" | "already-used" | "invalid" | "invalid-event" | "error" | null>(null);
+  const [scannerMode, setScannerMode] = useState<"standard" | "express">("standard");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [unsyncedCount, setUnsyncedCount] = useState(0);
   const [isFlashlightOn, setIsFlashlightOn] = useState(false);
@@ -140,6 +141,14 @@ export const InbuiltScanner = ({ onClose, eventId }: InbuiltScannerProps) => {
                 if (result.success) {
                   setScanResult("success");
                   playSound("beep");
+                  
+                  if (scannerMode === "express") {
+                    setTimeout(() => {
+                      setScanResult(null);
+                      setErrorMsg(null);
+                      isScanning.current = false;
+                    }, 800);
+                  }
                 } else {
                   // Determine specific error state
                   if (result.message?.toLowerCase().includes("already used")) {
@@ -184,7 +193,7 @@ export const InbuiltScanner = ({ onClose, eventId }: InbuiltScannerProps) => {
         scannerRef.current.stop().catch(console.error);
       }
     };
-  }, []);
+  }, [scannerMode]);
 
   const toggleFlashlight = async () => {
     if (!scannerRef.current) return;
@@ -211,6 +220,29 @@ export const InbuiltScanner = ({ onClose, eventId }: InbuiltScannerProps) => {
             <Flashlight className={`h-6 w-6 ${isFlashlightOn ? 'text-yellow-400' : ''}`} />
           </Button>
         )}
+      </div>
+
+      {/* Standard/Express Toggle */}
+      <div className="w-full max-w-md mb-4 bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/20">
+        <div className="flex bg-white/10 p-1 rounded-xl relative">
+          <button
+            onClick={() => setScannerMode("standard")}
+            className={cn("flex-1 py-2 text-sm font-bold rounded-lg transition-all duration-200 z-10",
+              scannerMode === "standard" ? "text-white" : "text-white/50")}
+          >STANDARD</button>
+          <button
+            onClick={() => setScannerMode("express")}
+            className={cn("flex-1 py-2 text-sm font-bold rounded-lg transition-all duration-200 z-10",
+              scannerMode === "express" ? "text-white" : "text-white/50")}
+          >EXPRESS</button>
+          <div className={cn(
+            "absolute top-1 bottom-1 w-[calc(50%-4px)] bg-[#1A7A4A] rounded-lg shadow-sm transition-transform duration-300 ease-in-out",
+            scannerMode === "express" ? "translate-x-[calc(100%+8px)]" : "translate-x-0"
+          )} />
+        </div>
+        <p className="text-xs text-white/50 text-center font-medium mt-2">
+          {scannerMode === "standard" ? "Review result before next scan" : "Auto-continue after each scan"}
+        </p>
       </div>
 
       {/* Reader Container */}
