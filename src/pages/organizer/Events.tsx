@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CalendarDays, Plus, MapPin, Calendar, Ticket, Share2, Landmark, Check, ChevronsUpDown, Loader2, Trash2, BarChart3 } from "lucide-react";
+import { CalendarDays, Plus, MapPin, Calendar, Ticket, Share2, Landmark, Check, ChevronsUpDown, Loader2, Trash2, BarChart3, Scan, Lock, Unlock } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import { formatEventDateDisplay } from "@/lib/date-utils";
 import { getEventImage } from "@/lib/event-image";
 import { EditCoverImageButton } from "@/components/EditCoverImageButton";
 import { OrganizerCouponsModal } from "@/components/OrganizerCouponsModal";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
 const NIGERIAN_BANKS = [
@@ -39,6 +40,8 @@ type OrganizerEvent = {
   bank_name: string | null;
   account_number: string | null;
   account_name: string | null;
+  scanner_mode: "standard" | "express";
+  scanner_mode_locked: boolean;
   is_multi_day: boolean | null;
   event_days: string[] | null;
   ticket_tiers: Array<{
@@ -481,6 +484,106 @@ function OrganizerEventStats({ eventId }: { eventId: string }) {
   );
 }
 
+function OrganizerScannerSettingsModal({ event, onSuccess }: { event: OrganizerEvent, onSuccess: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mode, setMode] = useState<"standard" | "express">(event.scanner_mode || "standard");
+  const [locked, setLocked] = useState(event.scanner_mode_locked || false);
+  const supabase = getSupabaseClient();
+
+  const handleSave = async () => {
+    if (!supabase) return;
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from("events")
+        .update({
+          scanner_mode: mode,
+          scanner_mode_locked: locked
+        })
+        .eq("id", event.id);
+
+      if (error) throw error;
+      toast.success("Scanner settings updated!");
+      setOpen(false);
+      onSuccess();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update scanner settings");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(val) => {
+      setOpen(val);
+      if (val) {
+        setMode(event.scanner_mode || "standard");
+        setLocked(event.scanner_mode_locked || false);
+      }
+    }}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="h-9 gap-1.5 px-3 border-border hover:bg-muted" title="Scanner Settings">
+          <Scan className="w-3.5 h-3.5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Scanner Settings: {event.title}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-6 py-4">
+          <div className="space-y-3">
+            <label className="text-sm font-medium">Scanner Mode</label>
+            <div className="grid grid-cols-2 gap-3">
+              <div 
+                className={cn(
+                  "border rounded-xl p-4 cursor-pointer transition-all", 
+                  mode === "standard" ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border hover:border-primary/50"
+                )}
+                onClick={() => setMode("standard")}
+              >
+                <div className="font-semibold text-sm mb-1">Standard</div>
+                <div className="text-xs text-muted-foreground">Review guest info before checking in</div>
+              </div>
+              <div 
+                className={cn(
+                  "border rounded-xl p-4 cursor-pointer transition-all", 
+                  mode === "express" ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border hover:border-primary/50"
+                )}
+                onClick={() => setMode("express")}
+              >
+                <div className="font-semibold text-sm mb-1 text-primary">Express</div>
+                <div className="text-xs text-muted-foreground">Auto check-in on scan — no tap needed</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between space-x-2 border rounded-xl p-4 bg-muted/20">
+            <div className="space-y-0.5">
+              <label className="text-sm font-medium flex items-center gap-1.5">
+                {locked ? <Lock className="w-4 h-4 text-amber-500" /> : <Unlock className="w-4 h-4 text-muted-foreground" />}
+                Lock Mode for Scanners
+              </label>
+              <div className="text-xs text-muted-foreground">
+                Locking prevents scanners from changing the mode during the event.
+              </div>
+            </div>
+            <Switch checked={locked} onCheckedChange={setLocked} />
+          </div>
+
+          <Button 
+            className="w-full" 
+            disabled={isSubmitting}
+            onClick={handleSave}
+          >
+            {isSubmitting ? "Saving..." : "Save Settings"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { event: OrganizerEvent, onUpdate: () => void, onShare: (e: React.MouseEvent) => void, onDelete: (id: string) => void, isPast?: boolean }) {
   const [isTiersExpanded, setIsTiersExpanded] = useState(false);
   const [isStatsExpanded, setIsStatsExpanded] = useState(false);
@@ -593,6 +696,8 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
               </Button>
 
               <OrganizerPayoutModal event={event} onSuccess={onUpdate} />
+              
+              <OrganizerScannerSettingsModal event={event} onSuccess={onUpdate} />
 
               <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
                 <DialogTrigger asChild>
@@ -744,7 +849,7 @@ export default function OrganizerEventsPage() {
       .from("events")
       .select(
         `id, title, date, time, venue, city, category, cover_image_url, status, created_at,
-         bank_name, account_number, account_name, is_multi_day, event_days,
+         bank_name, account_number, account_name, is_multi_day, event_days, scanner_mode, scanner_mode_locked,
          ticket_tiers ( id, name, price, total_quantity, remaining_quantity )`
       )
       .eq("organizer_id", user.id)

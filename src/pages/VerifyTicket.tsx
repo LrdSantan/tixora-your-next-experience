@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
-import { CheckCircle, XCircle, AlertTriangle, ShieldCheck, Ticket } from "lucide-react";
+import { CheckCircle, XCircle, AlertTriangle, ShieldCheck, Ticket, Lock, Unlock, Clock, User, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { SyncQueue } from "@/lib/sync-queue";
+import { formatDistanceToNow } from "date-fns";
 
 import { extractTicketToken } from "@/lib/scanner";
 
@@ -24,6 +25,7 @@ type TicketData = {
   created_at: string;
   qr_token: string | null;
   event_id: string | null;
+  guest_name: string | null;
   events: {
     title: string;
     date: string;
@@ -33,8 +35,18 @@ type TicketData = {
     organizer_id: string | null;
     is_multi_day: boolean | null;
     event_days: string[] | null;
+    scanner_mode?: "standard" | "express";
+    scanner_mode_locked?: boolean;
   } | null;
   ticket_tiers: { name: string } | null;
+};
+
+type RecentScan = {
+  id: string;
+  guestName: string;
+  tierName: string;
+  status: "success" | "used" | "invalid";
+  timestamp: Date;
 };
 
 type PageState = "loading" | "not_found" | "valid" | "used" | "scanned_today" | "idle";
@@ -106,6 +118,11 @@ export default function VerifyTicketPage() {
   const [isJustMarked, setIsJustMarked] = useState(false);
   const scanCountRef = useRef(0);
   const [displayScanCount, setDisplayScanCount] = useState(0);
+  
+  const [scannerMode, setScannerMode] = useState<"standard" | "express">("standard");
+  const [scannerModeLocked, setScannerModeLocked] = useState(false);
+  const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
+  const [isRecentScansExpanded, setIsRecentScansExpanded] = useState(false);
   
   // ── Debug State (Temporary) ──
   const [debugRaw, setDebugRaw] = useState<string>("");
@@ -249,7 +266,8 @@ export default function VerifyTicketPage() {
           created_at,
           qr_token,
           event_id,
-          events ( title, date, time, venue, city, organizer_id, is_multi_day, event_days ),
+          guest_name,
+          events ( title, date, time, venue, city, organizer_id, is_multi_day, event_days, scanner_mode, scanner_mode_locked ),
           ticket_tiers ( name )
         `)
         .or(`qr_token.eq.${cleanToken},ticket_code.eq.${cleanToken}`)
@@ -267,11 +285,10 @@ export default function VerifyTicketPage() {
       const queue = SyncQueue.get();
       const isPending = queue.find(s => s.id === data.id);
       
+      let nextState: PageState = "valid";
       if (isPending) {
-        setIsPendingSync(true);
-        setPageState("used");
+        nextState = "used";
       } else if (data.events?.is_multi_day) {
-        // Multi-day event: check if already scanned today
         const today = new Date().toISOString().split('T')[0];
         const { data: scanData } = await supabase
           .from("ticket_scans")
@@ -279,15 +296,41 @@ export default function VerifyTicketPage() {
           .eq("ticket_id", data.id)
           .eq("scan_date", today)
           .maybeSingle();
-        
-        if (scanData) {
-          setPageState("scanned_today");
-        } else {
-          setPageState("valid");
-        }
+        nextState = scanData ? "scanned_today" : "valid";
       } else {
-        setIsPendingSync(false);
-        setPageState(data.is_used ? "used" : "valid");
+        nextState = data.is_used ? "used" : "valid";
+      }
+
+      setPageState(nextState);
+
+      const ev = data.events;
+      let currentMode: "standard" | "express" = "standard";
+      if (ev) {
+        setScannerModeLocked(ev.scanner_mode_locked || false);
+        const defaultMode = ev.scanner_mode || "standard";
+        if (ev.scanner_mode_locked) {
+          currentMode = defaultMode;
+          setScannerMode(defaultMode);
+        } else {
+          const savedMode = localStorage.getItem(`tixora_scanner_mode_${data.event_id}`) as "standard" | "express";
+          currentMode = savedMode === "standard" || savedMode === "express" ? savedMode : defaultMode;
+          setScannerMode(currentMode);
+        }
+      }
+
+      const guestName = data.guest_name || `Ref: ${data.reference}`;
+      const tierName = data.ticket_tiers?.name || "Ticket";
+
+      if (nextState !== "valid") {
+        setRecentScans(prev => [{
+          id: Date.now().toString(),
+          guestName,
+          tierName,
+          status: nextState === "not_found" ? "invalid" : "used",
+          timestamp: new Date()
+        }, ...prev].slice(0, 10));
+      } else if (currentMode === "express") {
+        executeCheckIn(data as TicketData);
       }
     }
 
@@ -396,15 +439,26 @@ export default function VerifyTicketPage() {
     if (pageState === "loading") return;
 
     let color = "";
-    if (pageState === "valid") {
+    if (pageState === "valid" && scannerMode === "standard") {
       playFeedbackSound("success");
       color = "rgba(34, 197, 94, 0.4)"; // Bright green
-    } else if (pageState === "used" || pageState === "not_found") {
+    } else if (pageState === "used" || pageState === "not_found" || pageState === "scanned_today") {
       playFeedbackSound("error");
-      color = pageState === "used" ? "rgba(249, 115, 22, 0.4)" : "rgba(239, 68, 68, 0.4)"; // Orange or Red
+      color = "rgba(239, 68, 68, 0.4)"; // Red
+      
+      if (scannerMode === "express") {
+        setFlash({ color, active: true });
+        const timer = setTimeout(() => {
+          setFlash(null);
+          setTicket(null);
+          setPageState("idle");
+          navigate("/verify", { replace: true });
+        }, 800);
+        return () => clearTimeout(timer);
+      }
     }
 
-    if (color) {
+    if (color && scannerMode === "standard") {
       setFlash({ color, active: true });
       // Trigger the fade out almost immediately
       const timer = setTimeout(() => {
@@ -424,80 +478,68 @@ export default function VerifyTicketPage() {
     } else {
       // Countdown hit 0, reset everything
       const resetTimer = setTimeout(() => {
+        setFlash(null);
         setTicket(null);
         setPageState("idle");
         setIsJustMarked(false);
         setCountdown(null);
         navigate("/verify", { replace: true });
-      }, 500); // Slight delay for final 1 -> 0 feel
+      }, scannerMode === "express" ? 100 : 500);
       return () => clearTimeout(resetTimer);
     }
-  }, [countdown, navigate]);
+  }, [countdown, navigate, scannerMode]);
 
-  const handleMarkUsed = async () => {
-    if (!supabase || !ticket) return;
+  const executeCheckIn = async (targetTicket: TicketData) => {
+    if (!supabase) return;
     setMarking(true);
 
-    const isMultiDay = ticket.events?.is_multi_day;
+    const isMultiDay = targetTicket.events?.is_multi_day;
+    const guestName = targetTicket.guest_name || `Ref: ${targetTicket.reference}`;
+    const tierName = targetTicket.ticket_tiers?.name || "Ticket";
 
     try {
-      // ── Offline Mode Handler ──
       if (!navigator.onLine) {
         SyncQueue.push({
-          id: ticket.id,
-          ticket_code: ticket.ticket_code,
+          id: targetTicket.id,
+          ticket_code: targetTicket.ticket_code,
           scanned_at: new Date().toISOString()
         });
         
-        setIsPendingSync(true);
-        setPageState("used");
-        setIsJustMarked(true);
-        setCountdown(3);
-        scanCountRef.current += 1;
-        setDisplayScanCount(scanCountRef.current);
-        toast.success("Ticket verified offline. It will sync when connection returns.");
-        setMarking(false);
+        finishCheckIn(targetTicket, guestName, tierName, "success", true);
         return;
       }
 
       if (isMultiDay) {
-        // ── Multi-Day: Insert a scan record for today ──
         const today = new Date().toISOString().split('T')[0];
         const { error: scanError } = await supabase
           .from("ticket_scans")
           .insert({
-            ticket_id: ticket.id,
-            event_id: ticket.event_id,
+            ticket_id: targetTicket.id,
+            event_id: targetTicket.event_id,
             scan_date: today,
             scanner_id: user?.id ?? null,
           });
 
         if (scanError) {
-          // Unique constraint violation means already scanned today
           if (scanError.code === '23505') {
             setPageState("scanned_today");
             toast.warning("This ticket was already scanned today.");
+            addRecentScan(guestName, tierName, "used");
+            triggerExpressError();
           } else {
             throw scanError;
           }
           return;
         }
 
-        setPageState("used");
-        setIsJustMarked(true);
-        setCountdown(3);
-        scanCountRef.current += 1;
-        setDisplayScanCount(scanCountRef.current);
-        toast.success("Entry recorded for today!");
+        finishCheckIn(targetTicket, guestName, tierName, "success");
       } else {
-        // ── Single-Day: Mark ticket as permanently used ──
         const { data, error } = await supabase.rpc("mark_ticket_used", {
-          p_ticket_code: ticket.ticket_code,
+          p_ticket_code: targetTicket.ticket_code,
         });
 
         if (error) throw error;
 
-        // Call the edge function to rotate the QR token
         const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
         await fetch("https://hxvgoavigoopcgbmvltf.supabase.co/functions/v1/rotate-qr-token", {
           method: "POST",
@@ -506,33 +548,236 @@ export default function VerifyTicketPage() {
             "apikey": anonKey,
             "Authorization": `Bearer ${anonKey}`,
           },
-          body: JSON.stringify({ ticketId: ticket.id }),
-        });
+          body: JSON.stringify({ ticketId: targetTicket.id }),
+        }).catch(err => console.warn("Failed to rotate QR token offline", err));
 
-        setTicket((prev) => prev ? { ...prev, is_used: true, used_at: new Date().toISOString() } : prev);
-        setPageState("used");
-        setIsJustMarked(true);
-        setCountdown(3);
-        scanCountRef.current += 1;
-        setDisplayScanCount(scanCountRef.current);
-        toast.success("Ticket marked as used successfully");
+        finishCheckIn(targetTicket, guestName, tierName, "success");
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to mark ticket as used");
+      triggerExpressError();
     } finally {
       setMarking(false);
     }
   };
 
+  const addRecentScan = (guestName: string, tierName: string, status: "success" | "used" | "invalid") => {
+    setRecentScans(prev => [{
+      id: Date.now().toString(),
+      guestName,
+      tierName,
+      status,
+      timestamp: new Date()
+    }, ...prev].slice(0, 10));
+  };
+
+  const triggerExpressError = () => {
+    if (scannerMode === "express") {
+      playFeedbackSound("error");
+      setFlash({ color: "rgba(239, 68, 68, 1)", active: true });
+      setTimeout(() => {
+        setFlash(null);
+        setTicket(null);
+        setPageState("idle");
+        navigate("/verify", { replace: true });
+      }, 800);
+    }
+  };
+
+  const finishCheckIn = (t: TicketData, guestName: string, tierName: string, status: "success", isOffline = false) => {
+    scanCountRef.current += 1;
+    setDisplayScanCount(scanCountRef.current);
+    addRecentScan(guestName, tierName, status);
+    
+    if (scannerMode === "express") {
+      playFeedbackSound("success");
+      setFlash({ color: "rgba(34, 197, 94, 1)", active: true });
+      
+      setTimeout(() => {
+        setFlash(null);
+        setTicket(null);
+        setPageState("idle");
+        navigate("/verify", { replace: true });
+      }, 800);
+    } else {
+      setIsPendingSync(isOffline);
+      setTicket((prev) => prev ? { ...prev, is_used: true, used_at: new Date().toISOString() } : prev);
+      setPageState("used");
+      setIsJustMarked(true);
+      setCountdown(3);
+      if (isOffline) {
+        toast.success("Ticket verified offline. It will sync when connection returns.");
+      } else {
+        toast.success("Ticket marked as used successfully");
+      }
+    }
+  };
+
+  };
+
+  const ScannerModeToggle = () => (
+    <div className="w-full max-w-md mx-auto mb-6 bg-white/80 backdrop-blur-md rounded-2xl p-4 border shadow-sm z-10 relative">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-bold text-sm text-neutral-800">Scanner Mode</h3>
+        {scannerModeLocked && (
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded-md border border-amber-100">
+            <Lock className="w-3.5 h-3.5" />
+            Locked by organizer
+          </div>
+        )}
+      </div>
+      
+      <div className="flex bg-neutral-100 p-1 rounded-xl mb-3 relative">
+        <button
+          disabled={scannerModeLocked}
+          onClick={() => handleModeChange("standard")}
+          className={cn(
+            "flex-1 py-2 text-sm font-bold rounded-lg transition-all duration-200 z-10",
+            scannerMode === "standard" ? "text-white" : "text-neutral-500 hover:text-neutral-700",
+            scannerModeLocked && "opacity-50 cursor-not-allowed"
+          )}
+        >
+          STANDARD
+        </button>
+        <button
+          disabled={scannerModeLocked}
+          onClick={() => handleModeChange("express")}
+          className={cn(
+            "flex-1 py-2 text-sm font-bold rounded-lg transition-all duration-200 z-10",
+            scannerMode === "express" ? "text-white" : "text-neutral-500 hover:text-neutral-700",
+            scannerModeLocked && "opacity-50 cursor-not-allowed"
+          )}
+        >
+          EXPRESS
+        </button>
+        <div 
+          className={cn(
+            "absolute top-1 bottom-1 w-[calc(50%-4px)] bg-[#1A7A4A] rounded-lg shadow-sm transition-transform duration-300 ease-in-out",
+            scannerMode === "express" ? "translate-x-[calc(100%+8px)]" : "translate-x-0"
+          )}
+        />
+      </div>
+      <p className="text-xs text-neutral-500 text-center font-medium">
+        {scannerMode === "standard" 
+          ? "Review guest info before checking in" 
+          : "Auto check-in on scan — no tap needed"}
+      </p>
+    </div>
+  );
+
+  const RecentScansStrip = () => (
+    <>
+      {/* Mobile Drawer Toggle */}
+      <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+        <button 
+          onClick={() => setIsRecentScansExpanded(!isRecentScansExpanded)}
+          className="bg-neutral-900 text-white px-5 py-3 rounded-full shadow-xl flex items-center gap-2 font-bold text-sm border border-neutral-700 hover:bg-neutral-800 transition-colors"
+        >
+          <Clock className="w-4 h-4" />
+          Recent Scans
+          {recentScans.length > 0 && (
+            <span className="bg-[#1A7A4A] text-white text-xs px-2 py-0.5 rounded-full ml-1">
+              {recentScans.length}
+            </span>
+          )}
+          <ChevronUp className={cn("w-4 h-4 transition-transform duration-300 ml-1", isRecentScansExpanded && "rotate-180")} />
+        </button>
+      </div>
+
+      {/* Desktop Sidebar / Mobile Drawer */}
+      <div className={cn(
+        "fixed bg-white border-border shadow-2xl z-40 transition-all duration-500 flex flex-col",
+        // Desktop styles: fixed sidebar on the right
+        "lg:top-0 lg:right-0 lg:bottom-0 lg:w-80 lg:border-l lg:translate-y-0",
+        // Mobile styles: bottom drawer
+        "bottom-0 left-0 right-0 rounded-t-3xl border-t max-h-[70vh]",
+        isRecentScansExpanded ? "translate-y-0" : "translate-y-full lg:translate-y-0"
+      )}>
+        <div className="p-5 border-b border-neutral-100 flex items-center justify-between bg-white/80 backdrop-blur-md z-10 lg:rounded-none rounded-t-3xl">
+          <div className="flex items-center gap-2">
+            <Clock className="w-5 h-5 text-[#1A7A4A]" />
+            <h2 className="font-bold text-neutral-900">Recent Scans</h2>
+          </div>
+          {recentScans.length > 0 && (
+            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 font-bold">
+              {recentScans.length} scanned
+            </Badge>
+          )}
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 relative bg-neutral-50/50">
+          {recentScans.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-40 text-neutral-400">
+              <Clock className="w-8 h-8 mb-2 opacity-20" />
+              <p className="text-sm font-medium">No recent scans yet</p>
+            </div>
+          ) : (
+            recentScans.map((scan, i) => (
+              <div 
+                key={scan.id} 
+                className={cn(
+                  "p-3 rounded-xl border bg-white shadow-sm flex items-start justify-between gap-3 animate-in fade-in slide-in-from-top-4 duration-500",
+                  i === 0 && "border-[#1A7A4A]/30 ring-1 ring-[#1A7A4A]/10"
+                )}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-neutral-900 truncate flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+                    {scan.guestName}
+                  </div>
+                  <div className="text-xs text-neutral-500 mt-0.5 truncate font-medium">
+                    {scan.tierName}
+                  </div>
+                  <div className="text-[10px] text-neutral-400 mt-1.5 uppercase tracking-wider font-bold">
+                    {formatDistanceToNow(scan.timestamp, { addSuffix: true })}
+                  </div>
+                </div>
+                <div className="shrink-0 mt-0.5">
+                  {scan.status === "success" && (
+                    <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200">
+                      ✓ Checked In
+                    </Badge>
+                  )}
+                  {scan.status === "used" && (
+                    <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-orange-200">
+                      ✗ Already Used
+                    </Badge>
+                  )}
+                  {scan.status === "invalid" && (
+                    <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200">
+                      ✗ Invalid
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+      
+      {/* Mobile Drawer Overlay */}
+      {isRecentScansExpanded && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/20 backdrop-blur-sm z-30 animate-in fade-in"
+          onClick={() => setIsRecentScansExpanded(false)}
+        />
+      )}
+    </>
+  );
+
   // ── Idle / Waiting for Scan ──
   if (pageState === "idle") {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center px-4 overflow-hidden relative">
+      <div className="min-h-screen bg-neutral-50 flex flex-col items-center justify-center px-4 overflow-hidden relative">
         <ScanCounter count={displayScanCount} />
+        <RecentScansStrip />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] animate-pulse pointer-events-none" />
         
-        <div className="w-full max-w-md text-center space-y-8 relative z-10">
-          <div className="flex flex-col items-center">
+        <div className="w-full max-w-md flex flex-col relative z-10 pt-10 lg:pt-0">
+          <ScannerModeToggle />
+          
+          <div className="text-center space-y-8 mt-4">
+            <div className="flex flex-col items-center">
             <div className="w-24 h-24 rounded-3xl bg-primary/10 flex items-center justify-center mb-6 shadow-sm border border-primary/20 rotate-[-10deg]">
               <Ticket className="w-12 h-12 text-primary rotate-[-20deg]" />
             </div>
@@ -582,20 +827,28 @@ export default function VerifyTicketPage() {
   // ── Not Found ──
   if (pageState === "not_found") {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 relative">
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 relative">
         <ScanCounter count={displayScanCount} />
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border p-6 sm:p-8 text-center overflow-hidden">
-          <div className="flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mx-auto mb-4">
-            <XCircle className="w-8 h-8 text-red-600" />
+        <RecentScansStrip />
+        
+        <div className="w-full max-w-md relative z-10 pt-10 lg:pt-0">
+          <ScannerModeToggle />
+          
+          <div className="w-full bg-white rounded-2xl shadow-sm border p-6 sm:p-8 text-center overflow-hidden">
+            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mx-auto mb-4">
+              <XCircle className="w-8 h-8 text-red-600" />
+            </div>
+            <h1 className="text-2xl font-extrabold text-neutral-900 mb-2">Invalid Ticket</h1>
+            <p className="text-neutral-500 mb-6">
+              {offlineError || <>The ticket could not be verified in our system. This ticket may be invalid or the code may be incorrect.</>}
+            </p>
+            <div className="rounded-xl bg-red-50 border border-red-200 p-4">
+              <p className="text-sm font-semibold text-red-700">⛔ Do not grant entry with this ticket</p>
+            </div>
+            <div className="text-center">
+              <Link to="/" className="mt-6 inline-block text-sm text-primary hover:underline">← Back to Tixora</Link>
+            </div>
           </div>
-          <h1 className="text-2xl font-extrabold text-neutral-900 mb-2">Invalid Ticket</h1>
-          <p className="text-neutral-500 mb-6">
-            {offlineError || <>The ticket could not be verified in our system. This ticket may be invalid or the code may be incorrect.</>}
-          </p>
-          <div className="rounded-xl bg-red-50 border border-red-200 p-4">
-            <p className="text-sm font-semibold text-red-700">⛔ Do not grant entry with this ticket</p>
-          </div>
-          <Link to="/" className="mt-6 inline-block text-sm text-primary hover:underline">← Back to Tixora</Link>
         </div>
       </div>
     );
@@ -608,27 +861,35 @@ export default function VerifyTicketPage() {
   // ── Already Scanned Today (multi-day) ──
   if (pageState === "scanned_today") {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8 sm:py-12 w-full overflow-x-hidden relative">
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 py-8 sm:py-12 w-full overflow-x-hidden relative">
         <ScanCounter count={displayScanCount} />
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border p-6 sm:p-8 overflow-hidden">
-          <div className="text-center mb-6">
-            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-amber-100 mx-auto mb-4">
-              <AlertTriangle className="w-8 h-8 text-amber-600" />
+        <RecentScansStrip />
+        
+        <div className="w-full max-w-md relative z-10 pt-10 lg:pt-0">
+          <ScannerModeToggle />
+          
+          <div className="w-full bg-white rounded-2xl shadow-sm border p-6 sm:p-8 overflow-hidden">
+            <div className="text-center mb-6">
+              <div className="flex items-center justify-center w-16 h-16 rounded-full bg-amber-100 mx-auto mb-4">
+                <AlertTriangle className="w-8 h-8 text-amber-600" />
+              </div>
+              <h1 className="text-2xl font-extrabold text-neutral-900">Already Scanned Today</h1>
+              <p className="mt-2 text-sm text-neutral-500">
+                This ticket was already used for entry on{" "}
+                {new Date().toLocaleDateString("en-NG", { dateStyle: "long" })}.
+              </p>
             </div>
-            <h1 className="text-2xl font-extrabold text-neutral-900">Already Scanned Today</h1>
-            <p className="mt-2 text-sm text-neutral-500">
-              This ticket was already used for entry on{" "}
-              {new Date().toLocaleDateString("en-NG", { dateStyle: "long" })}.
-            </p>
+
+            <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 mb-6">
+              <p className="text-sm font-semibold text-amber-700">⚠️ Do not grant entry again today. This is a multi-day ticket — it is valid on other event days.</p>
+            </div>
+
+            <TicketDetailCard ticket={ticket!} ev={ev} tierName={tierName} amountPaid={amountPaid} />
+
+            <div className="text-center">
+              <Link to="/" className="mt-6 inline-block text-sm text-primary hover:underline">← Back to Tixora</Link>
+            </div>
           </div>
-
-          <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 mb-6">
-            <p className="text-sm font-semibold text-amber-700">⚠️ Do not grant entry again today. This is a multi-day ticket — it is valid on other event days.</p>
-          </div>
-
-          <TicketDetailCard ticket={ticket!} ev={ev} tierName={tierName} amountPaid={amountPaid} />
-
-          <Link to="/" className="mt-6 inline-block text-sm text-primary hover:underline">← Back to Tixora</Link>
         </div>
       </div>
     );
@@ -637,42 +898,50 @@ export default function VerifyTicketPage() {
   // ── Used ──
   if (pageState === "used") {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8 sm:py-12 w-full overflow-x-hidden relative">
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 py-8 sm:py-12 w-full overflow-x-hidden relative">
         <ScanCounter count={displayScanCount} />
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border p-6 sm:p-8 overflow-hidden">
-          <div className="text-center mb-6">
-            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-orange-100 mx-auto mb-4">
-              <AlertTriangle className="w-8 h-8 text-orange-600" />
+        <RecentScansStrip />
+        
+        <div className="w-full max-w-md relative z-10 pt-10 lg:pt-0">
+          <ScannerModeToggle />
+          
+          <div className="w-full bg-white rounded-2xl shadow-sm border p-6 sm:p-8 overflow-hidden">
+            <div className="text-center mb-6">
+              <div className="flex items-center justify-center w-16 h-16 rounded-full bg-orange-100 mx-auto mb-4">
+                <AlertTriangle className="w-8 h-8 text-orange-600" />
+              </div>
+              <h1 className="text-2xl font-extrabold text-neutral-900">Ticket Already Used</h1>
+              {ticket?.used_at && (
+                <p className="mt-2 text-sm text-neutral-500">
+                  Used on {new Date(ticket.used_at).toLocaleString("en-NG", { dateStyle: "full", timeStyle: "short" })}
+                </p>
+              )}
             </div>
-            <h1 className="text-2xl font-extrabold text-neutral-900">Ticket Already Used</h1>
-            {ticket?.used_at && (
-              <p className="mt-2 text-sm text-neutral-500">
-                Used on {new Date(ticket.used_at).toLocaleString("en-NG", { dateStyle: "full", timeStyle: "short" })}
-              </p>
-            )}
-          </div>
 
-          <div className={cn(
-            "rounded-xl border p-4 mb-6",
-            isPendingSync ? "bg-blue-50 border-blue-200" : 
-            isJustMarked ? "bg-green-50 border-green-200" : "bg-orange-50 border-orange-200"
-          )}>
-            <p className={cn(
-              "text-sm font-semibold",
-              isPendingSync ? "text-blue-700" : 
-              isJustMarked ? "text-green-700" : "text-orange-700"
+            <div className={cn(
+              "rounded-xl border p-4 mb-6",
+              isPendingSync ? "bg-blue-50 border-blue-200" : 
+              isJustMarked ? "bg-green-50 border-green-200" : "bg-orange-50 border-orange-200"
             )}>
-              {isPendingSync 
-                ? "⚡ Valid (Offline Scan). This will sync once you're online." 
-                : isJustMarked
-                ? `✅ Verification complete! Ready in ${countdown}...`
-                : "⚠️ This ticket has already been scanned. Do not grant re-entry."}
-            </p>
+              <p className={cn(
+                "text-sm font-semibold",
+                isPendingSync ? "text-blue-700" : 
+                isJustMarked ? "text-green-700" : "text-orange-700"
+              )}>
+                {isPendingSync 
+                  ? "⚡ Valid (Offline Scan). This will sync once you're online." 
+                  : isJustMarked
+                  ? `✅ Verification complete! Ready in ${countdown}...`
+                  : "⚠️ This ticket has already been scanned. Do not grant re-entry."}
+              </p>
+            </div>
+
+            <TicketDetailCard ticket={ticket!} ev={ev} tierName={tierName} amountPaid={amountPaid} />
+
+            <div className="text-center">
+              <Link to="/" className="mt-6 inline-block text-sm text-primary hover:underline">← Back to Tixora</Link>
+            </div>
           </div>
-
-          <TicketDetailCard ticket={ticket!} ev={ev} tierName={tierName} amountPaid={amountPaid} />
-
-          <Link to="/" className="mt-6 inline-block text-sm text-primary hover:underline">← Back to Tixora</Link>
         </div>
       </div>
     );
@@ -682,6 +951,7 @@ export default function VerifyTicketPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 py-8 sm:py-12 w-full overflow-x-hidden relative">
       <ScanCounter count={displayScanCount} />
+      <RecentScansStrip />
       {isOfflineMode && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-amber-100 border-b border-amber-200 py-2.5 px-4 text-center">
           <p className="text-sm font-bold text-amber-800 flex items-center justify-center gap-2">
@@ -690,14 +960,18 @@ export default function VerifyTicketPage() {
           </p>
         </div>
       )}
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border p-6 sm:p-8 overflow-hidden">
-        <div className="text-center mb-6">
-          <div className="flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mx-auto mb-4">
-            <CheckCircle className="w-8 h-8 text-green-600" />
+      
+      <div className="w-full max-w-md relative z-10 pt-10 lg:pt-0">
+        <ScannerModeToggle />
+
+        <div className="w-full bg-white rounded-2xl shadow-sm border p-6 sm:p-8 overflow-hidden">
+          <div className="text-center mb-6">
+            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-green-600" />
+            </div>
+            <h1 className="text-2xl font-extrabold text-neutral-900">Valid Ticket</h1>
+            <p className="mt-1 text-sm text-neutral-500">This ticket is authentic and has not been used.</p>
           </div>
-          <h1 className="text-2xl font-extrabold text-neutral-900">Valid Ticket</h1>
-          <p className="mt-1 text-sm text-neutral-500">This ticket is authentic and has not been used.</p>
-        </div>
 
         <div className="rounded-xl bg-green-50 border border-green-200 p-4 mb-6">
           <p className="text-sm font-semibold text-green-700">✅ Safe to grant entry</p>
@@ -732,8 +1006,11 @@ export default function VerifyTicketPage() {
           </div>
         )}
 
-        <Link to="/" className="mt-6 inline-block text-sm text-primary hover:underline">← Back to Tixora</Link>
+        <div className="text-center">
+          <Link to="/" className="mt-6 inline-block text-sm text-primary hover:underline">← Back to Tixora</Link>
+        </div>
       </div>
+    </div>
 
       {/* Flash Overlay */}
       {flash && (
