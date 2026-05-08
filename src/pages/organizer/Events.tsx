@@ -740,13 +740,13 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
           )}
         </div>
 
-        <div className="mt-3 pt-3 pb-3 border-t border-border flex items-center gap-2">
+        <div className="mt-3 pt-3 pb-3 border-t border-border flex items-center flex-wrap gap-2">
           {!isPast && (
             <>
               <EditCoverImageButton 
                 eventId={event.id} 
                 onSuccess={onUpdate}
-                className="flex-1"
+                className="w-auto"
               />
               <OrganizerCouponsModal eventId={event.id} eventTitle={event.title} />
               
