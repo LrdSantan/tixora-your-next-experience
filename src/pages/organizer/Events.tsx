@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CalendarDays, Plus, MapPin, Calendar, Ticket, Share2, Landmark, Check, ChevronsUpDown, Loader2, Trash2, BarChart3, Scan, Lock, Unlock } from "lucide-react";
+import { CalendarDays, Plus, MapPin, Calendar, Ticket, Share2, Landmark, Check, ChevronsUpDown, Loader2, Trash2, BarChart3, Scan, Lock, Unlock, Settings, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,7 @@ type OrganizerEvent = {
   scanner_mode_locked: boolean;
   is_multi_day: boolean | null;
   event_days: string[] | null;
+  is_private: boolean;
   ticket_tiers: Array<{
     id: string;
     name: string;
@@ -605,9 +606,52 @@ function OrganizerScannerSettingsModal({ event, onSuccess }: { event: OrganizerE
   );
 }
 
+function OrganizerEventSettings({ event, onUpdate }: { event: OrganizerEvent, onUpdate: () => void }) {
+  const supabase = getSupabaseClient();
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const handleTogglePrivate = async (checked: boolean) => {
+    if (!supabase) return;
+    setIsUpdating(true);
+    try {
+      const { error } = await supabase
+        .from("events")
+        .update({ is_private: checked })
+        .eq("id", event.id);
+
+      if (error) throw error;
+      toast.success(checked ? "Event is now private" : "Event is now public");
+      onUpdate();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update privacy status");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  return (
+    <div className="mt-2 pt-3 border-t border-border space-y-3 bg-muted/30 rounded-lg p-4 mx-4 mb-4">
+      <div className="flex items-center justify-between">
+        <div className="space-y-0.5">
+          <Label className="text-sm font-semibold flex items-center gap-2">
+            <EyeOff className="w-3.5 h-3.5 text-primary" /> Private Event
+          </Label>
+          <p className="text-xs text-muted-foreground">Only people with the link can find this event</p>
+        </div>
+        <Switch 
+          checked={event.is_private} 
+          onCheckedChange={handleTogglePrivate}
+          disabled={isUpdating}
+        />
+      </div>
+    </div>
+  );
+}
+
 function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { event: OrganizerEvent, onUpdate: () => void, onShare: (e: React.MouseEvent) => void, onDelete: (id: string) => void, isPast?: boolean }) {
   const [isTiersExpanded, setIsTiersExpanded] = useState(false);
   const [isStatsExpanded, setIsStatsExpanded] = useState(false);
+  const [isSettingsExpanded, setIsSettingsExpanded] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const supabase = getSupabaseClient();
@@ -720,6 +764,16 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
               
               <OrganizerScannerSettingsModal event={event} onSuccess={onUpdate} />
 
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn("h-9 gap-1.5 px-3 border-border hover:bg-muted", isSettingsExpanded && "bg-muted")}
+                onClick={() => setIsSettingsExpanded(!isSettingsExpanded)}
+                title="Event Settings"
+              >
+                <Settings className="w-3.5 h-3.5" />
+              </Button>
+
               <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
                 <DialogTrigger asChild>
                   <Button
@@ -809,6 +863,10 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
       {isTiersExpanded && (
         <OrganizerTiersEditor event={event} onSaved={() => { setIsTiersExpanded(false); onUpdate(); }} />
       )}
+
+      {isSettingsExpanded && (
+        <OrganizerEventSettings event={event} onUpdate={onUpdate} />
+      )}
       
       {isStatsExpanded && (
         <OrganizerEventStats eventId={event.id} />
@@ -870,7 +928,7 @@ export default function OrganizerEventsPage() {
       .from("events")
       .select(
         `id, title, date, time, venue, city, category, cover_image_url, status, created_at,
-         bank_name, account_number, account_name, is_multi_day, event_days, scanner_mode, scanner_mode_locked,
+         bank_name, account_number, account_name, is_multi_day, event_days, scanner_mode, scanner_mode_locked, is_private,
          ticket_tiers ( id, name, price, total_quantity, remaining_quantity )`
       )
       .eq("organizer_id", user.id)
