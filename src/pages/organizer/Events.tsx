@@ -17,6 +17,7 @@ import { getEventImage } from "@/lib/event-image";
 import { EditCoverImageButton } from "@/components/EditCoverImageButton";
 import { OrganizerCouponsModal } from "@/components/OrganizerCouponsModal";
 import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 const NIGERIAN_BANKS = [
@@ -211,7 +212,8 @@ function OrganizerTiersEditor({ event, onSaved }: { event: OrganizerEvent, onSav
       if (!error && data && isMounted) {
         setTiers(data.map(t => ({
           ...t,
-          tickets_sold: t.total_quantity - t.remaining_quantity
+          tickets_sold: t.total_quantity - t.remaining_quantity,
+          isFree: Number(t.price) === 0
         })));
       }
       if (isMounted) setIsLoading(false);
@@ -233,6 +235,7 @@ function OrganizerTiersEditor({ event, onSaved }: { event: OrganizerEvent, onSav
       name: '',
       description: '',
       price: 0,
+      isFree: true,
       total_quantity: 0,
       remaining_quantity: 0,
       tickets_sold: 0
@@ -331,15 +334,33 @@ function OrganizerTiersEditor({ event, onSaved }: { event: OrganizerEvent, onSav
                   value={tier.name} 
                   onChange={e => updateTier(originalIdx, 'name', e.target.value)} 
                 />
+                <div className="flex items-center gap-1.5 mr-1 bg-background px-2 py-1 rounded-md border border-input h-8">
+                  <Label htmlFor={`free-${tier.id || idx}`} className="text-[10px] font-bold text-muted-foreground uppercase cursor-pointer select-none">Free</Label>
+                  <Switch 
+                    id={`free-${tier.id || idx}`}
+                    checked={tier.isFree}
+                    onCheckedChange={(checked) => {
+                      const newTiers = [...tiers];
+                      newTiers[originalIdx] = { 
+                        ...newTiers[originalIdx], 
+                        isFree: checked,
+                        price: checked ? 0 : (newTiers[originalIdx].price || 0)
+                      };
+                      setTiers(newTiers);
+                    }}
+                    className="scale-75"
+                  />
+                </div>
                 <div className="relative">
                   <span className="absolute left-2.5 top-1.5 text-xs text-muted-foreground">₦</span>
                   <Input 
-                    className="h-8 text-sm w-24 bg-background pl-6" 
+                    className={cn("h-8 text-sm w-24 bg-background pl-6", tier.isFree && "bg-muted text-muted-foreground")}
                     type="number"
                     min="0"
                     placeholder="Price" 
-                    value={tier.price} 
+                    value={tier.isFree ? 0 : tier.price} 
                     onChange={e => updateTier(originalIdx, 'price', e.target.value === '' ? '' : parseFloat(e.target.value))} 
+                    disabled={tier.isFree}
                   />
                 </div>
                 <Input 

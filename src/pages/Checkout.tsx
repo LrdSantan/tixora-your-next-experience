@@ -35,7 +35,6 @@ type RpcTicketRow = {
   time: string;
 };
 
-const STEPS = ["Tickets", "Contact", "Payment"] as const;
 const ACCENT = "#1A7A4A";
 const ACCENT_LIGHT = "#F4FAF6";
 const ACCENT_BORDER = "#d0ead9";
@@ -248,8 +247,12 @@ export default function CheckoutPage() {
     localStorage.setItem("tixora_guest_hint_dismissed", "true");
   };
   const { items, subtotal, clearCart, updateQuantity, removeItem, addItem } = useCartStore();
+  const lineItems = useMemo(() => items.filter((i) => i.quantity > 0), [items]);
+  const isAllFree = useMemo(() => lineItems.length > 0 && lineItems.every(i => i.unitPrice === 0), [lineItems]);
+  const STEPS = isAllFree ? ["Tickets", "RSVP"] : ["Tickets", "Contact", "Payment"];
+
   const navigate = useNavigate();
-  const { data: events = [], loading: eventsLoading } = useEvents(); // Track loading state [cite: 19]
+  const { data: events = [], loading: eventsLoading } = useEvents(); 
   const { user, loading: authLoading } = useAuth();
   const [paying, setPaying] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -298,7 +301,6 @@ export default function CheckoutPage() {
     return map;
   }, [events]);
 
-  const lineItems = useMemo(() => items.filter((i) => i.quantity > 0), [items]);
 
   // Safeguard: Ensure rawSubtotal is always a number [cite: 26]
   const rawSubtotal = Number(subtotal()) || 0;
@@ -650,6 +652,71 @@ export default function CheckoutPage() {
     });
   };
 
+  const handleRSVP = async () => {
+    if (!validateAttendee()) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    setPaying(true);
+    try {
+      const tickets: ConfirmationTicket[] = [];
+      
+      // RSVP for each ticket in the cart
+      // The rsvp-free-ticket function handles one tier at a time
+      for (const item of lineItems) {
+        // We call it once per ticket quantity to match the individual ticket logic
+        for (let i = 0; i < item.quantity; i++) {
+          const { data, error } = await supabase.functions.invoke("rsvp-free-ticket", {
+            body: {
+              event_id: item.eventId,
+              tier_id: item.tierId,
+              name: attendee.name,
+              email: attendee.email,
+              user_id: user?.id
+            }
+          });
+
+          if (error || !data?.success) {
+            throw new Error(error?.message || data?.error || "Failed to confirm RSVP");
+          }
+
+          // Build ticket object for confirmation screen
+          const ev = eventObjects.get(item.eventId);
+          tickets.push({
+            id: data.ticket_id,
+            reference: `RSVP-${data.ticket_code}`,
+            ticketCode: data.ticket_code,
+            qrToken: data.qr_token,
+            amountPaidKobo: 0,
+            quantity: 1,
+            eventTitle: item.eventTitle,
+            tierName: item.tierName,
+            venue: ev?.venue || "",
+            city: ev?.city || "",
+            date: ev?.date ? String(ev.date) : "",
+            time: ev?.time || "",
+          });
+        }
+      }
+
+      clearCart();
+      toast.success("RSVP confirmed!");
+      navigate("/confirmation", {
+        state: { 
+          tickets, 
+          buyerName: attendee.name, 
+          buyerEmail: attendee.email, 
+          purchasedAt: new Date().toISOString(), 
+          isGuest: !user 
+        },
+      });
+    } catch (e: any) {
+      toast.error(e.message || "Something went wrong processing your RSVP.");
+    } finally {
+      setPaying(false);
+    }
+  };
+
   const getTierQuantity = (tierId: string) => {
     const item = items.find((i) => i.tierId === tierId);
     return Number(item?.quantity) || 0; // Strict number fallback [cite: 69]
@@ -747,7 +814,7 @@ export default function CheckoutPage() {
         {step === 0 && (
           <div className="flex flex-col lg:grid gap-6 lg:gap-8 lg:grid-cols-[1fr_min(100%,380px)] lg:items-start">
             <div className="order-2 lg:order-1 rounded-2xl bg-white p-5 shadow-sm md:p-8">
-              {!user && !isGuest ? (
+              {!isAllFree && !user && !isGuest ? (
                 <div className="text-center py-8">
                   <h2 className="text-2xl font-bold mb-4">Ready to checkout?</h2>
                   <p className="text-neutral-500 mb-8">Choose how you'd like to proceed with your booking.</p>
@@ -766,7 +833,7 @@ export default function CheckoutPage() {
                     <button type="button" onClick={() => isGuest ? setIsGuest(false) : navigate(-1)} className="flex h-11 w-11 items-center justify-center rounded-full text-white" style={{ backgroundColor: ACCENT }}>
                       <ArrowLeft className="h-5 w-5" />
                     </button>
-                    <h1 className="text-xl font-bold text-neutral-900 md:text-2xl">Choose Tickets</h1>
+                    <h1 className="text-xl font-bold text-neutral-900 md:text-2xl">{isAllFree ? "RSVP for Tickets" : "Choose Tickets"}</h1>
                   </div>
 
                   <div className="space-y-8">
@@ -888,8 +955,8 @@ export default function CheckoutPage() {
               )}
 
               <div className="flex items-center justify-between mb-1">
-                <h2 className="text-xl font-bold">{isBuyingForFriend ? "Friend's details" : "Your details"}</h2>
-                {user && !isGuest && (
+                <h2 className="text-xl font-bold">{isAllFree ? "RSVP Details" : (isBuyingForFriend ? "Friend's details" : "Your details")}</h2>
+                {!isAllFree && user && !isGuest && (
                   <label className="flex items-center gap-2 cursor-pointer select-none">
                     <span className="text-xs font-medium text-neutral-500">Buy for a friend</span>
                     <div 
@@ -923,10 +990,16 @@ export default function CheckoutPage() {
                 )}
               </div>
               
-              {isBuyingForFriend && (
+              {!isAllFree && isBuyingForFriend && (
                 <p className="text-xs text-neutral-500 mb-6 flex items-center gap-1.5">
                   <Info className="h-3.5 w-3.5" style={{ color: ACCENT }} />
                   Your friend will receive the ticket confirmation email
+                </p>
+              )}
+
+              {isAllFree && (
+                <p className="text-sm text-neutral-500 mt-2 mb-6">
+                  Confirm your details below to secure your free ticket.
                 </p>
               )}
 
@@ -945,7 +1018,7 @@ export default function CheckoutPage() {
               </div>
 
               {/* Coupon Input in Main Content */}
-              {!appliedCoupon && (
+              {!isAllFree && !appliedCoupon && (
                 <div className="mt-6 flex items-center gap-2 border border-neutral-200 rounded-xl px-3 py-1">
                   <input 
                     type="text" 
@@ -962,7 +1035,17 @@ export default function CheckoutPage() {
 
               <div className="mt-8 flex flex-col sm:flex-row gap-3">
                 <Button variant="outline" className="w-full sm:flex-1 h-12 rounded-xl" onClick={() => setStep(0)}>Back</Button>
-                <Button className="w-full sm:flex-1 h-12 rounded-xl text-white" style={{ backgroundColor: ACCENT }} onClick={() => validateAttendee() && setStep(2)}>Continue</Button>
+                <Button className="w-full sm:flex-1 h-12 rounded-xl text-white" style={{ backgroundColor: ACCENT }} onClick={() => {
+                  if (validateAttendee()) {
+                    if (isAllFree) {
+                      handleRSVP();
+                    } else {
+                      setStep(2);
+                    }
+                  }
+                }}>
+                  {paying ? "Processing..." : (isAllFree ? "Confirm RSVP" : "Continue")}
+                </Button>
               </div>
             </div>
             
