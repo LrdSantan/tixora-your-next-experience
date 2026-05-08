@@ -215,14 +215,42 @@ const EventDetailPage = () => {
               )}
             </div>
 
-            {/* Venue */}
             <div>
               <h2 className="text-lg font-bold text-foreground mb-2">Venue</h2>
-              <div className="bg-card border border-border rounded-xl h-48 flex items-center justify-center">
-                <div className="text-center text-muted-foreground">
-                  <MapPin className="w-8 h-8 mx-auto mb-2 text-primary" />
-                  <p className="font-medium">{event.venue}</p>
-                  <p className="text-sm">{event.city}, Nigeria</p>
+              <div className="bg-card border border-border rounded-xl overflow-hidden">
+                <div className="p-5 border-b border-border bg-muted/20">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-1 p-2 bg-primary/10 rounded-lg shrink-0">
+                      <MapPin className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-foreground text-lg leading-tight">{event.venue}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{event.city}, Nigeria</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <iframe
+                  title="Venue Map"
+                  width="100%"
+                  height="300"
+                  style={{ border: 0 }}
+                  loading="lazy"
+                  src={`https://maps.google.com/maps?q=${encodeURIComponent(`${event.venue}, ${event.city}`)}&output=embed`}
+                  allowFullScreen
+                />
+
+                <div className="p-4 bg-muted/10 flex justify-end">
+                  <Button asChild style={{ backgroundColor: "#1A7A4A", color: "white" }} className="gap-2 font-bold shadow-sm hover:brightness-110 transition-all">
+                    <a 
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${event.venue}, ${event.city}`)}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                    >
+                      <MapPin className="w-4 h-4" />
+                      Get Directions
+                    </a>
+                  </Button>
                 </div>
               </div>
             </div>
