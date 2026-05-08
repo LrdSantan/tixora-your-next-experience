@@ -613,6 +613,15 @@ export default function VerifyTicketPage() {
     }
   };
 
+  const handleModeChange = (mode: "standard" | "express") => {
+    setScannerMode(mode);
+    if (ticket?.event_id) {
+      localStorage.setItem(`tixora_scanner_mode_${ticket.event_id}`, mode);
+    }
+  };
+
+  const handleMarkUsed = () => {
+    if (ticket) executeCheckIn(ticket);
   };
 
   const ScannerModeToggle = () => (
