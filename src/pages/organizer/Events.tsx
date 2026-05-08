@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CalendarDays, Plus, MapPin, Calendar, Ticket, Share2, Landmark, Check, ChevronsUpDown, Loader2, Trash2, BarChart3, Scan, Lock, Unlock, Settings, EyeOff } from "lucide-react";
+import { CalendarDays, Plus, MapPin, Calendar, Ticket, Share2, Landmark, Check, ChevronsUpDown, Loader2, Trash2, BarChart3, Scan, Lock, Unlock, Settings, EyeOff, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useAuth } from "@/contexts/auth-context";
@@ -648,6 +649,113 @@ function OrganizerEventSettings({ event, onUpdate }: { event: OrganizerEvent, on
   );
 }
 
+function OrganizerGuestBlastModal({ event }: { event: OrganizerEvent }) {
+  const [open, setOpen] = useState(false);
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const { user } = useAuth();
+  const supabase = getSupabaseClient();
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !supabase) return;
+    if (message.length < 10) {
+      toast.error("Message must be at least 10 characters");
+      return;
+    }
+
+    try {
+      setIsSending(true);
+      const { data, error } = await supabase.functions.invoke("send-guest-blast", {
+        body: {
+          event_id: event.id,
+          subject,
+          message,
+          organizer_id: user.id
+        }
+      });
+
+      if (error) throw error;
+      
+      // Handle the case where the function returned success: true but had errors
+      if (data.errors && data.errors.length > 0 && data.sent === 0) {
+        throw new Error(data.errors[0]);
+      }
+
+      toast.success(`Message sent to ${data.sent} guests!`);
+      setOpen(false);
+      setSubject("");
+      setMessage("");
+    } catch (err: any) {
+      console.error("[GuestBlast Error]", err);
+      toast.error(err.message || "Failed to send message");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="h-9 gap-1.5 px-3 border-border hover:bg-muted" title="Message Guests">
+          <Mail className="w-3.5 h-3.5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-bold">Message Your Guests</DialogTitle>
+          <DialogDescription>
+            Send a direct update to all confirmed ticket holders for <span className="font-semibold text-foreground">"{event.title}"</span>.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <form onSubmit={handleSend} className="space-y-5 mt-4">
+          <div className="space-y-2">
+            <Label htmlFor="subject">Subject</Label>
+            <Input 
+              id="subject" 
+              placeholder="e.g. Important update regarding tonight's event" 
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              required
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="message">Message</Label>
+            <Textarea 
+              id="message" 
+              placeholder="Write your message here..." 
+              className="min-h-[150px] resize-none"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              required
+            />
+            <p className="text-[10px] text-muted-foreground">This message will be sent to all confirmed attendees.</p>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isSending}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSending || !subject || message.length < 10} className="bg-primary text-white font-bold px-6">
+              {isSending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                "Send to All Guests"
+              )}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { event: OrganizerEvent, onUpdate: () => void, onShare: (e: React.MouseEvent) => void, onDelete: (id: string) => void, isPast?: boolean }) {
   const [isTiersExpanded, setIsTiersExpanded] = useState(false);
   const [isStatsExpanded, setIsStatsExpanded] = useState(false);
@@ -763,6 +871,8 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
               <OrganizerPayoutModal event={event} onSuccess={onUpdate} />
               
               <OrganizerScannerSettingsModal event={event} onSuccess={onUpdate} />
+
+              <OrganizerGuestBlastModal event={event} />
 
               <Button
                 variant="outline"
