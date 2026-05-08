@@ -276,9 +276,12 @@ export default function CheckoutPage() {
     if (user?.email) {
       setAttendee((a) => ({ ...a, email: user.email ?? a.email }));
     }
-    const meta = user?.user_metadata as { full_name?: string } | undefined;
+    const meta = user?.user_metadata as { full_name?: string, phone?: string } | undefined;
     if (meta?.full_name) {
       setAttendee((a) => ({ ...a, name: a.name || meta.full_name || "" }));
+    }
+    if (meta?.phone) {
+      setAttendee((a) => ({ ...a, phone: a.phone || meta.phone || "" }));
     }
   }, [user]);
 
@@ -424,6 +427,10 @@ export default function CheckoutPage() {
     }
     if (!attendee.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(attendee.email)) {
       toast.error("Please enter a valid email address.");
+      return false;
+    }
+    if (!isAllFree && !attendee.phone.trim()) {
+      toast.error("Phone number is required.");
       return false;
     }
     if (attendee.phone.trim() && !isValidPhone(attendee.phone)) {
@@ -672,6 +679,7 @@ export default function CheckoutPage() {
               tier_id: item.tierId,
               name: attendee.name,
               email: attendee.email,
+              phone: attendee.phone,
               user_id: user?.id
             }
           });
@@ -1006,8 +1014,9 @@ export default function CheckoutPage() {
               <div className="space-y-4 mt-6">
                 {(
                   [
-                    { label: isBuyingForFriend ? "Friend's Name" : "Full Name", key: "name" as const, type: "text" },
+                    { label: isBuyingForFriend ? "Friend's Full Name" : "Full Name", key: "name" as const, type: "text" },
                     { label: isBuyingForFriend ? "Friend's Email address" : "Email address", key: "email" as const, type: "email" },
+                    { label: "Phone Number", key: "phone" as const, type: "tel" },
                   ] as const
                 ).map((f) => (
                   <div key={f.key} className="space-y-1.5">

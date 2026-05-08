@@ -653,6 +653,7 @@ function OrganizerGuestBlastModal({ event }: { event: OrganizerEvent }) {
   const [open, setOpen] = useState(false);
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
+  const [channel, setChannel] = useState<"email" | "sms" | "both">("email");
   const [isSending, setIsSending] = useState(false);
   const { user } = useAuth();
   const supabase = getSupabaseClient();
@@ -672,6 +673,7 @@ function OrganizerGuestBlastModal({ event }: { event: OrganizerEvent }) {
           event_id: event.id,
           subject,
           message,
+          channel,
           organizer_id: user.id
         }
       });
@@ -711,6 +713,31 @@ function OrganizerGuestBlastModal({ event }: { event: OrganizerEvent }) {
         </DialogHeader>
         
         <form onSubmit={handleSend} className="space-y-5 mt-4">
+          <div className="space-y-2">
+            <Label>Delivery Channel</Label>
+            <div className="flex bg-muted/50 p-1 rounded-xl gap-1">
+              {[
+                { id: "email", label: "📧 Email only" },
+                { id: "sms", label: "📱 SMS only" },
+                { id: "both", label: "📧📱 Both" }
+              ].map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setChannel(c.id as any)}
+                  className={cn(
+                    "flex-1 py-2 text-[11px] font-bold rounded-lg transition-all",
+                    channel === c.id 
+                      ? "bg-white text-[#1A7A4A] shadow-sm" 
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="subject">Subject</Label>
             <Input 

@@ -10,6 +10,7 @@ interface RsvpRequest {
   tier_id: string;
   name: string;
   email: string;
+  phone?: string;
   user_id?: string;
 }
 
@@ -30,7 +31,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const body: RsvpRequest = await req.json();
-    const { event_id, tier_id, name, email, user_id: providedUserId } = body;
+    const { event_id, tier_id, name, email, phone, user_id: providedUserId } = body;
 
     if (!event_id || !tier_id || !name || !email) {
       return new Response(JSON.stringify({ success: false, error: "Missing required fields" }), { 
@@ -122,6 +123,7 @@ Deno.serve(async (req) => {
         qr_token,
         guest_name: name,
         guest_email: email,
+        guest_phone: phone ?? null,
         status: 'confirmed',
         source: 'rsvp',
         amount_paid: 0,
