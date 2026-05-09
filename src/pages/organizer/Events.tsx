@@ -348,59 +348,61 @@ function OrganizerTiersEditor({ event, onSaved }: { event: OrganizerEvent, onSav
              const wlCount = waitlistCounts[tier.id] ?? 0;
              return (
               <div key={tier.id || idx} className="space-y-1.5">
-                <div className="flex items-center gap-2">
+                <div className="space-y-2">
                   <Input 
-                    className="h-8 text-sm flex-1 bg-background" 
-                    placeholder="Tier name" 
+                    className="h-9 text-sm w-full bg-background" 
+                    placeholder="Tier name e.g. Regular, VIP..." 
                     value={tier.name} 
                     onChange={e => updateTier(originalIdx, 'name', e.target.value)} 
                   />
-                  <div className="flex items-center gap-1.5 mr-1 bg-background px-2 py-1 rounded-md border border-input h-8">
-                    <Label htmlFor={`free-${tier.id || idx}`} className="text-[10px] font-bold text-muted-foreground uppercase cursor-pointer select-none">Free</Label>
-                    <Switch 
-                      id={`free-${tier.id || idx}`}
-                      checked={tier.isFree}
-                      onCheckedChange={(checked) => {
-                        const newTiers = [...tiers];
-                        newTiers[originalIdx] = { 
-                          ...newTiers[originalIdx], 
-                          isFree: checked,
-                          price: checked ? 0 : (newTiers[originalIdx].price || 0)
-                        };
-                        setTiers(newTiers);
-                      }}
-                      className="scale-75"
-                    />
-                  </div>
-                  <div className="relative">
-                    <span className="absolute left-2.5 top-1.5 text-xs text-muted-foreground">₦</span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 mr-1 bg-background px-2 py-1 rounded-md border border-input h-9">
+                      <Label htmlFor={`free-${tier.id || idx}`} className="text-[10px] font-bold text-muted-foreground uppercase cursor-pointer select-none">Free</Label>
+                      <Switch 
+                        id={`free-${tier.id || idx}`}
+                        checked={tier.isFree}
+                        onCheckedChange={(checked) => {
+                          const newTiers = [...tiers];
+                          newTiers[originalIdx] = { 
+                            ...newTiers[originalIdx], 
+                            isFree: checked,
+                            price: checked ? 0 : (newTiers[originalIdx].price || 0)
+                          };
+                          setTiers(newTiers);
+                        }}
+                        className="scale-75"
+                      />
+                    </div>
+                    <div className="relative flex-1">
+                      <span className="absolute left-2.5 top-2 text-xs text-muted-foreground">₦</span>
+                      <Input 
+                        className={cn("h-9 text-sm w-full bg-background pl-6", tier.isFree && "bg-muted text-muted-foreground")}
+                        type="number"
+                        min="0"
+                        placeholder="Price" 
+                        value={tier.isFree ? 0 : tier.price} 
+                        onChange={e => updateTier(originalIdx, 'price', e.target.value === '' ? '' : parseFloat(e.target.value))} 
+                        disabled={tier.isFree}
+                      />
+                    </div>
                     <Input 
-                      className={cn("h-8 text-sm w-24 bg-background pl-6", tier.isFree && "bg-muted text-muted-foreground")}
+                      className="h-9 text-sm w-24 bg-background" 
                       type="number"
-                      min="0"
-                      placeholder="Price" 
-                      value={tier.isFree ? 0 : tier.price} 
-                      onChange={e => updateTier(originalIdx, 'price', e.target.value === '' ? '' : parseFloat(e.target.value))} 
-                      disabled={tier.isFree}
+                      min={tier.tickets_sold}
+                      placeholder="Cap" 
+                      value={tier.total_quantity} 
+                      onChange={e => updateTier(originalIdx, 'total_quantity', e.target.value === '' ? '' : parseInt(e.target.value, 10))} 
                     />
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-9 w-9 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 shrink-0"
+                      onClick={() => removeTier(originalIdx)}
+                      title={tier.tickets_sold > 0 ? "Cannot delete tier with existing sales" : "Delete tier row"}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
-                  <Input 
-                    className="h-8 text-sm w-20 bg-background" 
-                    type="number"
-                    min={tier.tickets_sold}
-                    placeholder="Cap" 
-                    value={tier.total_quantity} 
-                    onChange={e => updateTier(originalIdx, 'total_quantity', e.target.value === '' ? '' : parseInt(e.target.value, 10))} 
-                  />
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 shrink-0"
-                    onClick={() => removeTier(originalIdx)}
-                    title={tier.tickets_sold > 0 ? "Cannot delete tier with existing sales" : "Delete tier row"}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
                 </div>
                 {/* Waitlist toggle row */}
                 <div className="flex items-center justify-between bg-amber-50 border border-amber-100 rounded-md px-2.5 py-1.5">
