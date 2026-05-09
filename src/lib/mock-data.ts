@@ -32,6 +32,7 @@ export interface TicketTier {
   price: number;
   total_quantity: number;
   remaining_quantity: number;
+  waitlist_enabled?: boolean;
 }
 
 export const EVENTS: Event[] = [

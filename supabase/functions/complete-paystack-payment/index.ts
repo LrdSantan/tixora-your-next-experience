@@ -399,6 +399,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
         });
       }
 
+      // ── Notify waitlist if any tier had inventory freed by a failed/cancelled prior reservation ──
+      // (No-op if nobody is waiting — the edge function handles that gracefully)
+      if (finalizedTickets.length > 0) {
+        const uniqueTierIds = [...new Set(lines.map((l) => l.tier_id))];
+        for (const tid of uniqueTierIds) {
+          fetch(`${supabaseUrl}/functions/v1/notify-next-waitlist`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${serviceRoleKey}`,
+            },
+            body: JSON.stringify({ tier_id: tid }),
+          }).catch((err) => {
+            console.error(`${LOG} notify-next-waitlist failed for tier ${tid}`, err);
+          });
+        }
+      }
+
       return successResponse(rpcData);
     } catch (innerErr) {
       const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);

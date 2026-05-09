@@ -199,6 +199,7 @@ function OrganizerTiersEditor({ event, onSaved }: { event: OrganizerEvent, onSav
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [tiers, setTiers] = useState<any[]>([]);
+  const [waitlistCounts, setWaitlistCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     let isMounted = true;
@@ -207,7 +208,7 @@ function OrganizerTiersEditor({ event, onSaved }: { event: OrganizerEvent, onSav
       setIsLoading(true);
       const { data, error } = await supabase
         .from('ticket_tiers')
-        .select('id, event_id, name, description, price, total_quantity, remaining_quantity')
+        .select('id, event_id, name, description, price, total_quantity, remaining_quantity, waitlist_enabled')
         .eq('event_id', event.id)
         .order('price', { ascending: true });
         
@@ -215,8 +216,21 @@ function OrganizerTiersEditor({ event, onSaved }: { event: OrganizerEvent, onSav
         setTiers(data.map(t => ({
           ...t,
           tickets_sold: t.total_quantity - t.remaining_quantity,
-          isFree: Number(t.price) === 0
+          isFree: Number(t.price) === 0,
+          waitlist_enabled: t.waitlist_enabled ?? false,
         })));
+
+        // Load waitlist counts
+        const counts: Record<string, number> = {};
+        await Promise.all(data.map(async (t) => {
+          const { count } = await supabase!
+            .from('waitlist')
+            .select('*', { count: 'exact', head: true })
+            .eq('tier_id', t.id)
+            .eq('status', 'waiting');
+          counts[t.id] = count ?? 0;
+        }));
+        if (isMounted) setWaitlistCounts(counts);
       }
       if (isMounted) setIsLoading(false);
     }
@@ -289,7 +303,8 @@ function OrganizerTiersEditor({ event, onSaved }: { event: OrganizerEvent, onSav
           name: t.name,
           price: t.price,
           total_quantity: t.total_quantity,
-          remaining_quantity: newRemaining
+          remaining_quantity: newRemaining,
+          waitlist_enabled: t.waitlist_enabled ?? false,
         }).eq('id', t.id);
         if (error) throw error;
       }
@@ -328,60 +343,82 @@ function OrganizerTiersEditor({ event, onSaved }: { event: OrganizerEvent, onSav
         <div className="space-y-2">
           {tiers.filter(t => !t._deleted).map((tier, idx) => {
              const originalIdx = tiers.indexOf(tier);
+             const wlCount = waitlistCounts[tier.id] ?? 0;
              return (
-              <div key={tier.id || idx} className="flex items-center gap-2">
-                <Input 
-                  className="h-8 text-sm flex-1 bg-background" 
-                  placeholder="Tier name" 
-                  value={tier.name} 
-                  onChange={e => updateTier(originalIdx, 'name', e.target.value)} 
-                />
-                <div className="flex items-center gap-1.5 mr-1 bg-background px-2 py-1 rounded-md border border-input h-8">
-                  <Label htmlFor={`free-${tier.id || idx}`} className="text-[10px] font-bold text-muted-foreground uppercase cursor-pointer select-none">Free</Label>
-                  <Switch 
-                    id={`free-${tier.id || idx}`}
-                    checked={tier.isFree}
-                    onCheckedChange={(checked) => {
-                      const newTiers = [...tiers];
-                      newTiers[originalIdx] = { 
-                        ...newTiers[originalIdx], 
-                        isFree: checked,
-                        price: checked ? 0 : (newTiers[originalIdx].price || 0)
-                      };
-                      setTiers(newTiers);
-                    }}
-                    className="scale-75"
-                  />
-                </div>
-                <div className="relative">
-                  <span className="absolute left-2.5 top-1.5 text-xs text-muted-foreground">₦</span>
+              <div key={tier.id || idx} className="space-y-1.5">
+                <div className="flex items-center gap-2">
                   <Input 
-                    className={cn("h-8 text-sm w-24 bg-background pl-6", tier.isFree && "bg-muted text-muted-foreground")}
-                    type="number"
-                    min="0"
-                    placeholder="Price" 
-                    value={tier.isFree ? 0 : tier.price} 
-                    onChange={e => updateTier(originalIdx, 'price', e.target.value === '' ? '' : parseFloat(e.target.value))} 
-                    disabled={tier.isFree}
+                    className="h-8 text-sm flex-1 bg-background" 
+                    placeholder="Tier name" 
+                    value={tier.name} 
+                    onChange={e => updateTier(originalIdx, 'name', e.target.value)} 
                   />
+                  <div className="flex items-center gap-1.5 mr-1 bg-background px-2 py-1 rounded-md border border-input h-8">
+                    <Label htmlFor={`free-${tier.id || idx}`} className="text-[10px] font-bold text-muted-foreground uppercase cursor-pointer select-none">Free</Label>
+                    <Switch 
+                      id={`free-${tier.id || idx}`}
+                      checked={tier.isFree}
+                      onCheckedChange={(checked) => {
+                        const newTiers = [...tiers];
+                        newTiers[originalIdx] = { 
+                          ...newTiers[originalIdx], 
+                          isFree: checked,
+                          price: checked ? 0 : (newTiers[originalIdx].price || 0)
+                        };
+                        setTiers(newTiers);
+                      }}
+                      className="scale-75"
+                    />
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1.5 text-xs text-muted-foreground">₦</span>
+                    <Input 
+                      className={cn("h-8 text-sm w-24 bg-background pl-6", tier.isFree && "bg-muted text-muted-foreground")}
+                      type="number"
+                      min="0"
+                      placeholder="Price" 
+                      value={tier.isFree ? 0 : tier.price} 
+                      onChange={e => updateTier(originalIdx, 'price', e.target.value === '' ? '' : parseFloat(e.target.value))} 
+                      disabled={tier.isFree}
+                    />
+                  </div>
+                  <Input 
+                    className="h-8 text-sm w-20 bg-background" 
+                    type="number"
+                    min={tier.tickets_sold}
+                    placeholder="Cap" 
+                    value={tier.total_quantity} 
+                    onChange={e => updateTier(originalIdx, 'total_quantity', e.target.value === '' ? '' : parseInt(e.target.value, 10))} 
+                  />
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 shrink-0"
+                    onClick={() => removeTier(originalIdx)}
+                    title={tier.tickets_sold > 0 ? "Cannot delete tier with existing sales" : "Delete tier row"}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
-                <Input 
-                  className="h-8 text-sm w-20 bg-background" 
-                  type="number"
-                  min={tier.tickets_sold}
-                  placeholder="Cap" 
-                  value={tier.total_quantity} 
-                  onChange={e => updateTier(originalIdx, 'total_quantity', e.target.value === '' ? '' : parseInt(e.target.value, 10))} 
-                />
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 shrink-0"
-                  onClick={() => removeTier(originalIdx)}
-                  title={tier.tickets_sold > 0 ? "Cannot delete tier with existing sales" : "Delete tier row"}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                {/* Waitlist toggle row */}
+                <div className="flex items-center justify-between bg-amber-50 border border-amber-100 rounded-md px-2.5 py-1.5">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id={`wl-${tier.id || idx}`}
+                      checked={tier.waitlist_enabled ?? false}
+                      onCheckedChange={(checked) => updateTier(originalIdx, 'waitlist_enabled', checked)}
+                      className="scale-75"
+                    />
+                    <Label htmlFor={`wl-${tier.id || idx}`} className="text-[11px] font-medium text-amber-800 cursor-pointer select-none">
+                      Enable Waitlist
+                    </Label>
+                  </div>
+                  {tier.id && wlCount > 0 && (
+                    <span className="text-[10px] font-semibold bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">
+                      {wlCount} waiting
+                    </span>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -653,7 +690,6 @@ function OrganizerGuestBlastModal({ event }: { event: OrganizerEvent }) {
   const [open, setOpen] = useState(false);
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
-  const [channel, setChannel] = useState<"email" | "sms" | "both">("email");
   const [isSending, setIsSending] = useState(false);
   const { user } = useAuth();
   const supabase = getSupabaseClient();
@@ -673,7 +709,7 @@ function OrganizerGuestBlastModal({ event }: { event: OrganizerEvent }) {
           event_id: event.id,
           subject,
           message,
-          channel,
+          channel: "email",
           organizer_id: user.id
         }
       });
@@ -713,30 +749,6 @@ function OrganizerGuestBlastModal({ event }: { event: OrganizerEvent }) {
         </DialogHeader>
         
         <form onSubmit={handleSend} className="space-y-5 mt-4">
-          <div className="space-y-2">
-            <Label>Delivery Channel</Label>
-            <div className="flex bg-muted/50 p-1 rounded-xl gap-1">
-              {[
-                { id: "email", label: "📧 Email only" },
-                { id: "sms", label: "📱 SMS only" },
-                { id: "both", label: "📧📱 Both" }
-              ].map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setChannel(c.id as any)}
-                  className={cn(
-                    "flex-1 py-2 text-[11px] font-bold rounded-lg transition-all",
-                    channel === c.id 
-                      ? "bg-white text-[#1A7A4A] shadow-sm" 
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
-          </div>
 
           <div className="space-y-2">
             <Label htmlFor="subject">Subject</Label>
@@ -766,14 +778,18 @@ function OrganizerGuestBlastModal({ event }: { event: OrganizerEvent }) {
             <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isSending}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSending || !subject || message.length < 10} className="bg-primary text-white font-bold px-6">
+            <Button 
+              type="submit" 
+              disabled={isSending || !subject || message.length < 10} 
+              className="bg-primary text-white font-bold px-6"
+            >
               {isSending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Sending...
                 </>
               ) : (
-                "Send to All Guests"
+                "Send Email Blast"
               )}
             </Button>
           </div>

@@ -188,6 +188,7 @@ const EventDetailPage = () => {
                     onAddToCart={handleAddToCart}
                     addedTierId={addedTier}
                     onHover={setHoveredTier}
+                    eventId={event.id}
                   />
                   {cartCountForEvent > 0 && (
                     <div className="mt-6 flex justify-center sm:justify-start">

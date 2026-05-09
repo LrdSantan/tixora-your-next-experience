@@ -31,6 +31,7 @@ type TicketTierRow = {
   price: number;
   total_quantity: number;
   remaining_quantity: number;
+  waitlist_enabled: boolean;
 };
 
 function mapRow(row: EventRow): Event {
@@ -42,6 +43,7 @@ function mapRow(row: EventRow): Event {
     price: t.price,
     total_quantity: t.total_quantity,
     remaining_quantity: t.remaining_quantity,
+    waitlist_enabled: t.waitlist_enabled ?? false,
   }));
   const dateStr = typeof row.date === "string" && row.date.includes("T") ? row.date.split("T")[0] : row.date;
   return {
@@ -97,7 +99,8 @@ export async function fetchEvents(filterActive = true): Promise<Event[]> {
         description,
         price,
         total_quantity,
-        remaining_quantity
+        remaining_quantity,
+        waitlist_enabled
       )
     `
     )
