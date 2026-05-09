@@ -45,6 +45,7 @@ const HighSpeedScannerPage = React.lazy(() => import("./pages/admin/HighSpeedSca
 const SetPasswordPage = React.lazy(() => import("./pages/SetPassword"));
 const EventFeedback = React.lazy(() => import("./pages/EventFeedback"));
 const WaitlistCheckoutPage = React.lazy(() => import("./pages/WaitlistCheckout"));
+const WalletPage = React.lazy(() => import("./pages/Wallet"));
 
 const queryClient = new QueryClient();
 
@@ -128,6 +129,7 @@ const App = () => (
                 <Route path="/set-password" element={<AppLayout showNav={false}><SetPasswordPage /></AppLayout>} />
                 <Route path="/feedback/:eventId" element={<AppLayout showNav={false}><EventFeedback /></AppLayout>} />
                 <Route path="/waitlist-checkout" element={<AppLayout><WaitlistCheckoutPage /></AppLayout>} />
+                <Route path="/wallet" element={<AppLayout><WalletPage /></AppLayout>} />
                 <Route path="*" element={<AppLayout><NotFound /></AppLayout>} />
               </Routes>
             </Suspense>

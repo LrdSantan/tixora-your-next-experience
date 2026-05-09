@@ -94,6 +94,13 @@ function ticketEmailHtml(p: TicketConfirmationPayload): string {
             <img src="${qrSource}" alt="QR Code" width="220" height="220" style="display:block;margin:0 auto;border:4px solid #fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);width:220px;height:220px;"/>
             <p style="margin-top:8px;font-size:11px;color:#888;font-family:monospace;">${t.ticketCode}</p>
           </div>
+
+          <div style="margin-top:20px;text-align:center;">
+            <a href="https://tixoraafrica.com.ng/wallet?ticket=${t.ticketCode}" 
+               style="display:inline-block;background:#1a1a1a;color:#ffffff;text-decoration:none;font-size:13px;font-weight:700;padding:12px 24px;border-radius:10px;">
+              Add to Google Wallet
+            </a>
+          </div>
         </td></tr>
       </table>
     `;

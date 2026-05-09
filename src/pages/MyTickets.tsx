@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Ticket, Search, X, Copy, Check, ExternalLink, Share2 } from "lucide-react";
+import { Ticket, Search, X, Copy, Check, ExternalLink, Share2, Wallet, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -89,6 +89,7 @@ const MyTicketsPage = () => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isSubmittingTransfer, setIsSubmittingTransfer] = useState(false);
   const [isComingSoonModalOpen, setIsComingSoonModalOpen] = useState(false);
+  const [isGeneratingWallet, setIsGeneratingWallet] = useState<string | null>(null);
 
   const meta = user?.user_metadata as { full_name?: string } | undefined;
   const buyerName = meta?.full_name?.trim() || user?.email?.split("@")[0] || "Guest";
@@ -368,6 +369,24 @@ const MyTicketsPage = () => {
       setClearing(false);
     }
   };
+  
+  const handleAddToWallet = async (ticketId: string) => {
+    if (!supabase) return;
+    setIsGeneratingWallet(ticketId);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-google-wallet-pass", {
+        body: { ticket_id: ticketId },
+      });
+      if (error || (data && !data.success)) throw new Error(data?.error || "Failed to generate pass");
+      if (data?.wallet_url) {
+        window.open(data.wallet_url, "_blank");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Could not add to Google Wallet");
+    } finally {
+      setIsGeneratingWallet(null);
+    }
+  };
 
   return (
     <div className="container mx-auto max-w-3xl px-4 py-8">
@@ -493,6 +512,20 @@ const MyTicketsPage = () => {
                             </Button>
                             <Button variant="outline" size="sm" onClick={() => handleTransferInit(row.id)}>
                               Transfer
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleAddToWallet(row.id)}
+                              disabled={isGeneratingWallet === row.id}
+                              className="gap-1.5 border-primary/20 hover:bg-primary/5 hover:text-primary transition-colors"
+                            >
+                              {isGeneratingWallet === row.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Wallet className="h-3.5 w-3.5" />
+                              )}
+                              Wallet
                             </Button>
                           </>
                         )}
