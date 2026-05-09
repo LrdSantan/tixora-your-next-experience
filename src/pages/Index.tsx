@@ -84,10 +84,12 @@ const HomePage = () => {
     [events, q, selectedCategory, datePreset],
   );
 
-  // Trending events: top 6 by quantity_sold, published, and not private
+  // Trending events: top 6 by quantity_sold, active, and not private
   const trendingEvents = useMemo(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     return events
-      .filter(e => e.status === 'published' && !e.is_private && new Date(e.date) >= new Date())
+      .filter(e => e.status === 'active' && !e.is_private && new Date(e.date) >= today)
       .sort((a, b) => (b.quantity_sold || 0) - (a.quantity_sold || 0))
       .slice(0, 6);
   }, [events]);

@@ -55,7 +55,7 @@ export default function DiscoverPage() {
 
   // Filter Logic
   const filteredEvents = useMemo(() => {
-    let result = events.filter(e => e.status === 'published' && !e.is_private);
+    let result = events.filter(e => e.status === 'active' && !e.is_private);
     
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
