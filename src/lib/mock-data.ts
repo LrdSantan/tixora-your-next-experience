@@ -35,6 +35,21 @@ export interface TicketTier {
   waitlist_enabled?: boolean;
 }
 
+export interface RegistrationQuestion {
+  id: string;
+  event_id: string;
+  question_text: string;
+  question_type: 'short_text' | 'long_text' | 'multiple_choice' | 'checkbox';
+  options?: string[];
+  is_required: boolean;
+  display_order: number;
+}
+
+export interface RegistrationAnswer {
+  question_id: string;
+  answer: string;
+}
+
 export const EVENTS: Event[] = [
   {
     id: "1",

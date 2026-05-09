@@ -32,6 +32,7 @@ Deno.serve(async (req) => {
 
     const body: RsvpRequest = await req.json();
     const { event_id, tier_id, name, email, phone, user_id: providedUserId } = body;
+    const registrationAnswers: { question_id: string; answer: string }[] = (body as any).registration_answers ?? [];
 
     if (!event_id || !tier_id || !name || !email) {
       return new Response(JSON.stringify({ success: false, error: "Missing required fields" }), { 
@@ -134,6 +135,19 @@ Deno.serve(async (req) => {
 
     if (ticketError) throw ticketError;
 
+    // 5b. Save registration answers if provided
+    if (registrationAnswers.length > 0) {
+      const answerRows = registrationAnswers
+        .filter((a) => a.question_id && a.answer?.trim())
+        .map((a) => ({ ticket_id: ticket.id, question_id: a.question_id, answer: a.answer }));
+      if (answerRows.length > 0) {
+        const { error: ansErr } = await supabase
+          .from("registration_answers")
+          .upsert(answerRows, { onConflict: "ticket_id,question_id" });
+        if (ansErr) console.error("[rsvp-free-ticket] registration_answers save error:", ansErr);
+      }
+    }
+
     // 6. Update remaining quantity
     await supabase.rpc("decrement_tier_quantity", { tier_id_input: tier_id });
 
@@ -196,7 +210,7 @@ Deno.serve(async (req) => {
             </div>
 
             <div class="qr-section">
-              <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${qr_token}" alt="Ticket QR Code" width="200" height="200" class="qr-img" />
+              <img src="${ticket.qr_code || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${qr_token}`}" alt="Ticket QR Code" width="200" height="200" class="qr-img" />
               <p style="margin: 16px 0 0; font-size: 12px; color: #1A7A4A; font-weight: 700; font-family: 'Courier New', Courier, monospace;">${ticket_code}</p>
               <p style="margin: 8px 0 0; font-size: 11px; color: #888;">Present this QR code at the entrance</p>
             </div>

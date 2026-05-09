@@ -12,6 +12,8 @@ import { useAuth } from "@/contexts/auth-context";
 import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
 import { generatePaymentReference, nairaToKobo, openPaystackInline } from "@/lib/paystack";
 import type { ConfirmationTicket } from "@/lib/confirmation-state";
+import { RegistrationQuestionsForm } from "@/components/RegistrationQuestionsForm";
+import type { RegistrationAnswer } from "@/lib/mock-data";
 
 type PaystackFnResponse = {
   ok?: boolean;
@@ -257,6 +259,7 @@ export default function CheckoutPage() {
   const [paying, setPaying] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [attendee, setAttendee] = useState({ name: "", email: "", phone: "" });
+  const [registrationAnswers, setRegistrationAnswers] = useState<Record<string, string>>({});
 
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<{
@@ -489,6 +492,9 @@ export default function CheckoutPage() {
               : {}),
           };
           if (appliedCoupon) payload.coupon_code = appliedCoupon.code;
+          
+          const answersArray = Object.entries(registrationAnswers).map(([qid, ans]) => ({ question_id: qid, answer: ans }));
+          if (answersArray.length > 0) payload.registration_answers = answersArray;
 
           console.log("[Checkout] Processing free ticket with payload:", payload);
 
@@ -597,7 +603,6 @@ export default function CheckoutPage() {
               lines: lineItems.map((i) => ({ tier_id: i.tierId, quantity: i.quantity })),
               ...(isBuyingForFriend && user
                 ? {
-                    // Friend purchase: tag with recipient_email so ownership goes to the friend
                     recipient_email: attendee.email.trim(),
                     guest_name: attendee.name.trim(),
                     guest_phone: attendee.phone.trim(),
@@ -605,6 +610,9 @@ export default function CheckoutPage() {
                 : {}),
             };
             if (appliedCoupon) payload.coupon_code = appliedCoupon.code;
+
+            const answersArray = Object.entries(registrationAnswers).map(([qid, ans]) => ({ question_id: qid, answer: ans }));
+            if (answersArray.length > 0) payload.registration_answers = answersArray;
 
             console.log("[Checkout] Calling complete-paystack-payment with payload:", payload);
 
@@ -673,6 +681,8 @@ export default function CheckoutPage() {
       for (const item of lineItems) {
         // We call it once per ticket quantity to match the individual ticket logic
         for (let i = 0; i < item.quantity; i++) {
+          const answersArray = Object.entries(registrationAnswers).map(([qid, ans]) => ({ question_id: qid, answer: ans }));
+
           const { data, error } = await supabase.functions.invoke("rsvp-free-ticket", {
             body: {
               event_id: item.eventId,
@@ -680,7 +690,8 @@ export default function CheckoutPage() {
               name: attendee.name,
               email: attendee.email,
               phone: attendee.phone,
-              user_id: user?.id
+              user_id: user?.id,
+              ...(answersArray.length > 0 ? { registration_answers: answersArray } : {}),
             }
           });
 
@@ -1025,6 +1036,22 @@ export default function CheckoutPage() {
                   </div>
                 ))}
               </div>
+
+              {itemsByEvent.length > 0 && itemsByEvent.map(group => (
+                <RegistrationQuestionsForm 
+                  key={group.eventId} 
+                  eventId={group.eventId} 
+                  onChange={(answers) => {
+                    const newAnswers = { ...registrationAnswers };
+                    // Clear out old answers for this event's questions might be complex, 
+                    // but question_id is unique so we just merge.
+                    answers.forEach(a => {
+                      newAnswers[a.question_id] = a.answer;
+                    });
+                    setRegistrationAnswers(newAnswers);
+                  }} 
+                />
+              ))}
 
               {/* Coupon Input in Main Content */}
               {!isAllFree && !appliedCoupon && (

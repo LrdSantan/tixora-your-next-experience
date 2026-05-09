@@ -22,6 +22,8 @@ type Body = {
   guest_phone?: string;
   recipient_email?: string; // set when buyer is buying for a friend
   is_free?: boolean;
+  // Optional registration answers
+  registration_answers?: { question_id: string; answer: string }[];
 };
 
 type PaystackVerifyData = {
@@ -300,6 +302,47 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
 
       const rpcData = { tickets: finalizedTickets };
+
+      // ── Save registration answers (non-blocking) ────────────────────────────
+      const registrationAnswers = (body as any).registration_answers;
+      if (
+        Array.isArray(registrationAnswers) &&
+        registrationAnswers.length > 0 &&
+        finalizedTickets.length > 0
+      ) {
+        try {
+          // Fetch the actual ticket row IDs for this reference
+          const { data: ticketRows } = await admin
+            .from("tickets")
+            .select("id")
+            .eq("reference", reference);
+
+          const ticketIds: string[] = (ticketRows ?? []).map((r: any) => r.id);
+
+          if (ticketIds.length > 0) {
+            const answerRows = ticketIds.flatMap((ticketId) =>
+              registrationAnswers
+                .filter((a: any) => a.question_id && a.answer?.trim())
+                .map((a: any) => ({
+                  ticket_id: ticketId,
+                  question_id: a.question_id,
+                  answer: a.answer,
+                }))
+            );
+
+            if (answerRows.length > 0) {
+              const { error: answersError } = await admin
+                .from("registration_answers")
+                .upsert(answerRows, { onConflict: "ticket_id,question_id" });
+              if (answersError) {
+                console.error(`${LOG} Error saving registration_answers:`, answersError);
+              }
+            }
+          }
+        } catch (answersErr) {
+          console.error(`${LOG} registration_answers save threw:`, answersErr);
+        }
+      }
 
       // Send ticket confirmation email
       if (finalizedTickets.length > 0) {

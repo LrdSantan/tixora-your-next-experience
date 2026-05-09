@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CalendarDays, Plus, MapPin, Calendar, Ticket, Share2, Landmark, Check, ChevronsUpDown, Loader2, Trash2, BarChart3, Scan, Lock, Unlock, Settings, EyeOff, Mail } from "lucide-react";
+import { CalendarDays, Plus, MapPin, Calendar, Ticket, Share2, Landmark, Check, ChevronsUpDown, Loader2, Trash2, BarChart3, Scan, Lock, Unlock, Settings, EyeOff, Mail, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,8 @@ import { formatEventDateDisplay } from "@/lib/date-utils";
 import { getEventImage } from "@/lib/event-image";
 import { EditCoverImageButton } from "@/components/EditCoverImageButton";
 import { OrganizerCouponsModal } from "@/components/OrganizerCouponsModal";
+import { OrganizerGuestList } from "@/components/OrganizerGuestList";
+import { RegistrationQuestionsEditor } from "@/components/RegistrationQuestionsEditor";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -803,6 +805,7 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
   const [isTiersExpanded, setIsTiersExpanded] = useState(false);
   const [isStatsExpanded, setIsStatsExpanded] = useState(false);
   const [isSettingsExpanded, setIsSettingsExpanded] = useState(false);
+  const [isQuestionsExpanded, setIsQuestionsExpanded] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const supabase = getSupabaseClient();
@@ -917,6 +920,18 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
 
               <OrganizerGuestBlastModal event={event} />
 
+              <OrganizerGuestList eventId={event.id} eventTitle={event.title} />
+
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn("h-9 gap-1.5 px-3 border-border hover:bg-muted", isQuestionsExpanded && "bg-muted")}
+                onClick={() => setIsQuestionsExpanded(!isQuestionsExpanded)}
+                title="Registration Questions"
+              >
+                <ClipboardList className="w-3.5 h-3.5" />
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
@@ -1015,6 +1030,10 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
       
       {isTiersExpanded && (
         <OrganizerTiersEditor event={event} onSaved={() => { setIsTiersExpanded(false); onUpdate(); }} />
+      )}
+
+      {isQuestionsExpanded && (
+        <RegistrationQuestionsEditor eventId={event.id} />
       )}
 
       {isSettingsExpanded && (
