@@ -80,7 +80,7 @@ export default function OrganizerDashboard() {
         const tiers = (event.ticket_tiers || []).map(tier => {
           const tierTickets = (event.tickets || []).filter(t => t.tier_id === tier.id);
           const sold_count = tierTickets.reduce((sum, t) => sum + t.quantity, 0);
-          const revenue = tierTickets.reduce((sum, t) => sum + (t.amount_paid / 100), 0);
+          const revenue = tierTickets.reduce((sum, t) => sum + ((t.amount_paid || 0) / 100), 0);
           return { ...tier, sold_count, revenue };
         });
 

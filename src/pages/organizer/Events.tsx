@@ -469,7 +469,7 @@ function OrganizerEventStats({ eventId }: { eventId: string }) {
         const tierMap = new Map<string, { count: number; revenue: number }>();
         
         data.forEach((ticket: any) => {
-          const amount = ticket.amount_paid || 0;
+          const amount = (ticket.amount_paid || 0) / 100;
           const tierName = ticket.ticket_tiers?.name || 'Unknown Tier';
           
           totalRevenue += amount;

@@ -258,7 +258,7 @@ export default function CheckoutPage() {
   const { user, loading: authLoading } = useAuth();
   const [paying, setPaying] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [attendee, setAttendee] = useState({ name: "", email: "", phone: "" });
+  const [attendee, setAttendee] = useState({ name: "", email: "" });
   const [registrationAnswers, setRegistrationAnswers] = useState<Record<string, string>>({});
 
   const [couponCode, setCouponCode] = useState("");
@@ -279,12 +279,9 @@ export default function CheckoutPage() {
     if (user?.email) {
       setAttendee((a) => ({ ...a, email: user.email ?? a.email }));
     }
-    const meta = user?.user_metadata as { full_name?: string, phone?: string } | undefined;
+    const meta = user?.user_metadata as { full_name?: string } | undefined;
     if (meta?.full_name) {
       setAttendee((a) => ({ ...a, name: a.name || meta.full_name || "" }));
-    }
-    if (meta?.phone) {
-      setAttendee((a) => ({ ...a, phone: a.phone || meta.phone || "" }));
     }
   }, [user]);
 
@@ -424,32 +421,20 @@ export default function CheckoutPage() {
   };
 
   const validateAttendee = () => {
-    if (!attendee.name.trim()) {
-      toast.error("Please enter your full name.");
+    if (!attendee.name.trim() || !attendee.email.trim()) {
+      toast.error("Please fill in all required fields.");
       return false;
     }
-    if (!attendee.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(attendee.email)) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(attendee.email.trim())) {
       toast.error("Please enter a valid email address.");
-      return false;
-    }
-    if (!isAllFree && !attendee.phone.trim()) {
-      toast.error("Phone number is required.");
-      return false;
-    }
-    if (attendee.phone.trim() && !isValidPhone(attendee.phone)) {
-      toast.error("Please enter a valid Nigerian phone number.");
       return false;
     }
     return true;
   };
 
-  const isValidPhone = (p: string) => {
-    const phone = p.trim();
-    return /^0\d{10}$/.test(phone) || /^\+234\d{10}$/.test(phone);
-  };
 
-  const phoneHasInput = attendee.phone.trim().length > 0;
-  const isPhoneError = phoneHasInput && !isValidPhone(attendee.phone);
+
 
   const handlePayWithPaystack = () => {
     if (!agreedToTerms) {
@@ -486,7 +471,6 @@ export default function CheckoutPage() {
             is_free: true,
             guest_email: attendee.email.trim(),
             guest_name: attendee.name.trim(),
-            guest_phone: attendee.phone.trim(),
             ...(isBuyingForFriend && user
               ? { recipient_email: attendee.email.trim() }
               : {}),
@@ -605,7 +589,6 @@ export default function CheckoutPage() {
                 ? {
                     recipient_email: attendee.email.trim(),
                     guest_name: attendee.name.trim(),
-                    guest_phone: attendee.phone.trim(),
                   }
                 : {}),
             };
@@ -689,7 +672,6 @@ export default function CheckoutPage() {
               tier_id: item.tierId,
               name: attendee.name,
               email: attendee.email,
-              phone: attendee.phone,
               user_id: user?.id,
               ...(answersArray.length > 0 ? { registration_answers: answersArray } : {}),
             }
@@ -1027,12 +1009,11 @@ export default function CheckoutPage() {
                   [
                     { label: isBuyingForFriend ? "Friend's Full Name" : "Full Name", key: "name" as const, type: "text" },
                     { label: isBuyingForFriend ? "Friend's Email address" : "Email address", key: "email" as const, type: "email" },
-                    { label: "Phone Number", key: "phone" as const, type: "tel" },
                   ] as const
                 ).map((f) => (
                   <div key={f.key} className="space-y-1.5">
                     <label className="text-sm font-medium text-neutral-700">{f.label}</label>
-                    <input type={f.type} value={attendee[f.key]} onChange={(e) => setAttendee({ ...attendee, [f.key]: e.target.value })} className={cn("h-12 w-full rounded-xl border bg-white px-4 text-base md:text-sm outline-none", f.key === "phone" && isPhoneError ? "border-red-500" : "border-neutral-200")} />
+                    <input type={f.type} value={attendee[f.key as keyof typeof attendee]} onChange={(e) => setAttendee({ ...attendee, [f.key]: e.target.value })} className="h-12 w-full rounded-xl border border-neutral-200 bg-white px-4 text-base md:text-sm outline-none" />
                   </div>
                 ))}
               </div>

@@ -19,7 +19,7 @@ const ResellCheckout = () => {
   const [resell, setResell] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
-  const [attendee, setAttendee] = useState({ name: "", email: "", phone: "" });
+  const [attendee, setAttendee] = useState({ name: "", email: "" });
 
   useEffect(() => {
     if (user) {
@@ -79,7 +79,7 @@ const ResellCheckout = () => {
       return;
     }
 
-    if (!attendee.name || !attendee.email || !attendee.phone) {
+    if (!attendee.name || !attendee.email) {
       toast.error("Please fill in all contact details.");
       return;
     }
@@ -187,15 +187,7 @@ const ResellCheckout = () => {
                     onChange={e => setAttendee({...attendee, email: e.target.value})}
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Phone Number</label>
-                  <Input 
-                    type="tel" 
-                    placeholder="08012345678" 
-                    value={attendee.phone}
-                    onChange={e => setAttendee({...attendee, phone: e.target.value})}
-                  />
-                </div>
+
               </div>
 
               <div className="mt-10 rounded-xl bg-primary/5 p-4 border border-primary/10">
