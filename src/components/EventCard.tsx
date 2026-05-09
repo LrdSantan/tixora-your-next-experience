@@ -16,6 +16,7 @@ interface EventCardProps {
 
 const EventCard = React.memo(({ event }: EventCardProps) => {
   const [copied, setCopied] = useState(false);
+  const [imgError, setImgError] = useState(false);
   
   // Calculate lowest price from tiers
   const lowestPrice = event.ticket_tiers && event.ticket_tiers.length > 0
@@ -43,12 +44,13 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
       <div className="bg-card rounded-2xl overflow-hidden border border-border hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full flex flex-col">
         {/* Cover Image */}
         <div className="aspect-[16/9] overflow-hidden flex-shrink-0 bg-muted relative">
-          {event.cover_image ? (
+          {(event.cover_image_url || event.cover_image) && !imgError ? (
             <img
-              src={getEventImage(event)}
+              src={event.cover_image_url || event.cover_image || getEventImage(event)}
               alt={event.title}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 absolute inset-0"
               loading="lazy"
+              onError={() => setImgError(true)}
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
