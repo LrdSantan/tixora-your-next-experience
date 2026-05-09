@@ -51,6 +51,15 @@ type EmailPayload = TicketConfirmationPayload | WelcomePayload;
 // ─── Ticket confirmation email ────────────────────────────────────────────────
 
 function ticketEmailHtml(p: TicketConfirmationPayload): string {
+  const firstT = p.tickets[0];
+  let firstIsoDate = firstT.date;
+  if (firstIsoDate && !firstIsoDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const parsed = new Date(firstIsoDate);
+    if (!isNaN(parsed.getTime())) {
+      firstIsoDate = parsed.toISOString().split('T')[0];
+    }
+  }
+
   const ticketsHtml = p.tickets.map((t, idx) => {
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${t.qrToken}`;
     const qrSource = t.qrCode || qrUrl;
@@ -133,7 +142,32 @@ function ticketEmailHtml(p: TicketConfirmationPayload): string {
   return `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <script type="application/ld+json">
+  {
+    "@context": "http://schema.org",
+    "@type": "EventReservation",
+    "reservationNumber": "${firstT.ticketCode}",
+    "reservationStatus": "http://schema.org/ReservationConfirmed",
+    "underName": {
+      "@type": "Person",
+      "name": "${p.buyerName}"
+    },
+    "reservationFor": {
+      "@type": "Event",
+      "name": "${p.eventTitle}",
+      "startDate": "${firstIsoDate}T${firstT.time || '00:00'}:00",
+      "location": {
+        "@type": "Place",
+        "name": "${firstT.venue}",
+        "address": "${firstT.venue}, ${firstT.city}"
+      }
+    }
+  }
+  </script>
+</head>
 <body style="margin:0;padding:0;background:#f4faf6;font-family:sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
     <tr><td align="center">

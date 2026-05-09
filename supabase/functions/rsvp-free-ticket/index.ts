@@ -160,6 +160,28 @@ Deno.serve(async (req) => {
       <html>
       <head>
         <meta charset="utf-8">
+        <script type="application/ld+json">
+        {
+          "@context": "http://schema.org",
+          "@type": "EventReservation",
+          "reservationNumber": "${ticket_code}",
+          "reservationStatus": "http://schema.org/ReservationConfirmed",
+          "underName": {
+            "@type": "Person",
+            "name": "${name}"
+          },
+          "reservationFor": {
+            "@type": "Event",
+            "name": "${event.title}",
+            "startDate": "${event.date}T${event.time || '00:00'}:00",
+            "location": {
+              "@type": "Place",
+              "name": "${event.venue}",
+              "address": "${event.venue}, ${event.city}"
+            }
+          }
+        }
+        </script>
         <style>
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f4faf6; }
           .container { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
@@ -213,6 +235,27 @@ Deno.serve(async (req) => {
               <img src="${ticket.qr_code || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${qr_token}`}" alt="Ticket QR Code" width="200" height="200" class="qr-img" />
               <p style="margin: 16px 0 0; font-size: 12px; color: #1A7A4A; font-weight: 700; font-family: 'Courier New', Courier, monospace;">${ticket_code}</p>
               <p style="margin: 8px 0 0; font-size: 11px; color: #888;">Present this QR code at the entrance</p>
+            </div>
+
+            <div style="margin-top:20px;text-align:center;">
+              <a href="https://tixoraafrica.com.ng/wallet?ticket=${ticket_code}" 
+                 style="display:inline-block;background:#1a1a1a;color:#ffffff;text-decoration:none;font-size:13px;font-weight:700;padding:12px 24px;border-radius:10px;">
+                Add to Google Wallet
+              </a>
+            </div>
+
+            <div style="margin-top:16px;text-align:center;border-top:1px solid #eee;padding-top:16px;">
+              <p style="margin:0 0 10px;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Add to Calendar</p>
+              <div style="display:inline-block;">
+                <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.title)}&dates=${event.date.replace(/-/g, '')}T${(event.time || '00:00').replace(/:/g, '')}00Z/${event.date.replace(/-/g, '')}T${(parseInt((event.time || '00:00').split(':')[0]) + 2).toString().padStart(2, '0')}${(event.time || '00:00').split(':')[1]}00Z&details=${encodeURIComponent(`My ticket for ${event.title}. Ticket code: ${ticket_code}. Powered by Tixora.`)}&location=${encodeURIComponent(`${event.venue}, ${event.city}`)}" 
+                   style="color:#1A7A4A;text-decoration:none;font-size:12px;font-weight:600;margin:0 8px;">Google</a>
+                <span style="color:#ddd;">|</span>
+                <a href="https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(event.title)}&startdt=${event.date}T${event.time || '00:00'}:00Z&enddt=${event.date}T${(parseInt((event.time || '00:00').split(':')[0]) + 2).toString().padStart(2, '0')}:${(event.time || '00:00').split(':')[1]}:00Z&body=${encodeURIComponent(`My ticket for ${event.title}. Ticket code: ${ticket_code}. Powered by Tixora.`)}&location=${encodeURIComponent(`${event.venue}, ${event.city}`)}"
+                   style="color:#1A7A4A;text-decoration:none;font-size:12px;font-weight:600;margin:0 8px;">Outlook</a>
+                <span style="color:#ddd;">|</span>
+                <a href="https://tixoraafrica.com.ng/calendar.ics?title=${encodeURIComponent(event.title)}&date=${event.date}&time=${event.time || '00:00'}&location=${encodeURIComponent(`${event.venue}, ${event.city}`)}&description=${encodeURIComponent(`My ticket for ${event.title}. Ticket code: ${ticket_code}. Powered by Tixora.`)}"
+                   style="color:#1A7A4A;text-decoration:none;font-size:12px;font-weight:600;margin:0 8px;">Apple / ICS</a>
+              </div>
             </div>
           </div>
           <div class="footer">
