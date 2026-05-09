@@ -13,6 +13,12 @@ import { TicketDownloadBlock } from "@/components/TicketDownloadBlock";
 import type { TicketVisualModel } from "@/components/TicketVisualCard";
 import { TicketVisualCardSkeleton } from "@/components/TicketVisualCardSkeleton";
 import { isEventDatePassed } from "@/lib/ticket-utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
 import {
