@@ -36,6 +36,7 @@ const PrivacyPage = React.lazy(() => import("./pages/Privacy"));
 const TermsPage = React.lazy(() => import("./pages/Terms"));
 const FAQPage = React.lazy(() => import("./pages/FAQ"));
 const ResellMarketplace = React.lazy(() => import("./pages/ResellMarketplace"));
+const DiscoverPage = React.lazy(() => import("./pages/Discover"));
 const ResellCheckout = React.lazy(() => import("./pages/ResellCheckout"));
 const ClaimTicket = React.lazy(() => import("./pages/ClaimTicket"));
 const SettingsPage = React.lazy(() => import("./pages/Settings"));
@@ -116,6 +117,7 @@ const App = () => (
                 <Route path="/privacy" element={<AppLayout><PrivacyPage /></AppLayout>} />
                 <Route path="/terms" element={<AppLayout><TermsPage /></AppLayout>} />
                 <Route path="/faq" element={<AppLayout><FAQPage /></AppLayout>} />
+                <Route path="/discover" element={<AppLayout><DiscoverPage /></AppLayout>} />
                 <Route path="/marketplace" element={<AppLayout><ResellMarketplace /></AppLayout>} />
                 <Route path="/resell/checkout/:resellId" element={<AppLayout><ResellCheckout /></AppLayout>} />
                 <Route path="/claim-ticket/:transferToken" element={<AppLayout><ClaimTicket /></AppLayout>} />

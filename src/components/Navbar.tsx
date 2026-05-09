@@ -106,16 +106,16 @@ const Navbar = () => {
               </Button>
             </Link>
           )}
+          <Link to="/discover" className="hidden sm:block">
+            <Button variant="ghost" size="sm" className="text-foreground gap-1.5">
+              <Tag className="w-4 h-4" />
+              Discover
+            </Button>
+          </Link>
           <Link to="/my-tickets" className="hidden sm:block">
             <Button variant="ghost" size="sm" className="text-foreground gap-1.5">
               <Ticket className="w-4 h-4" />
               My tickets
-            </Button>
-          </Link>
-          <Link to="/marketplace" className="hidden sm:block">
-            <Button variant="ghost" size="sm" className="text-foreground gap-1.5">
-              <Tag className="w-4 h-4" />
-              Marketplace
             </Button>
           </Link>
           <Link to="/create-event" className="hidden sm:block">
@@ -254,18 +254,18 @@ const Navbar = () => {
                 </Link>
               )}
               <Link
+                to="/discover"
+                onClick={() => setMobileOpen(false)}
+                className="w-full py-5 text-center text-[19px] font-medium border-b border-muted transition-colors hover:text-primary"
+              >
+                Discover
+              </Link>
+              <Link
                 to="/my-tickets"
                 onClick={() => setMobileOpen(false)}
                 className="w-full py-5 text-center text-[19px] font-medium border-b border-muted transition-colors hover:text-primary"
               >
                 My Tickets
-              </Link>
-              <Link
-                to="/marketplace"
-                onClick={() => setMobileOpen(false)}
-                className="w-full py-5 text-center text-[19px] font-medium border-b border-muted transition-colors hover:text-primary"
-              >
-                Marketplace
               </Link>
               <Link
                 to="/create-event"

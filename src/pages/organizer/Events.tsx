@@ -21,6 +21,8 @@ import { OrganizerGuestList } from "@/components/OrganizerGuestList";
 import { RegistrationQuestionsEditor } from "@/components/RegistrationQuestionsEditor";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { EVENT_CATEGORIES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 const NIGERIAN_BANKS = [
@@ -671,9 +673,46 @@ function OrganizerEventSettings({ event, onUpdate }: { event: OrganizerEvent, on
     }
   };
 
+  const handleUpdateCategory = async (val: string) => {
+    if (!supabase) return;
+    setIsUpdating(true);
+    try {
+      const { error } = await supabase
+        .from("events")
+        .update({ category: val })
+        .eq("id", event.id);
+
+      if (error) throw error;
+      toast.success("Event category updated!");
+      onUpdate();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update category");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   return (
-    <div className="mt-2 pt-3 border-t border-border space-y-3 bg-muted/30 rounded-lg p-4 mx-4 mb-4">
-      <div className="flex items-center justify-between">
+    <div className="mt-2 pt-3 border-t border-border space-y-5 bg-muted/30 rounded-lg p-4 mx-4 mb-4">
+      <div className="space-y-2">
+        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Event Category</Label>
+        <Select 
+          value={event.category} 
+          onValueChange={handleUpdateCategory}
+          disabled={isUpdating}
+        >
+          <SelectTrigger className="bg-background">
+            <SelectValue placeholder="Select category" />
+          </SelectTrigger>
+          <SelectContent>
+            {EVENT_CATEGORIES.map(c => (
+              <SelectItem key={c} value={c}>{c}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex items-center justify-between border-t border-border/50 pt-3">
         <div className="space-y-0.5">
           <Label className="text-sm font-semibold flex items-center gap-2">
             <EyeOff className="w-3.5 h-3.5 text-primary" /> Private Event

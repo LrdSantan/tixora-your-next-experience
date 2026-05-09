@@ -1,4 +1,4 @@
-import { ArrowRight, Music, Trophy, Theater, Laugh, PartyPopper, CalendarRange } from "lucide-react";
+import { ArrowRight, CalendarRange } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import EventCard from "@/components/EventCard";
@@ -11,14 +11,8 @@ import { filterEvents, parseDatePreset, type DateFilterPreset } from "@/lib/even
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EventSearchInput } from "@/components/EventSearchInput";
 import { IndexScanAccess } from "@/components/IndexScanAccess";
-
-const CATEGORIES = [
-  { name: "Concerts", icon: Music },
-  { name: "Sports", icon: Trophy },
-  { name: "Theatre", icon: Theater },
-  { name: "Comedy", icon: Laugh },
-  { name: "Festivals", icon: PartyPopper },
-] as const;
+import { EVENT_CATEGORIES, CATEGORY_COLORS } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 function EventsEmptyState({
   onClear,
@@ -52,10 +46,7 @@ function EventsEmptyState({
   );
 }
 
-
-
 const HomePage = () => {
-  const scrollRef = useRef<HTMLDivElement>(null);
   const browseRef = useRef<HTMLElement>(null);
   const { data: events = [], isLoading, isError } = useEvents();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -63,7 +54,7 @@ const HomePage = () => {
   const q = searchParams.get("q") ?? "";
   const categoryFromUrl = searchParams.get("cat");
   const selectedCategory =
-    categoryFromUrl && CATEGORIES.some((c) => c.name === categoryFromUrl) ? categoryFromUrl : null;
+    categoryFromUrl && EVENT_CATEGORIES.includes(categoryFromUrl as any) ? categoryFromUrl : null;
   const datePreset: DateFilterPreset = parseDatePreset(searchParams.get("when"));
 
   const setQuery = useCallback(
@@ -93,6 +84,14 @@ const HomePage = () => {
     [events, q, selectedCategory, datePreset],
   );
 
+  // Trending events: top 6 by quantity_sold, published, and not private
+  const trendingEvents = useMemo(() => {
+    return events
+      .filter(e => e.status === 'published' && !e.is_private && new Date(e.date) >= new Date())
+      .sort((a, b) => (b.quantity_sold || 0) - (a.quantity_sold || 0))
+      .slice(0, 6);
+  }, [events]);
+
   const hasActiveFilters = Boolean(q.trim() || selectedCategory || datePreset !== "all");
   const showEmpty = !isLoading && !isError && filteredEvents.length === 0;
   const noData = events.length === 0;
@@ -106,11 +105,8 @@ const HomePage = () => {
       <Helmet>
         <title>Tixora — Book Events in Nigeria</title>
         <meta name="description" content="Discover and book tickets for the best events in Nigeria. Concerts, sports, food festivals and more on Tixora." />
-        <meta property="og:title" content="Tixora — Book Events in Nigeria" />
-        <meta property="og:description" content="Discover and book tickets for the best events in Nigeria." />
-        <meta property="og:image" content="https://tixoraafrica.com.ng/favicon-32x32.png?v=2" />
-        <meta property="og:url" content="https://tixoraafrica.com.ng" />
       </Helmet>
+      
       <section className="bg-hero text-primary-foreground">
         <div className="container mx-auto px-4 py-20 md:py-28 text-center space-y-6">
           <h1 className="text-3xl md:text-6xl font-extrabold leading-tight animate-fade-in-up px-2">
@@ -150,7 +146,7 @@ const HomePage = () => {
       <section ref={browseRef} id="browse-events" className="container mx-auto px-4 py-12 scroll-mt-20">
         <h2 className="text-2xl font-bold text-foreground mb-6">Browse by Category</h2>
         <div className="flex flex-wrap gap-3 mb-8">
-          {CATEGORIES.map(({ name, icon: Icon }) => {
+          {EVENT_CATEGORIES.map((name) => {
             const selected = selectedCategory === name;
             return (
               <button
@@ -158,17 +154,18 @@ const HomePage = () => {
                 type="button"
                 aria-pressed={selected}
                 onClick={() => setQuery({ cat: selected ? null : name })}
-                className={`flex items-center gap-2 px-5 py-3 rounded-full border transition-all group ${
+                className={cn(
+                  "flex items-center gap-2 px-5 py-3 rounded-full border transition-all group",
                   selected
                     ? "bg-primary text-primary-foreground border-primary shadow-sm"
                     : "bg-background border-border hover:bg-accent hover:border-primary/30"
-                }`}
+                )}
               >
-                <Icon className={`w-4 h-4 ${selected ? "text-primary-foreground" : "text-primary"}`} />
                 <span
-                  className={`text-sm font-medium ${
+                  className={cn(
+                    "text-sm font-medium",
                     selected ? "text-primary-foreground" : "text-foreground group-hover:text-primary transition-colors"
-                  }`}
+                  )}
                 >
                   {name}
                 </span>
@@ -197,42 +194,20 @@ const HomePage = () => {
               </SelectContent>
             </Select>
           </div>
-          {!isLoading && !isError && (
-            <p className="text-sm text-muted-foreground">
-              {filteredEvents.length === events.length
-                ? `${filteredEvents.length} event${filteredEvents.length === 1 ? "" : "s"}`
-                : `${filteredEvents.length} of ${events.length} event${events.length === 1 ? "" : "s"}`}
-            </p>
-          )}
         </div>
       </section>
 
       {isLoading ? (
-        <>
-          <section className="container mx-auto px-4 py-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-foreground">Featured Events</h2>
-            </div>
-            <div className="flex gap-5 overflow-x-auto pb-4">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="min-w-[280px] w-[320px] max-w-[320px] flex-shrink-0 animate-pulse">
-                  <EventCardSkeleton />
-                </div>
-              ))}
-            </div>
-          </section>
-          <section className="container mx-auto px-4 py-12">
-            <h2 className="text-2xl font-bold text-foreground mb-6">Upcoming Events</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <EventCardSkeleton key={i} />
-              ))}
-            </div>
-          </section>
-        </>
+        <section className="container mx-auto px-4 py-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <EventCardSkeleton key={i} />
+            ))}
+          </div>
+        </section>
       ) : isError ? (
         <section className="container mx-auto px-4 py-8">
-          <p className="text-sm text-muted-foreground">Could not load events. Showing cached or offline data if available.</p>
+          <p className="text-sm text-muted-foreground">Could not load events.</p>
         </section>
       ) : showEmpty ? (
         <section className="container mx-auto px-4 py-8 pb-16">
@@ -244,28 +219,28 @@ const HomePage = () => {
         </section>
       ) : (
         <>
-          <section className="container mx-auto px-4 py-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-foreground">Featured Events</h2>
-              <Link to="/" className="text-sm text-primary font-medium hover:underline">
-                View All
-              </Link>
-            </div>
-            <div
-              ref={scrollRef}
-              className="flex gap-5 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide"
-              style={{ scrollbarWidth: "none" }}
-            >
-              {filteredEvents.slice(0, 4).map((event) => (
-                <div key={event.id} className="min-w-[280px] max-w-[320px] snap-start flex-shrink-0">
-                  <EventCard event={event} />
-                </div>
-              ))}
-            </div>
-          </section>
+          {/* Trending Section */}
+          {!hasActiveFilters && trendingEvents.length > 0 && (
+            <section className="container mx-auto px-4 py-8">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-foreground">Trending Events</h2>
+                <Link to="/discover" className="text-sm text-primary font-medium hover:underline">
+                  View All
+                </Link>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {trendingEvents.map((event) => (
+                  <EventCard key={event.id} event={event} />
+                ))}
+              </div>
+            </section>
+          )}
 
-          <section className="container mx-auto px-4 py-12">
-            <h2 className="text-2xl font-bold text-foreground mb-6">Upcoming Events</h2>
+          {/* Regular Grid */}
+          <section className="container mx-auto px-4 py-12 border-t border-border/50">
+            <h2 className="text-2xl font-bold text-foreground mb-6">
+              {hasActiveFilters ? "Search Results" : "Upcoming Events"}
+            </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredEvents.map((event) => (
                 <EventCard key={event.id} event={event} />

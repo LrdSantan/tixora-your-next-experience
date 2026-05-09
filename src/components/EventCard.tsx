@@ -1,12 +1,14 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { MapPin, Calendar, Copy, Check } from "lucide-react";
+import { MapPin, Calendar, Copy, Check, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatPrice, formatDate, type Event } from "@/lib/mock-data";
+import { formatPrice, type Event } from "@/lib/mock-data";
 import { formatEventDateDisplay } from "@/lib/date-utils";
 import { getEventImage } from "@/lib/event-image";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { CATEGORY_COLORS, type EventCategory } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 interface EventCardProps {
   event: Event;
@@ -14,13 +16,17 @@ interface EventCardProps {
 
 const EventCard = React.memo(({ event }: EventCardProps) => {
   const [copied, setCopied] = useState(false);
-  const lowestPrice = Math.min(...event.ticket_tiers.map((t) => t.price));
+  
+  // Calculate lowest price from tiers
+  const lowestPrice = event.ticket_tiers && event.ticket_tiers.length > 0
+    ? Math.min(...event.ticket_tiers.map((t) => t.price))
+    : 0;
 
   const handleCopy = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
-    const url = `https://tixoraafrica.com.ng/events/${event.id}`;
+    const url = `${window.location.origin}/events/${event.id}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       toast.success("Event link copied!");
@@ -30,24 +36,27 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
     });
   };
 
+  const categoryColor = CATEGORY_COLORS[event.category as EventCategory] || CATEGORY_COLORS['Other'];
+
   return (
     <Link to={`/events/${event.id}`} className="group block h-full">
-      <div className="bg-card rounded-xl overflow-hidden border border-border hover:shadow-lg transition-all duration-300 hover:-translate-y-1 h-full flex flex-col">
-        <div className="aspect-[16/10] overflow-hidden flex-shrink-0 bg-muted relative">
-          <img
-            src={getEventImage(event)}
-            alt={event.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 absolute inset-0"
-            loading="lazy"
-            width={800}
-            height={512}
-          />
-          <div className="absolute top-2 right-2 flex flex-col items-end gap-2">
-            {event.is_multi_day && (
-              <Badge className="bg-primary text-primary-foreground border-none font-bold text-[10px] px-2 py-0.5 shadow-sm uppercase tracking-tighter">
-                Multi-day
-              </Badge>
-            )}
+      <div className="bg-card rounded-2xl overflow-hidden border border-border hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full flex flex-col">
+        {/* Cover Image */}
+        <div className="aspect-[16/9] overflow-hidden flex-shrink-0 bg-muted relative">
+          {event.cover_image ? (
+            <img
+              src={getEventImage(event)}
+              alt={event.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 absolute inset-0"
+              loading="lazy"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+              <Calendar className="w-10 h-10 text-primary/40" />
+            </div>
+          )}
+          
+          <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
             <button
               onClick={handleCopy}
               className="p-2 rounded-full bg-white/90 backdrop-blur-sm shadow-sm border border-neutral-200 text-neutral-600 hover:text-primary hover:bg-white transition-all active:scale-95"
@@ -60,28 +69,61 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
               )}
             </button>
           </div>
+
+          {/* Tickets Sold Badge */}
+          {event.quantity_sold > 0 && (
+            <div className="absolute bottom-3 left-3">
+              <Badge className="bg-black/60 backdrop-blur-md text-white border-none flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase">
+                <TrendingUp className="w-3 h-3" />
+                {event.quantity_sold.toLocaleString()} Sold
+              </Badge>
+            </div>
+          )}
         </div>
-        <div className="p-4 flex flex-col flex-1">
-          <span className="inline-block text-[11px] font-semibold uppercase tracking-wider text-primary bg-accent px-2.5 py-1 rounded-full w-fit">
-            {event.category}
-          </span>
-          {/* Title always takes exactly 2 lines worth of space */}
-          <h3 className="font-bold text-foreground text-base leading-tight line-clamp-2 group-hover:text-primary transition-colors mt-2 min-h-[2.5rem]">
+
+        <div className="p-5 flex flex-col flex-1">
+          {/* Category */}
+          <div className="mb-3">
+            <span className={cn(
+              "inline-block text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg border",
+              categoryColor
+            )}>
+              {event.category || 'Event'}
+            </span>
+          </div>
+
+          {/* Title */}
+          <h3 className="font-bold text-foreground text-lg leading-snug line-clamp-2 group-hover:text-primary transition-colors min-h-[3rem]">
             {event.title}
           </h3>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2">
-            <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
-            <span>{formatEventDateDisplay(event.date, event.is_multi_day || false, event.event_days || [])}</span>
+
+          {/* Details */}
+          <div className="space-y-2 mt-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Calendar className="w-4 h-4 text-primary shrink-0" />
+              <span className="truncate">
+                {formatEventDateDisplay(event.date, event.is_multi_day || false, event.event_days || [])}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <MapPin className="w-4 h-4 text-primary shrink-0" />
+              <span className="truncate">{event.venue}, {event.city}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
-            <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
-            <span className="line-clamp-1">{event.venue}, {event.city}</span>
-          </div>
-          {/* Push price + button to bottom of card always */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-3 mt-auto border-t border-border gap-3">
-            <p className="text-sm font-bold text-primary">{lowestPrice === 0 ? "Free" : `From ${formatPrice(lowestPrice)}`}</p>
-            <Button size="sm" className="bg-primary text-primary-foreground text-xs h-10 px-4 w-full sm:w-auto">
-              Get Tickets
+
+          {/* Bottom section */}
+          <div className="flex items-center justify-between pt-4 mt-auto border-t border-border/50">
+            <div className="flex flex-col">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-tight">Starting from</span>
+              <p className={cn(
+                "text-base font-extrabold",
+                lowestPrice === 0 ? "text-green-600" : "text-foreground"
+              )}>
+                {lowestPrice === 0 ? "Free" : formatPrice(lowestPrice)}
+              </p>
+            </div>
+            <Button size="sm" className="bg-primary text-primary-foreground font-bold rounded-xl h-9">
+              View Event
             </Button>
           </div>
         </div>
@@ -92,4 +134,4 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
 
 EventCard.displayName = "EventCard";
 
-export default EventCard; 
+export default EventCard;

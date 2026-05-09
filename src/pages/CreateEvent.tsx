@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth-context";
-import { CATEGORIES } from "@/lib/mock-data";
+import { EVENT_CATEGORIES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 const NIGERIAN_BANKS = [
@@ -307,10 +307,9 @@ export default function CreateEvent() {
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {CATEGORIES.map(c => (
-                      <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
+                    {EVENT_CATEGORIES.map(c => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
                     ))}
-                    <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
                 {errors.category && <p className="text-xs text-destructive">{errors.category}</p>}
