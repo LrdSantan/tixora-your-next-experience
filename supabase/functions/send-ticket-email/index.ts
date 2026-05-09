@@ -55,6 +55,16 @@ function ticketEmailHtml(p: TicketConfirmationPayload): string {
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${t.qrToken}`;
     const qrSource = t.qrCode || qrUrl;
     
+    // Normalize date to YYYY-MM-DD format for calendar links
+    const rawDate = t.date;
+    let isoDate = rawDate;
+    if (rawDate && !rawDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const parsed = new Date(rawDate);
+      if (!isNaN(parsed.getTime())) {
+        isoDate = parsed.toISOString().split('T')[0];
+      }
+    }
+    
     return `
       <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4faf6;border:1px solid #d0ead9;border-radius:12px;padding:24px;margin-bottom:16px;">
         <tr><td>
@@ -105,10 +115,10 @@ function ticketEmailHtml(p: TicketConfirmationPayload): string {
           <div style="margin-top:16px;text-align:center;border-top:1px solid #eee;padding-top:16px;">
             <p style="margin:0 0 10px;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Add to Calendar</p>
             <div style="display:inline-block;">
-              <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(p.eventTitle)}&dates=${t.date.replace(/-/g, '')}T${t.time.replace(/:/g, '')}00Z/${t.date.replace(/-/g, '')}T${(parseInt(t.time.split(':')[0] || '00') + 2).toString().padStart(2, '0')}${t.time.split(':')[1] || '00'}00Z&details=${encodeURIComponent(`My ticket for ${p.eventTitle}. Ticket code: ${t.ticketCode}. Powered by Tixora.`)}&location=${encodeURIComponent(`${t.venue}, ${t.city}`)}" 
+              <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(p.eventTitle)}&dates=${isoDate.replace(/-/g, '')}T${t.time.replace(/:/g, '')}00Z/${isoDate.replace(/-/g, '')}T${(parseInt(t.time.split(':')[0] || '00') + 2).toString().padStart(2, '0')}${t.time.split(':')[1] || '00'}00Z&details=${encodeURIComponent(`My ticket for ${p.eventTitle}. Ticket code: ${t.ticketCode}. Powered by Tixora.`)}&location=${encodeURIComponent(`${t.venue}, ${t.city}`)}" 
                  style="color:#1A7A4A;text-decoration:none;font-size:12px;font-weight:600;margin:0 8px;">Google</a>
               <span style="color:#ddd;">|</span>
-              <a href="https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(p.eventTitle)}&startdt=${t.date}T${t.time}:00Z&enddt=${t.date}T${(parseInt(t.time.split(':')[0] || '00') + 2).toString().padStart(2, '0')}:${t.time.split(':')[1] || '00'}:00Z&body=${encodeURIComponent(`My ticket for ${p.eventTitle}. Ticket code: ${t.ticketCode}. Powered by Tixora.`)}&location=${encodeURIComponent(`${t.venue}, ${t.city}`)}"
+              <a href="https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(p.eventTitle)}&startdt=${isoDate}T${t.time}:00Z&enddt=${isoDate}T${(parseInt(t.time.split(':')[0] || '00') + 2).toString().padStart(2, '0')}:${t.time.split(':')[1] || '00'}:00Z&body=${encodeURIComponent(`My ticket for ${p.eventTitle}. Ticket code: ${t.ticketCode}. Powered by Tixora.`)}&location=${encodeURIComponent(`${t.venue}, ${t.city}`)}"
                  style="color:#1A7A4A;text-decoration:none;font-size:12px;font-weight:600;margin:0 8px;">Outlook</a>
               <span style="color:#ddd;">|</span>
               <a href="https://tixoraafrica.com.ng/calendar.ics?title=${encodeURIComponent(p.eventTitle)}&date=${t.date}&time=${t.time}&location=${encodeURIComponent(`${t.venue}, ${t.city}`)}&description=${encodeURIComponent(`My ticket for ${p.eventTitle}. Ticket code: ${t.ticketCode}. Powered by Tixora.`)}"
