@@ -306,16 +306,16 @@ export default function VerifyTicketPage() {
       const ev = data.events;
       let currentMode: "standard" | "express" = "standard";
       if (ev) {
-        setScannerModeLocked(ev.scanner_mode_locked || false);
-        const defaultMode = ev.scanner_mode || "standard";
-        if (ev.scanner_mode_locked) {
-          currentMode = defaultMode;
-          setScannerMode(defaultMode);
-        } else {
-          const savedMode = localStorage.getItem(`tixora_scanner_mode_${data.event_id}`) as "standard" | "express";
-          currentMode = savedMode === "standard" || savedMode === "express" ? savedMode : defaultMode;
-          setScannerMode(currentMode);
-        }
+        const locked = ev.scanner_mode_locked || false;
+        const mode = ev.scanner_mode || "standard";
+        
+        setScannerModeLocked(locked);
+        
+        // Always respect the locked setting. 
+        // If not locked, we still default to the event's mode on every scan/load 
+        // as per the requirement "not freely toggled by the scanner operator".
+        setScannerMode(mode);
+        currentMode = mode;
       }
 
       const guestName = data.guest_name || `Ref: ${data.reference}`;
@@ -615,9 +615,6 @@ export default function VerifyTicketPage() {
 
   const handleModeChange = (mode: "standard" | "express") => {
     setScannerMode(mode);
-    if (ticket?.event_id) {
-      localStorage.setItem(`tixora_scanner_mode_${ticket.event_id}`, mode);
-    }
   };
 
   const handleMarkUsed = () => {
@@ -629,43 +626,50 @@ export default function VerifyTicketPage() {
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-bold text-sm text-neutral-800">Scanner Mode</h3>
         {scannerModeLocked && (
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded-md border border-amber-100">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-[#1A7A4A] bg-[#1A7A4A]/5 px-2.5 py-1 rounded-full border border-[#1A7A4A]/20">
             <Lock className="w-3.5 h-3.5" />
-            Locked by organizer
+            Locked
           </div>
         )}
       </div>
       
-      <div className="flex bg-neutral-100 p-1 rounded-xl mb-3 relative">
-        <button
-          disabled={scannerModeLocked}
-          onClick={() => handleModeChange("standard")}
-          className={cn(
-            "flex-1 py-2 text-sm font-bold rounded-lg transition-all duration-200 z-10",
-            scannerMode === "standard" ? "text-white" : "text-neutral-500 hover:text-neutral-700",
-            scannerModeLocked && "opacity-50 cursor-not-allowed"
-          )}
-        >
-          STANDARD
-        </button>
-        <button
-          disabled={scannerModeLocked}
-          onClick={() => handleModeChange("express")}
-          className={cn(
-            "flex-1 py-2 text-sm font-bold rounded-lg transition-all duration-200 z-10",
-            scannerMode === "express" ? "text-white" : "text-neutral-500 hover:text-neutral-700",
-            scannerModeLocked && "opacity-50 cursor-not-allowed"
-          )}
-        >
-          EXPRESS
-        </button>
-        <div 
-          className={cn(
-            "absolute top-1 bottom-1 w-[calc(50%-4px)] bg-[#1A7A4A] rounded-lg shadow-sm transition-transform duration-300 ease-in-out",
-            scannerMode === "express" ? "translate-x-[calc(100%+8px)]" : "translate-x-0"
-          )}
-        />
-      </div>
+      {scannerModeLocked ? (
+        <div className="flex items-center justify-center gap-3 py-4 bg-[#1A7A4A]/5 border border-[#1A7A4A]/10 rounded-xl mb-2">
+          <div className="w-8 h-8 rounded-full bg-[#1A7A4A]/10 flex items-center justify-center">
+            <Lock className="w-4 h-4 text-[#1A7A4A]" />
+          </div>
+          <span className="font-black text-lg text-[#1A7A4A] uppercase tracking-wider">
+            {scannerMode === "express" ? "Express Mode" : "Standard Mode"}
+          </span>
+        </div>
+      ) : (
+        <div className="flex bg-neutral-100 p-1 rounded-xl mb-3 relative">
+          <button
+            onClick={() => handleModeChange("standard")}
+            className={cn(
+              "flex-1 py-2 text-sm font-bold rounded-lg transition-all duration-200 z-10",
+              scannerMode === "standard" ? "text-white" : "text-neutral-500 hover:text-neutral-700"
+            )}
+          >
+            STANDARD
+          </button>
+          <button
+            onClick={() => handleModeChange("express")}
+            className={cn(
+              "flex-1 py-2 text-sm font-bold rounded-lg transition-all duration-200 z-10",
+              scannerMode === "express" ? "text-white" : "text-neutral-500 hover:text-neutral-700"
+            )}
+          >
+            EXPRESS
+          </button>
+          <div 
+            className={cn(
+              "absolute top-1 bottom-1 w-[calc(50%-4px)] bg-[#1A7A4A] rounded-lg shadow-sm transition-transform duration-300 ease-in-out",
+              scannerMode === "express" ? "translate-x-[calc(100%+8px)]" : "translate-x-0"
+            )}
+          />
+        </div>
+      )}
       <p className="text-xs text-neutral-500 text-center font-medium">
         {scannerMode === "standard" 
           ? "Review guest info before checking in" 
