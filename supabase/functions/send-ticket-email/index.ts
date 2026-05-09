@@ -101,6 +101,20 @@ function ticketEmailHtml(p: TicketConfirmationPayload): string {
               Add to Google Wallet
             </a>
           </div>
+
+          <div style="margin-top:16px;text-align:center;border-top:1px solid #eee;padding-top:16px;">
+            <p style="margin:0 0 10px;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Add to Calendar</p>
+            <div style="display:inline-block;">
+              <a href="https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(p.eventTitle)}&dates=${t.date.replace(/-/g, '')}T${t.time.replace(/:/g, '')}00Z/${t.date.replace(/-/g, '')}T${(parseInt(t.time.split(':')[0] || '00') + 2).toString().padStart(2, '0')}${t.time.split(':')[1] || '00'}00Z&details=${encodeURIComponent(`My ticket for ${p.eventTitle}. Ticket code: ${t.ticketCode}. Powered by Tixora.`)}&location=${encodeURIComponent(`${t.venue}, ${t.city}`)}" 
+                 style="color:#1A7A4A;text-decoration:none;font-size:12px;font-weight:600;margin:0 8px;">Google</a>
+              <span style="color:#ddd;">|</span>
+              <a href="https://outlook.live.com/calendar/0/deeplink/compose?subject=${encodeURIComponent(p.eventTitle)}&startdt=${t.date}T${t.time}:00Z&enddt=${t.date}T${(parseInt(t.time.split(':')[0] || '00') + 2).toString().padStart(2, '0')}:${t.time.split(':')[1] || '00'}:00Z&body=${encodeURIComponent(`My ticket for ${p.eventTitle}. Ticket code: ${t.ticketCode}. Powered by Tixora.`)}&location=${encodeURIComponent(`${t.venue}, ${t.city}`)}"
+                 style="color:#1A7A4A;text-decoration:none;font-size:12px;font-weight:600;margin:0 8px;">Outlook</a>
+              <span style="color:#ddd;">|</span>
+              <a href="https://tixoraafrica.com.ng/calendar.ics?title=${encodeURIComponent(p.eventTitle)}&date=${t.date}&time=${t.time}&location=${encodeURIComponent(`${t.venue}, ${t.city}`)}&description=${encodeURIComponent(`My ticket for ${p.eventTitle}. Ticket code: ${t.ticketCode}. Powered by Tixora.`)}"
+                 style="color:#1A7A4A;text-decoration:none;font-size:12px;font-weight:600;margin:0 8px;">Apple / ICS</a>
+            </div>
+          </div>
         </td></tr>
       </table>
     `;

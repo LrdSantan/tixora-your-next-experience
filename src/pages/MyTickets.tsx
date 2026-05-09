@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Ticket, Search, X, Copy, Check, ExternalLink, Share2, Wallet, Loader2 } from "lucide-react";
+import { Ticket, Search, X, Copy, Check, ExternalLink, Share2, Wallet, Loader2, Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -13,14 +13,15 @@ import { TicketDownloadBlock } from "@/components/TicketDownloadBlock";
 import type { TicketVisualModel } from "@/components/TicketVisualCard";
 import { TicketVisualCardSkeleton } from "@/components/TicketVisualCardSkeleton";
 import { isEventDatePassed } from "@/lib/ticket-utils";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { generateCalendarLinks, downloadIcs } from "@/lib/calendar";
 
 type TicketRow = {
   id: string;
@@ -388,6 +389,23 @@ const MyTicketsPage = () => {
     }
   };
 
+  const handleCalendar = (row: TicketRow, type: 'google' | 'outlook' | 'apple') => {
+    const ev = row.events;
+    if (!ev) return;
+    
+    const links = generateCalendarLinks({
+      title: ev.title,
+      description: `My ticket for ${ev.title}. Ticket code: ${row.ticket_code}. Powered by Tixora.`,
+      location: `${ev.venue}, ${ev.city}`,
+      startDate: String(ev.date),
+      startTime: ev.time,
+    });
+
+    if (type === 'google') window.open(links.googleUrl, '_blank');
+    else if (type === 'outlook') window.open(links.outlookUrl, '_blank');
+    else if (type === 'apple') downloadIcs(ev.title, links.icsContent);
+  };
+
   return (
     <div className="container mx-auto max-w-3xl px-4 py-8">
       <div className="mb-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -527,6 +545,26 @@ const MyTicketsPage = () => {
                               )}
                               Wallet
                             </Button>
+                            
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" className="gap-1.5">
+                                  <Calendar className="h-3.5 w-3.5" />
+                                  Calendar
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleCalendar(row, 'google')}>
+                                  Google Calendar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleCalendar(row, 'outlook')}>
+                                  Outlook Calendar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleCalendar(row, 'apple')}>
+                                  Apple Calendar / ICS
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </>
                         )}
                       </div>

@@ -13,6 +13,13 @@ import { TicketTiersCarousel } from "@/components/TicketTiersCarousel";
 import type { TicketTier } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { EventReviews } from "@/components/EventReviews";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { generateCalendarLinks, downloadIcs } from "@/lib/calendar";
 
 const SITE_URL = "https://tixoraafrica.com.ng";
 
@@ -107,6 +114,22 @@ const EventDetailPage = () => {
   const shortDesc = (event.description ?? "").slice(0, 155);
   const ogImage = event.cover_image_url || `${SITE_URL}/og-default.png`;
 
+  const handleCalendar = (type: 'google' | 'outlook' | 'apple') => {
+    if (!event) return;
+    
+    const links = generateCalendarLinks({
+      title: event.title,
+      description: `${event.title} on Tixora. Get your tickets at tixoraafrica.com.ng`,
+      location: `${event.venue}, ${event.city}`,
+      startDate: String(event.date),
+      startTime: event.time,
+    });
+
+    if (type === 'google') window.open(links.googleUrl, '_blank');
+    else if (type === 'outlook') window.open(links.outlookUrl, '_blank');
+    else if (type === 'apple') downloadIcs(event.title, links.icsContent);
+  };
+
   return (
     <div>
       <Helmet>
@@ -161,6 +184,26 @@ const EventDetailPage = () => {
                 <MapPin className="w-4 h-4 text-primary" />
                 {event.venue}, {event.city}
               </span>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-6 px-2 text-xs font-semibold gap-1 text-primary hover:text-primary/80 hover:bg-primary/10 transition-colors">
+                    <Calendar className="w-3 h-3" />
+                    Add to Calendar
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={() => handleCalendar('google')}>
+                    Google Calendar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleCalendar('outlook')}>
+                    Outlook Calendar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleCalendar('apple')}>
+                    Apple Calendar / ICS
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             <div>
