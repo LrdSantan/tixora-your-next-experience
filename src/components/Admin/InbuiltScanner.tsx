@@ -3,6 +3,7 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { X, Flashlight, CheckCircle, XCircle } from "lucide-react";
 import { validateTicketOffline, getUnsyncedCount } from "@/lib/db";
 import { useSync } from "@/hooks/useSync";
+import { getSupabaseClient } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 
 import { extractTicketToken } from "@/lib/scanner";
@@ -81,7 +82,7 @@ export const InbuiltScanner = ({ onClose, eventId }: InbuiltScannerProps) => {
         .maybeSingle();
         
       if (!error && data) {
-        setScannerMode(data.scanner_mode || "standard");
+        setScannerMode((data.scanner_mode?.toLowerCase() as "standard" | "express") || "standard");
         setScannerModeLocked(data.scanner_mode_locked || false);
       }
     }

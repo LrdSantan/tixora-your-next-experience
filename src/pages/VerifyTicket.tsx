@@ -101,7 +101,7 @@ export default function VerifyTicketPage() {
   const { qrToken } = useParams<{ qrToken: string }>();
   const [searchParams] = useSearchParams();
   const queryToken = searchParams.get("token");
-  const eventId = searchParams.get("eventId") || searchParams.get("event_id");
+  const eventId = searchParams.get("eventId") || searchParams.get("event_id") || searchParams.get("event");
   const navigate = useNavigate();
   const supabase = getSupabaseClient();
   const { user, loading: authLoading } = useAuth();
@@ -143,7 +143,7 @@ export default function VerifyTicketPage() {
         .maybeSingle();
       
       if (!error && data) {
-        setScannerMode(data.scanner_mode || "standard");
+        setScannerMode((data.scanner_mode?.toLowerCase() as "standard" | "express") || "standard");
         setScannerModeLocked(data.scanner_mode_locked || false);
       }
     }
