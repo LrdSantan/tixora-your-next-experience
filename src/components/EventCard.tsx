@@ -16,15 +16,42 @@ interface EventCardProps {
 
 const EventCard = React.memo(({ event }: EventCardProps) => {
   const [imgError, setImgError] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   // Calculate lowest price from tiers
   const lowestPrice = event.ticket_tiers && event.ticket_tiers.length > 0
     ? Math.min(...event.ticket_tiers.map((t) => t.price))
     : 0;
 
+  const handleCopy = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const url = `${window.location.origin}/events/${event.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      toast.success("Link copied!");
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      toast.error("Failed to copy link");
+    });
+  };
+
   return (
     <Link to={`/events/${event.id}`} className="group block h-full w-full">
       <div className="bg-[#0F1612] rounded-[16px] overflow-hidden border border-white/5 transition-all duration-500 hover:border-[#1A7A4A]/40 h-full flex flex-col w-full relative">
+        {/* Copy Link Button */}
+        <button
+          onClick={handleCopy}
+          className="absolute top-3 right-3 z-20 p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white/70 hover:text-white hover:bg-black/60 transition-all active:scale-90"
+          title="Copy event link"
+        >
+          {copied ? (
+            <Check className="w-3.5 h-3.5 text-[#2ECC71]" />
+          ) : (
+            <Copy className="w-3.5 h-3.5" />
+          )}
+        </button>
         {/* Cover Image */}
         <div className="aspect-[16/9] w-full overflow-hidden flex-shrink-0 relative bg-[#0d1a10]">
           {(event.cover_image_url || event.cover_image) && !imgError ? (

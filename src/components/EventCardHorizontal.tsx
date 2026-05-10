@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { MapPin, Calendar, ArrowRight } from "lucide-react";
+import { MapPin, Calendar, ArrowRight, Copy, Check } from "lucide-react";
 import { formatPrice, type Event } from "@/lib/mock-data";
 import { formatEventDateDisplay } from "@/lib/date-utils";
 import { getEventImage } from "@/lib/event-image";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface EventCardHorizontalProps {
   event: Event;
@@ -12,14 +13,41 @@ interface EventCardHorizontalProps {
 
 export const EventCardHorizontal = React.memo(({ event }: EventCardHorizontalProps) => {
   const [imgError, setImgError] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   // Calculate lowest price from tiers
   const lowestPrice = event.ticket_tiers && event.ticket_tiers.length > 0
     ? Math.min(...event.ticket_tiers.map((t) => t.price))
     : 0;
 
+  const handleCopy = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const url = `${window.location.origin}/events/${event.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      toast.success("Link copied!");
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      toast.error("Failed to copy link");
+    });
+  };
+
   return (
-    <Link to={`/events/${event.id}`} className="group block w-full">
+    <Link to={`/events/${event.id}`} className="group block h-full w-full relative">
+      <button
+        onClick={handleCopy}
+        className="absolute top-2.5 right-2.5 z-20 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white/40 hover:text-white transition-all active:scale-90"
+        title="Copy event link"
+      >
+        {copied ? (
+          <Check className="w-3 h-3 text-[#2ECC71]" />
+        ) : (
+          <Copy className="w-3 h-3" />
+        )}
+      </button>
+
       <div className="bg-[#0F1612] rounded-[12px] p-3 border border-white/5 transition-all duration-300 hover:border-[#1A7A4A]/40 flex gap-4 items-center">
         {/* Left: Thumbnail */}
         <div className="w-20 h-20 md:w-[100px] md:h-[100px] shrink-0 overflow-hidden rounded-[10px] bg-[#0d1a10]">
