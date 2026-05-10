@@ -70,49 +70,49 @@ function WaitlistModal({ tier, eventId, onClose }: WaitlistModalProps) {
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-card w-full max-w-sm rounded-2xl shadow-2xl border border-border overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="bg-[#0F1612] w-full max-w-sm rounded-[24px] shadow-2xl border border-white/10 overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="bg-amber-500 px-5 py-4 flex items-start justify-between">
+        <div className="bg-amber-500 px-6 py-5 flex items-start justify-between">
           <div>
-            <h2 className="font-bold text-white text-lg leading-tight">Join the Waitlist</h2>
-            <p className="text-amber-100 text-xs mt-0.5">{tier.name}</p>
+            <h2 className="font-bold text-black text-xl tracking-tight leading-tight">Join the Waitlist</h2>
+            <p className="text-black/60 text-xs mt-1 font-medium">{tier.name}</p>
           </div>
           <button
             onClick={onClose}
-            className="text-amber-100 hover:text-white transition-colors mt-0.5"
+            className="text-black/40 hover:text-black transition-colors mt-0.5"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-5">
+        <div className="p-6">
           {success ? (
-            <div className="text-center py-4 space-y-3">
-              <div className="text-4xl">🎉</div>
-              <h3 className="font-bold text-foreground">You're on the waitlist!</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
+            <div className="text-center py-6 space-y-4">
+              <div className="text-5xl">🎉</div>
+              <h3 className="font-bold text-white text-lg">You're on the waitlist!</h3>
+              <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.6)" }}>
                 We'll email you if a spot opens up. You'll have{" "}
-                <strong>24 hours</strong> to claim it.
+                <strong className="text-white">24 hours</strong> to claim it.
                 {position && (
-                  <span className="block mt-2 font-semibold text-amber-600">
+                  <span className="block mt-3 font-bold text-amber-500 text-base">
                     You are #{position} in line.
                   </span>
                 )}
               </p>
-              <Button onClick={onClose} className="w-full mt-2" variant="outline">
+              <Button onClick={onClose} className="w-full mt-4 bg-white/5 border-white/10 hover:bg-white/10 text-white" variant="outline">
                 Got it
               </Button>
             </div>
           ) : (
             <>
-              <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
-                We'll email you if a spot opens. You'll have <strong>24 hours</strong> to claim it.
+              <p className="text-sm mb-6 leading-relaxed" style={{ color: "rgba(255,255,255,0.6)" }}>
+                We'll email you if a spot opens. You'll have <strong className="text-white">24 hours</strong> to claim it.
               </p>
 
-              <form onSubmit={handleSubmit} className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="wl-name" className="text-sm font-medium">Full Name</Label>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="wl-name" className="text-xs font-bold uppercase tracking-widest text-white/40">Full Name</Label>
                   <Input
                     id="wl-name"
                     placeholder="Your name"
@@ -120,11 +120,12 @@ function WaitlistModal({ tier, eventId, onClose }: WaitlistModalProps) {
                     onChange={(e) => setName(e.target.value)}
                     required
                     autoFocus
+                    className="bg-black/40 border-white/10 text-white h-11 rounded-xl focus:ring-amber-500/50"
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="wl-email" className="text-sm font-medium">Email Address</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="wl-email" className="text-xs font-bold uppercase tracking-widest text-white/40">Email Address</Label>
                   <Input
                     id="wl-email"
                     type="email"
@@ -132,12 +133,13 @@ function WaitlistModal({ tier, eventId, onClose }: WaitlistModalProps) {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    className="bg-black/40 border-white/10 text-white h-11 rounded-xl focus:ring-amber-500/50"
                   />
                 </div>
 
                 <Button
                   type="submit"
-                  className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold mt-1"
+                  className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold h-11 rounded-xl mt-2 transition-all shadow-lg"
                   disabled={isSubmitting || !name.trim() || !email.trim()}
                 >
                   {isSubmitting ? (
@@ -226,64 +228,79 @@ export const TicketTiersCarousel = React.memo(function TicketTiersCarousel({
                   >
                     <div
                       className={cn(
-                        "relative flex h-full flex-col rounded-xl border-2 bg-card p-4 shadow-sm transition-all duration-200",
+                        "relative flex h-full flex-col rounded-[12px] border bg-[#0F1612] p-5 shadow-sm transition-all duration-300",
                         showWaitlist
-                          ? "border-amber-200 hover:border-amber-400 hover:shadow-md hover:-translate-y-0.5"
+                          ? "border-amber-500/30 bg-amber-500/5 hover:border-amber-500/60"
                           : justAdded
-                            ? "border-secondary ring-2 ring-secondary/40 shadow-md"
-                            : "border-border hover:border-primary/50 hover:shadow-md hover:-translate-y-0.5",
+                            ? "border-[#2ECC71]/50 bg-[#1A7A4A]/10 shadow-[0_0_15px_rgba(46,204,113,0.1)]"
+                            : "border-white/10 hover:border-[#2ECC71]/40 hover:bg-white/[0.02]",
                       )}
                     >
                       {/* Ticket icon top right */}
                       <div className={cn(
-                        "absolute right-3 top-3 rounded-full p-1.5",
-                        showWaitlist ? "bg-amber-100 text-amber-600" : "bg-primary/10 text-primary"
+                        "absolute right-4 top-4 rounded-xl p-2",
+                        showWaitlist ? "bg-amber-500/10 text-amber-500" : "bg-[#1A7A4A]/20 text-[#2ECC71]"
                       )}>
-                        <Ticket className="h-3.5 w-3.5" aria-hidden />
+                        <Ticket className="h-4 w-4" aria-hidden />
                       </div>
 
                       {/* Tier name + description */}
-                      <h3 className="pr-10 text-base font-bold tracking-tight text-foreground">{tier.name}</h3>
-                      <p className="mt-1 flex-1 text-xs leading-relaxed text-muted-foreground line-clamp-2">
+                      <h3 className="pr-12 text-[17px] font-bold text-white leading-tight">{tier.name}</h3>
+                      <p className="mt-2 flex-1 text-sm leading-relaxed line-clamp-3" style={{ color: "rgba(255,255,255,0.5)" }}>
                         {tier.description}
                       </p>
 
-                      {/* Stock badge */}
-                      <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                        <Badge
-                          variant={soldOut ? "destructive" : lowStock ? "secondary" : "outline"}
-                          className="font-normal text-xs px-2 py-0"
-                        >
-                          {soldOut ? "Sold out" : `${tier.remaining_quantity.toLocaleString()} left`}
-                        </Badge>
+                      {/* Stock status */}
+                      <div className="mt-4 flex flex-wrap items-center gap-2">
+                        {soldOut ? (
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-red-400 bg-red-400/10 px-2 py-0.5 rounded">
+                            Sold out
+                          </span>
+                        ) : lowStock ? (
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-orange-400 bg-orange-400/10 px-2 py-0.5 rounded">
+                            Limited: {tier.remaining_quantity} left
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-white/30 bg-white/5 px-2 py-0.5 rounded">
+                            Available
+                          </span>
+                        )}
+                        
                         {showWaitlist && (
-                          <Badge className="font-normal text-xs px-2 py-0 bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100">
-                            <Clock className="w-2.5 h-2.5 mr-1" />Waitlist open
-                          </Badge>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded flex items-center">
+                            <Clock className="w-2.5 h-2.5 mr-1" /> Waitlist
+                          </span>
                         )}
                       </div>
 
                       {/* Price + CTA */}
-                      <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4">
-                        <div className="flex items-end justify-between">
+                      <div className="mt-5 flex flex-col gap-4 border-t border-white/5 pt-5">
+                        <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{tier.price === 0 ? "Price" : "From"}</p>
-                            <p className="text-2xl font-extrabold tabular-nums text-primary">{tier.price === 0 ? "Free" : formatPrice(tier.price)}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 mb-1">
+                              {tier.price === 0 ? "Price" : "Per Ticket"}
+                            </p>
+                            <p className="text-2xl font-black tabular-nums" style={{ color: tier.price === 0 ? "#2ECC71" : "#D4A33C" }}>
+                              {tier.price === 0 ? "Free" : formatPrice(tier.price)}
+                            </p>
                           </div>
+                          
                           {!soldOut && (
-                            <div className="flex items-center rounded-md border border-neutral-200 bg-white">
+                            <div className="flex items-center rounded-lg border border-white/10 bg-black/40 overflow-hidden">
                               <button
                                 type="button"
-                                className="flex h-9 w-8 items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors"
+                                className="flex h-10 w-9 items-center justify-center text-white/40 hover:text-white hover:bg-white/5 transition-all"
                                 onClick={() => handleQtyChange(tier.id, -1, tier.remaining_quantity)}
                                 disabled={justAdded}
                               >
                                 <Minus className="w-3.5 h-3.5" />
                               </button>
-                              <span className="w-6 text-center text-sm font-medium tabular-nums">{quantities[tier.id] || 1}</span>
+                              <span className="w-6 text-center text-sm font-bold tabular-nums text-white">
+                                {quantities[tier.id] || 1}
+                              </span>
                               <button
                                 type="button"
-                                className="flex h-9 w-8 items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors"
+                                className="flex h-10 w-9 items-center justify-center text-white/40 hover:text-white hover:bg-white/5 transition-all"
                                 onClick={() => handleQtyChange(tier.id, 1, tier.remaining_quantity)}
                                 disabled={justAdded || (quantities[tier.id] || 1) >= tier.remaining_quantity}
                               >
@@ -298,9 +315,9 @@ export const TicketTiersCarousel = React.memo(function TicketTiersCarousel({
                             type="button"
                             size="sm"
                             onClick={() => setWaitlistTier(tier)}
-                            className="w-full text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition-all"
+                            className="w-full text-xs font-bold uppercase tracking-widest bg-amber-500 hover:bg-amber-600 text-white h-11 rounded-xl shadow-lg transition-all"
                           >
-                            <Clock className="w-3.5 h-3.5 mr-1.5" />
+                            <Clock className="w-3.5 h-3.5 mr-2" />
                             Join Waitlist
                           </Button>
                         ) : (
@@ -310,13 +327,13 @@ export const TicketTiersCarousel = React.memo(function TicketTiersCarousel({
                             disabled={soldOut}
                             onClick={() => onAddToCart(tier, quantities[tier.id] || 1)}
                             className={cn(
-                              "w-full text-sm font-semibold transition-all shadow-sm",
+                              "w-full text-xs font-bold uppercase tracking-widest h-11 rounded-xl transition-all shadow-lg",
                               justAdded
-                                ? "bg-secondary text-secondary-foreground"
-                                : "bg-primary text-primary-foreground",
+                                ? "bg-white/10 text-white cursor-default"
+                                : "bg-[#2ECC71] text-black hover:bg-[#25B962]",
                             )}
                           >
-                            {soldOut ? "Sold Out" : justAdded ? "Added ✓" : "Add to cart"}
+                            {soldOut ? "Sold Out" : justAdded ? "Added ✓" : "Add to Cart"}
                           </Button>
                         )}
                       </div>

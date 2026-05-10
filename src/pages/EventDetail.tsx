@@ -46,33 +46,39 @@ const EventDetailPage = () => {
 
   if (isLoading) {
     return (
-      <div>
+      <div className="min-h-screen bg-[#080C0A]">
         <Helmet>
           <title>Loading Event | Tixora</title>
         </Helmet>
         <div>
-          <Skeleton className="h-64 md:h-96 w-full rounded-none" />
-          <div className="container mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-6">
-              <Skeleton className="h-10 w-3/4 max-w-lg" />
-              <div className="flex gap-4">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-80 w-full rounded-none bg-white/5" />
+          <div className="container mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8 relative -mt-12">
+            <div className="lg:col-span-2 space-y-8">
+              <div className="space-y-4">
+                <Skeleton className="h-6 w-24 rounded-full bg-white/10" />
+                <Skeleton className="h-12 w-3/4 max-w-lg bg-white/10" />
               </div>
-              <Skeleton className="h-6 w-full" />
-              <Skeleton className="h-6 w-full" />
-              <Skeleton className="h-6 w-2/3" />
+              <div className="flex gap-4">
+                <Skeleton className="h-4 w-24 bg-white/5" />
+                <Skeleton className="h-4 w-24 bg-white/5" />
+                <Skeleton className="h-4 w-32 bg-white/5" />
+              </div>
+              <div className="space-y-3">
+                <Skeleton className="h-6 w-1/4 bg-white/10" />
+                <Skeleton className="h-4 w-full bg-white/5" />
+                <Skeleton className="h-4 w-full bg-white/5" />
+                <Skeleton className="h-4 w-2/3 bg-white/5" />
+              </div>
               <div>
-                <Skeleton className="h-6 w-32 mb-4" />
+                <Skeleton className="h-6 w-32 mb-4 bg-white/10" />
                 <div className="flex gap-4 overflow-hidden">
-                  <Skeleton className="h-48 w-[280px] rounded-xl flex-shrink-0" />
-                  <Skeleton className="h-48 w-[280px] rounded-xl flex-shrink-0" />
+                  <Skeleton className="h-64 w-[280px] rounded-2xl flex-shrink-0 bg-white/5" />
+                  <Skeleton className="h-64 w-[280px] rounded-2xl flex-shrink-0 bg-white/5" />
                 </div>
               </div>
             </div>
             <div className="hidden lg:block">
-              <Skeleton className="h-64 w-full rounded-xl" />
+              <Skeleton className="h-96 w-full rounded-2xl bg-white/5" />
             </div>
           </div>
         </div>
@@ -131,7 +137,7 @@ const EventDetailPage = () => {
   };
 
   return (
-    <div>
+    <div className="min-h-screen bg-[#080C0A] text-white">
       <Helmet>
         <title>{event.title} | Tixora</title>
         <meta name="description" content={shortDesc} />
@@ -146,86 +152,92 @@ const EventDetailPage = () => {
         <meta name="twitter:description" content={shortDesc} />
         <meta name="twitter:image" content={ogImage} />
       </Helmet>
+
       {/* Banner image */}
-      <div className="relative h-64 md:h-96 overflow-hidden">
+      <div className="relative h-80 overflow-hidden">
         <img src={getEventImage(event)} alt={event.title} className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-foreground/60 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#080C0A] via-transparent to-transparent" />
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="absolute top-4 left-4 bg-background/80 backdrop-blur rounded-full p-2"
+          className="absolute top-4 left-4 bg-black/40 backdrop-blur-md rounded-full p-2 border border-white/10 hover:bg-black/60 transition-colors"
         >
-          <ArrowLeft className="w-5 h-5 text-foreground" />
+          <ArrowLeft className="w-5 h-5 text-white" />
         </button>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 relative -mt-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
           {/* ── Left: main content ── */}
-          <div className="lg:col-span-2 space-y-6">
-            <div>
-              <span className="inline-block text-xs font-semibold uppercase tracking-wider text-primary bg-accent px-3 py-1 rounded-full mb-3">
+          <div className="lg:col-span-2 space-y-8">
+            <div className="space-y-4">
+              <span className="inline-block text-[11px] font-bold uppercase tracking-wider text-white bg-[#1A7A4A] px-4 py-1.5 rounded-[100px]">
                 {event.category}
               </span>
-              <h1 className="text-3xl md:text-4xl font-extrabold text-foreground">{event.title}</h1>
-            </div>
+              <h1 className="text-[32px] font-extrabold text-white leading-tight">{event.title}</h1>
+              
+              <div className="flex flex-wrap gap-5 text-sm" style={{ color: "rgba(255,255,255,0.55)" }}>
+                <span className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-[#1A7A4A]" />
+                  {formatEventDateDisplay(event.date, event.is_multi_day || false, event.event_days || [])}
+                </span>
+                <span className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-[#1A7A4A]" />
+                  {event.time}
+                </span>
+                <span className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-[#1A7A4A]" />
+                  {event.venue}, {event.city}
+                </span>
 
-            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <Calendar className="w-4 h-4 text-primary" />
-                {formatEventDateDisplay(event.date, event.is_multi_day || false, event.event_days || [])}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-primary" />
-                {event.time}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <MapPin className="w-4 h-4 text-primary" />
-                {event.venue}, {event.city}
-              </span>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-6 px-2 text-xs font-semibold gap-1 text-primary hover:text-primary/80 hover:bg-primary/10 transition-colors">
-                    <Calendar className="w-3 h-3" />
-                    Add to Calendar
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  <DropdownMenuItem onClick={() => handleCalendar('google')}>
-                    Google Calendar
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleCalendar('outlook')}>
-                    Outlook Calendar
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleCalendar('apple')}>
-                    Apple Calendar / ICS
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-7 px-3 text-[11px] font-bold uppercase tracking-wide gap-1.5 text-[#2ECC71] hover:text-[#2ECC71] hover:bg-[#2ECC71]/10 transition-colors border border-[#2ECC71]/20 rounded-full">
+                      <Calendar className="w-3 h-3" />
+                      Add to Calendar
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="bg-[#0F1612] border-white/10 text-white">
+                    <DropdownMenuItem onClick={() => handleCalendar('google')} className="hover:bg-white/5 cursor-pointer">
+                      Google Calendar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleCalendar('outlook')} className="hover:bg-white/5 cursor-pointer">
+                      Outlook Calendar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleCalendar('apple')} className="hover:bg-white/5 cursor-pointer">
+                      Apple Calendar / ICS
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
 
             <div>
-              <h2 className="text-lg font-bold text-foreground mb-2">About This Event</h2>
-              <p className="text-muted-foreground leading-relaxed">{event.description}</p>
+              <h2 className="text-[18px] font-bold text-white mb-[12px]">About This Event</h2>
+              <p className="text-[15px] leading-[1.8]" style={{ color: "rgba(255,255,255,0.7)" }}>
+                {event.description}
+              </p>
             </div>
 
-            {/* Ticket carousel */}
-            <div>
+            {/* Ticket selection */}
+            <div className="space-y-4 pt-4">
               {isExpired ? (
-                <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
-                  <h2 className="text-xl font-bold text-red-900 mb-2">This event has ended</h2>
-                  <p className="text-red-700">Tickets are no longer available for purchase.</p>
+                <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-8 text-center">
+                  <h2 className="text-xl font-bold text-red-400 mb-2">This event has ended</h2>
+                  <p className="text-red-300/70">Tickets are no longer available for purchase.</p>
                 </div>
               ) : (
                 <>
-                  <h2 className="text-lg font-bold text-foreground mb-1">Select tickets</h2>
-                  <p className="text-sm text-muted-foreground mb-5">
-                    {event.ticket_tiers.length > 1
-                      ? "Hover a tier to preview it, then add to your cart."
-                      : "Review the ticket type below and add it to your cart."}
-                  </p>
+                  <div>
+                    <h2 className="text-[18px] font-bold text-white">Select tickets</h2>
+                    <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>
+                      {event.ticket_tiers.length > 1
+                        ? "Hover a tier to preview it, then add to your cart."
+                        : "Review the ticket type below and add it to your cart."}
+                    </p>
+                  </div>
+                  
                   <TicketTiersCarousel
                     tiers={event.ticket_tiers}
                     onAddToCart={handleAddToCart}
@@ -233,9 +245,10 @@ const EventDetailPage = () => {
                     onHover={setHoveredTier}
                     eventId={event.id}
                   />
+                  
                   {cartCountForEvent > 0 && (
-                    <div className="mt-6 flex justify-center sm:justify-start">
-                      <Button asChild className="bg-primary text-primary-foreground font-semibold">
+                    <div className="mt-8 flex justify-center sm:justify-start">
+                      <Button asChild className="bg-[#2ECC71] text-black hover:bg-[#25B962] font-bold px-8 h-12 text-base rounded-xl transition-all shadow-[0_0_20px_rgba(46,204,113,0.2)]">
                         <Link to="/checkout">
                           Continue to checkout · {cartCountForEvent} ticket{cartCountForEvent !== 1 ? "s" : ""}
                         </Link>
@@ -243,15 +256,17 @@ const EventDetailPage = () => {
                     </div>
                   )}
 
-                  <div className="mt-8 rounded-xl bg-orange-50 p-4 border border-orange-100 flex items-center justify-between gap-4">
-                    <div className="flex gap-3">
-                      <Tag className="h-5 w-5 text-orange-600 shrink-0 mt-0.5" />
+                  <div className="mt-10 rounded-2xl bg-[rgba(212,163,60,0.05)] p-5 border border-[rgba(212,163,60,0.15)] flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex gap-4">
+                      <div className="p-2.5 bg-[rgba(212,163,60,0.1)] rounded-xl shrink-0">
+                        <Tag className="h-5 w-5 text-[#D4A33C]" />
+                      </div>
                       <div>
-                        <p className="text-sm font-bold text-orange-900">Looking for a specific tier?</p>
-                        <p className="text-xs text-orange-700">Check our secure marketplace for fan-to-fan resales.</p>
+                        <p className="text-[15px] font-bold text-[#D4A33C]">Looking for a specific tier?</p>
+                        <p className="text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>Check our secure marketplace for fan-to-fan resales.</p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" asChild className="bg-white border-orange-200 text-orange-700 hover:bg-orange-100 shrink-0">
+                    <Button variant="outline" size="sm" asChild className="bg-transparent border-[#D4A33C]/30 text-[#D4A33C] hover:bg-[#D4A33C]/10 hover:border-[#D4A33C] transition-all rounded-xl px-6">
                       <Link to="/marketplace">View Marketplace</Link>
                     </Button>
                   </div>
@@ -259,40 +274,44 @@ const EventDetailPage = () => {
               )}
             </div>
 
-            <div>
-              <h2 className="text-lg font-bold text-foreground mb-2">Venue</h2>
-              <div className="bg-card border border-border rounded-xl overflow-hidden">
-                <div className="p-5 border-b border-border bg-muted/20">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-1 p-2 bg-primary/10 rounded-lg shrink-0">
-                      <MapPin className="w-5 h-5 text-primary" />
+            <div className="pt-6">
+              <h2 className="text-[18px] font-bold text-white mb-4">Venue Location</h2>
+              <div className="bg-[#0F1612] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+                <div className="p-6 border-b border-white/5 bg-white/5">
+                  <div className="flex items-start gap-4">
+                    <div className="p-2.5 bg-[#1A7A4A]/20 rounded-xl shrink-0">
+                      <MapPin className="w-5 h-5 text-[#2ECC71]" />
                     </div>
                     <div>
-                      <p className="font-bold text-foreground text-lg leading-tight">{event.venue}</p>
-                      <p className="text-sm text-muted-foreground mt-1">{event.city}, Nigeria</p>
+                      <p className="font-bold text-white text-lg leading-tight">{event.venue}</p>
+                      <p className="text-sm mt-1.5" style={{ color: "rgba(255,255,255,0.5)" }}>{event.city}, Nigeria</p>
                     </div>
                   </div>
                 </div>
                 
-                <iframe
-                  title="Venue Map"
-                  width="100%"
-                  height="300"
-                  style={{ border: 0 }}
-                  loading="lazy"
-                  src={`https://maps.google.com/maps?q=${encodeURIComponent(`${event.venue}, ${event.city}`)}&output=embed`}
-                  allowFullScreen
-                />
+                <div className="relative group">
+                  <iframe
+                    title="Venue Map"
+                    width="100%"
+                    height="320"
+                    style={{ border: 0, filter: "invert(90%) hue-rotate(180deg) brightness(0.8) contrast(1.2)" }}
+                    loading="lazy"
+                    src={`https://maps.google.com/maps?q=${encodeURIComponent(`${event.venue}, ${event.city}`)}&output=embed`}
+                    allowFullScreen
+                    className="opacity-80 transition-opacity group-hover:opacity-100"
+                  />
+                  <div className="absolute inset-0 pointer-events-none border-y border-white/5" />
+                </div>
 
-                <div className="p-4 bg-muted/10 flex justify-end">
-                  <Button asChild style={{ backgroundColor: "#1A7A4A", color: "white" }} className="gap-2 font-bold shadow-sm hover:brightness-110 transition-all">
+                <div className="p-5 bg-white/5 flex justify-end">
+                  <Button asChild className="bg-[#1A7A4A] hover:bg-[#15613a] text-white gap-2 font-bold px-6 rounded-xl transition-all shadow-lg">
                     <a 
                       href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${event.venue}, ${event.city}`)}`} 
                       target="_blank" 
                       rel="noopener noreferrer"
                     >
                       <MapPin className="w-4 h-4" />
-                      Get Directions
+                      Open in Maps
                     </a>
                   </Button>
                 </div>
@@ -300,84 +319,94 @@ const EventDetailPage = () => {
             </div>
 
             {/* Reviews */}
-            <EventReviews eventId={event.id} eventTitle={event.title} />
+            <div className="pt-8">
+              <EventReviews eventId={event.id} eventTitle={event.title} />
+            </div>
           </div>
 
           {/* ── Right: sticky Quick Summary sidebar ── */}
           <div className="hidden lg:block">
-            <div className="sticky top-20 bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+            <div className="sticky top-24 bg-[#0F1612] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
 
               {/* Header — always shows event info */}
-              <div className="p-6 space-y-3">
-                <h3 className="font-bold text-foreground">Quick Summary</h3>
-                <div className="text-sm space-y-2 text-muted-foreground">
-                  <p>
-                    <span className="font-medium text-foreground">Date:</span> {formatEventDateDisplay(event.date, event.is_multi_day || false, event.event_days || [])}
-                  </p>
-                  <p>
-                    <span className="font-medium text-foreground">Time:</span> {event.time}
-                  </p>
-                  <p>
-                    <span className="font-medium text-foreground">Venue:</span> {event.venue}
-                  </p>
+              <div className="p-6 space-y-5">
+                <h3 className="font-bold text-white text-lg border-b border-white/5 pb-4">Quick Summary</h3>
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[12px] uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.4)" }}>Date</span>
+                    <span className="font-semibold text-white">
+                      {formatEventDateDisplay(event.date, event.is_multi_day || false, event.event_days || [])}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[12px] uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.4)" }}>Time</span>
+                    <span className="font-semibold text-white">{event.time}</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[12px] uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.4)" }}>Venue</span>
+                    <span className="font-semibold text-white">{event.venue}</span>
+                  </div>
                 </div>
               </div>
 
               {/* Tier preview — animates in when hovering a card */}
               <div
                 className={cn(
-                  "transition-all duration-300 overflow-hidden",
-                  sidebarTier ? "max-h-64 opacity-100" : "max-h-0 opacity-0",
+                  "transition-all duration-500 overflow-hidden",
+                  sidebarTier ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0",
                 )}
               >
                 {sidebarTier && (
-                  <div className="mx-4 mb-4 rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2">
+                  <div className="mx-6 mb-6 rounded-2xl border border-[#2ECC71]/20 bg-[#2ECC71]/5 p-5 space-y-4 shadow-inner">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-primary">
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-[#2ECC71] bg-[#2ECC71]/10 px-2 py-0.5 rounded">
                         {sidebarTier.name}
                       </span>
                       {sidebarTier.remaining_quantity <= 0 ? (
-                        <span className="text-xs text-red-500 font-medium">Sold out</span>
+                        <span className="text-xs text-red-400 font-bold uppercase tracking-tighter">Sold out</span>
                       ) : (
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-[11px] font-bold text-white/40 uppercase">
                           {sidebarTier.remaining_quantity.toLocaleString()} left
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
+                    <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.6)" }}>
                       {sidebarTier.description}
                     </p>
-                    <p className="text-xl font-extrabold text-primary tabular-nums">
-                      {sidebarTier.price === 0 ? "Free" : formatPrice(sidebarTier.price)}
-                    </p>
-                    <div className="flex gap-2 mt-1">
-                      <div className="flex items-center rounded-md border border-neutral-200 bg-white">
+                    <div className="flex items-baseline gap-1">
+                      <p className="text-3xl font-black tabular-nums" style={{ color: sidebarTier.price === 0 ? "#2ECC71" : "#D4A33C" }}>
+                        {sidebarTier.price === 0 ? "Free" : formatPrice(sidebarTier.price)}
+                      </p>
+                      {sidebarTier.price > 0 && <span className="text-xs font-bold text-white/20">/ TICKET</span>}
+                    </div>
+                    <div className="flex gap-3 mt-2">
+                      <div className="flex items-center rounded-xl border border-white/10 bg-black/40 overflow-hidden">
                         <button
                           type="button"
-                          className="flex h-9 w-7 items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors"
+                          className="flex h-11 w-10 items-center justify-center text-white/40 hover:text-white hover:bg-white/5 transition-all"
                           onClick={() => setSidebarQty(q => Math.max(1, q - 1))}
                           disabled={sidebarTier.remaining_quantity <= 0}
                         >
-                          -
+                          <Minus className="w-4 h-4" />
                         </button>
-                        <span className="w-5 text-center text-sm font-medium tabular-nums">{sidebarQty}</span>
+                        <span className="w-6 text-center text-sm font-bold tabular-nums text-white">{sidebarQty}</span>
                         <button
                           type="button"
-                          className="flex h-9 w-7 items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors"
+                          className="flex h-11 w-10 items-center justify-center text-white/40 hover:text-white hover:bg-white/5 transition-all"
                           onClick={() => setSidebarQty(q => Math.min(sidebarTier.remaining_quantity, q + 1))}
                           disabled={sidebarTier.remaining_quantity <= 0 || sidebarQty >= sidebarTier.remaining_quantity}
                         >
-                          +
+                          <Plus className="w-4 h-4" />
                         </button>
                       </div>
                       <Button
                         type="button"
-                        size="sm"
+                        size="lg"
                         disabled={sidebarTier.remaining_quantity <= 0 || isExpired}
                         onClick={() => handleAddToCart(sidebarTier, sidebarQty)}
-                        className="flex-1 bg-primary text-primary-foreground text-xs"
+                        className="flex-1 bg-[#2ECC71] text-black hover:bg-[#25B962] font-bold text-sm rounded-xl h-11 transition-all"
                       >
-                        {isExpired ? "Event Ended" : (sidebarTier.remaining_quantity <= 0 ? "Unavailable" : "Add to cart")}
+                        {isExpired ? "Expired" : (sidebarTier.remaining_quantity <= 0 ? "Waitlist" : "Add to Cart")}
                       </Button>
                     </div>
                   </div>
@@ -387,12 +416,16 @@ const EventDetailPage = () => {
               {/* Default price — hides when tier is hovered */}
               <div
                 className={cn(
-                  "px-6 pb-6 border-t border-border pt-4 transition-all duration-300",
-                  sidebarTier ? "opacity-0 pointer-events-none" : "opacity-100",
+                  "px-6 pb-6 border-t border-white/5 pt-5 transition-all duration-500 bg-white/5",
+                  sidebarTier ? "opacity-0 pointer-events-none translate-y-4" : "opacity-100 translate-y-0",
                 )}
               >
-                <p className="text-sm text-muted-foreground">{lowestPrice === 0 ? "Price" : "Starting from"}</p>
-                <p className="text-2xl font-bold text-primary">{lowestPrice === 0 ? "Free" : formatPrice(lowestPrice)}</p>
+                <p className="text-[12px] uppercase tracking-widest mb-1" style={{ color: "rgba(255,255,255,0.4)" }}>
+                  {lowestPrice === 0 ? "Price" : "Starting from"}
+                </p>
+                <p className="text-3xl font-black" style={{ color: lowestPrice === 0 ? "#2ECC71" : "#D4A33C" }}>
+                  {lowestPrice === 0 ? "Free" : formatPrice(lowestPrice)}
+                </p>
               </div>
 
             </div>
