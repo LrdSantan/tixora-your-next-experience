@@ -2,6 +2,7 @@ import { ArrowRight, CalendarRange } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import EventCard from "@/components/EventCard";
+import { EventCardHorizontal } from "@/components/EventCardHorizontal";
 import { useEvents } from "@/hooks/use-events";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCallback, useMemo, useRef } from "react";
@@ -255,9 +256,9 @@ const HomePage = () => {
                   {hasActiveFilters ? "Search Results" : "Upcoming Events"}
                 </h2>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 gap-4">
                 {filteredEvents.map((event) => (
-                  <EventCard key={event.id} event={event} />
+                  <EventCardHorizontal key={event.id} event={event} />
                 ))}
               </div>
             </section>
