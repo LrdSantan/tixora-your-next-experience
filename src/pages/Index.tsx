@@ -153,7 +153,7 @@ const HomePage = () => {
         </div>
       </section>
 
-      <section ref={browseRef} id="browse-events" className="container mx-auto px-4 py-12 scroll-mt-20">
+      <section ref={browseRef} id="browse-events" className="container mx-auto px-4 py-8 scroll-mt-20">
         <h2 className="text-2xl font-bold text-white mb-6">Browse by Category</h2>
         <div className="flex flex-wrap gap-3 mb-8">
           {EVENT_CATEGORIES.map((name) => {
@@ -231,7 +231,7 @@ const HomePage = () => {
         <>
           {/* Trending Section */}
           {!hasActiveFilters && trendingEvents.length > 0 && (
-            <div className="bg-[#080C0A] py-[60px]">
+            <div className="bg-[#080C0A] py-8">
               <section className="container mx-auto px-4 max-w-7xl">
                 <div className="flex items-center justify-between mb-[32px]">
                   <h2 className="text-[28px] font-[800] text-white">Trending Events</h2>
@@ -239,9 +239,9 @@ const HomePage = () => {
                     View All
                   </Link>
                 </div>
-                <div className="-mx-4 px-4 flex flex-row gap-4 overflow-x-auto pb-6 md:pb-0 md:mx-0 md:px-0 md:grid md:grid-cols-3 md:gap-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:display-none">
+                <div className="-mx-4 px-4 flex flex-row gap-4 overflow-x-auto pb-4 md:mx-0 md:px-0 md:grid md:grid-cols-3 md:gap-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:display-none">
                   {trendingEvents.map((event) => (
-                    <div key={event.id} className="min-w-[280px] md:min-w-0 flex-shrink-0">
+                    <div key={event.id} className="min-w-[260px] max-w-[260px] flex-shrink-0 md:min-w-0 md:max-w-none">
                       <EventCard event={event} />
                     </div>
                   ))}
@@ -251,7 +251,7 @@ const HomePage = () => {
           )}
 
           {/* Regular Grid */}
-          <div className="bg-[#080C0A] py-[60px]">
+          <div className="bg-[#080C0A] py-8">
             <section className="container mx-auto px-4 max-w-7xl">
               <div className="flex items-center justify-between mb-[32px]">
                 <h2 className="text-[28px] font-[800] text-white">

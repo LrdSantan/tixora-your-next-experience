@@ -39,7 +39,7 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
 
   return (
     <Link to={`/events/${event.id}`} className="group block w-full">
-      <div className="bg-[#0F1612] rounded-[16px] overflow-hidden border border-white/5 transition-all duration-500 hover:border-[#1A7A4A]/40 flex flex-col w-full relative">
+      <div className="bg-[#0F1612] rounded-[16px] overflow-hidden border border-white/5 transition-all duration-500 hover:border-[#1A7A4A]/40 flex flex-col w-full relative max-h-[280px]">
         {/* Copy Link Button */}
         <button
           onClick={handleCopy}
