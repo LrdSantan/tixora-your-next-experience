@@ -15,7 +15,6 @@ interface EventCardProps {
 }
 
 const EventCard = React.memo(({ event }: EventCardProps) => {
-  const [copied, setCopied] = useState(false);
   const [imgError, setImgError] = useState(false);
   
   // Calculate lowest price from tiers
@@ -23,107 +22,66 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
     ? Math.min(...event.ticket_tiers.map((t) => t.price))
     : 0;
 
-  const handleCopy = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const url = `${window.location.origin}/events/${event.id}`;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopied(true);
-      toast.success("Event link copied!");
-      setTimeout(() => setCopied(false), 2000);
-    }).catch(() => {
-      toast.error("Failed to copy link");
-    });
-  };
-
-  const categoryColor = CATEGORY_COLORS[event.category as EventCategory] || CATEGORY_COLORS['Other'];
-
   return (
-    <Link to={`/events/${event.id}`} className="group block h-full w-full max-w-full">
-      <div className="bg-card rounded-2xl overflow-hidden border border-border hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full flex flex-col w-full max-w-full">
+    <Link to={`/events/${event.id}`} className="group block h-full w-full">
+      <div className="bg-[#0F1612] rounded-[16px] overflow-hidden border border-white/5 transition-all duration-500 hover:border-[#1A7A4A]/40 h-full flex flex-col w-full relative">
         {/* Cover Image */}
-        <div className="aspect-[16/9] w-full max-w-full overflow-hidden flex-shrink-0 bg-muted relative">
+        <div className="aspect-[16/9] w-full overflow-hidden flex-shrink-0 relative bg-[#0d1a10]">
           {(event.cover_image_url || event.cover_image) && !imgError ? (
-            <img
-              src={event.cover_image_url || event.cover_image || getEventImage(event)}
-              alt={event.title}
-              className="w-full max-w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 absolute inset-0"
-              loading="lazy"
-              onError={() => setImgError(true)}
-            />
+            <>
+              <img
+                src={event.cover_image_url || event.cover_image || getEventImage(event)}
+                alt={event.title}
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                loading="lazy"
+                onError={() => setImgError(true)}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0F1612] via-transparent to-transparent opacity-80" />
+            </>
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-              <Calendar className="w-10 h-10 text-primary/40" />
+            <div className="w-full h-full flex items-center justify-center">
+              <Calendar className="w-10 h-10 text-white/10" />
             </div>
           )}
           
-          <div className="absolute top-3 left-3">
-            <span className="inline-flex items-center bg-white/95 backdrop-blur-sm text-neutral-900 text-[11px] font-bold px-3 py-1.5 rounded-full shadow-sm">
+          <div className="absolute top-4 left-4">
+            <span className="inline-flex items-center bg-[#1A7A4A] text-white text-[10px] font-bold px-3 py-1 uppercase tracking-widest rounded-full shadow-lg">
               {event.category || 'Event'}
             </span>
           </div>
-          
-          <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
-            <button
-              onClick={handleCopy}
-              className="p-2 rounded-full bg-white/90 backdrop-blur-sm shadow-sm border border-neutral-200 text-neutral-600 hover:text-primary hover:bg-white transition-all active:scale-95"
-              title="Copy event link"
-            >
-              {copied ? (
-                <Check className="w-3.5 h-3.5 text-green-600" />
-              ) : (
-                <Copy className="w-3.5 h-3.5" />
-              )}
-            </button>
-          </div>
-
-          {/* Tickets Sold Badge */}
-          {event.quantity_sold > 0 && (
-            <div className="absolute bottom-3 left-3">
-              <Badge className="bg-black/60 backdrop-blur-md text-white border-none flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase">
-                <TrendingUp className="w-3 h-3" />
-                {event.quantity_sold.toLocaleString()} Sold
-              </Badge>
-            </div>
-          )}
         </div>
 
-        <div className="p-5 flex flex-col flex-1">
+        <div className="p-5 flex flex-col flex-1 space-y-4">
           {/* Title */}
           <h3 
-            className="font-bold text-foreground text-lg leading-tight group-hover:text-primary transition-colors min-h-[3rem]"
-            style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}
+            className="font-bold text-white text-[16px] leading-snug transition-colors line-clamp-2 min-h-[2.5rem]"
           >
             {event.title}
           </h3>
 
           {/* Details */}
-          <div className="space-y-2 mt-3">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Calendar className="w-4 h-4 text-primary shrink-0" />
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-[12px]" style={{ color: "rgba(255,255,255,0.5)" }}>
+              <Calendar className="w-3.5 h-3.5 text-[#1A7A4A] shrink-0" />
               <span className="truncate">
                 {formatEventDateDisplay(event.date, event.is_multi_day || false, event.event_days || [])}
               </span>
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <MapPin className="w-4 h-4 text-primary shrink-0" />
+            <div className="flex items-center gap-2 text-[12px]" style={{ color: "rgba(255,255,255,0.5)" }}>
+              <MapPin className="w-3.5 h-3.5 text-[#1A7A4A] shrink-0" />
               <span className="truncate">{event.venue}, {event.city}</span>
             </div>
           </div>
 
           {/* Bottom section */}
-          <div className="flex items-center justify-between pt-4 mt-auto border-t border-neutral-100">
+          <div className="flex items-center justify-between pt-4 mt-auto border-t border-white/5">
             <div className="flex flex-col">
-              <span className="text-[11px] text-muted-foreground font-medium mb-0.5">From</span>
-              <p className={cn(
-                "text-base font-extrabold",
-                lowestPrice === 0 ? "text-green-600" : "text-foreground"
-              )}>
+              <span className="text-[11px] font-medium uppercase tracking-tighter" style={{ color: "rgba(255,255,255,0.4)" }}>From</span>
+              <p className="text-[18px] font-bold" style={{ color: lowestPrice === 0 ? "#2ECC71" : "#D4A33C" }}>
                 {lowestPrice === 0 ? "Free" : formatPrice(lowestPrice)}
               </p>
             </div>
-            <Button size="sm" className="bg-[#0F9D58] hover:bg-[#0F9D58]/90 text-white font-bold rounded-full px-5 h-9">
+            <Button className="bg-[#1A7A4A] hover:bg-[#1A7A4A]/90 text-white font-bold rounded-full px-5 h-9 text-xs transition-all active:scale-95">
               Buy Tickets
             </Button>
           </div>

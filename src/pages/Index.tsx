@@ -25,20 +25,20 @@ function EventsEmptyState({
 }) {
   return (
     <div
-      className="rounded-2xl border border-dashed border-border bg-muted/30 px-6 py-14 text-center max-w-lg mx-auto"
+      className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-6 py-14 text-center max-w-lg mx-auto"
       role="status"
     >
-      <CalendarRange className="w-12 h-12 text-primary mx-auto mb-4 opacity-80" />
-      <h3 className="text-lg font-semibold text-foreground mb-2">
+      <CalendarRange className="w-12 h-12 text-[#1A7A4A] mx-auto mb-4 opacity-80" />
+      <h3 className="text-lg font-semibold text-white mb-2">
         {noData ? "No events available" : "No events match your filters"}
       </h3>
-      <p className="text-sm text-muted-foreground mb-6">
+      <p className="text-sm text-white/50 mb-6">
         {noData
           ? "Check back soon for new shows and experiences."
           : "Try a different search, pick another category or date range, or clear filters to see everything again."}
       </p>
       {showClear && (
-        <Button type="button" variant="outline" className="border-primary text-primary" onClick={onClear}>
+        <Button type="button" variant="outline" className="border-[#1A7A4A] text-[#2ECC71] hover:bg-[#1A7A4A]/10" onClick={onClear}>
           Clear all filters
         </Button>
       )}
@@ -103,7 +103,7 @@ const HomePage = () => {
   };
 
   return (
-    <div>
+    <div className="bg-[#080C0A] min-h-screen text-white">
       <Helmet>
         <title>Tixora — Book Events in Nigeria</title>
         <meta name="description" content="Discover and book tickets for the best events in Nigeria. Concerts, sports, food festivals and more on Tixora." />
@@ -153,7 +153,7 @@ const HomePage = () => {
       </section>
 
       <section ref={browseRef} id="browse-events" className="container mx-auto px-4 py-12 scroll-mt-20">
-        <h2 className="text-2xl font-bold text-foreground mb-6">Browse by Category</h2>
+        <h2 className="text-2xl font-bold text-white mb-6">Browse by Category</h2>
         <div className="flex flex-wrap gap-3 mb-8">
           {EVENT_CATEGORIES.map((name) => {
             const selected = selectedCategory === name;
@@ -166,14 +166,14 @@ const HomePage = () => {
                 className={cn(
                   "flex items-center gap-2 px-5 py-3 rounded-full border transition-all group",
                   selected
-                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                    : "bg-background border-border hover:bg-accent hover:border-primary/30"
+                    ? "bg-[#1A7A4A] text-white border-[#1A7A4A] shadow-lg"
+                    : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
                 )}
               >
                 <span
                   className={cn(
                     "text-sm font-medium",
-                    selected ? "text-primary-foreground" : "text-foreground group-hover:text-primary transition-colors"
+                    selected ? "text-white" : "text-white/60 group-hover:text-white transition-colors"
                   )}
                 >
                   {name}
@@ -184,18 +184,18 @@ const HomePage = () => {
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-end gap-4 sm:justify-between mb-2">
-          <div className="space-y-1">
-            <label htmlFor="event-date-filter" className="text-sm font-medium text-foreground">
+          <div className="space-y-1.5">
+            <label htmlFor="event-date-filter" className="text-xs font-bold uppercase tracking-widest text-white/40">
               When
             </label>
             <Select
               value={datePreset}
               onValueChange={(v) => setQuery({ when: v === "all" ? null : v })}
             >
-              <SelectTrigger id="event-date-filter" className="w-full sm:w-[220px] bg-background">
+              <SelectTrigger id="event-date-filter" className="w-full sm:w-[220px] bg-white/5 border-white/10 text-white">
                 <SelectValue placeholder="Any date" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-[#0F1612] border-white/10 text-white">
                 <SelectItem value="all">All dates</SelectItem>
                 <SelectItem value="upcoming">Upcoming (from today)</SelectItem>
                 <SelectItem value="this_month">This month</SelectItem>
@@ -230,11 +230,11 @@ const HomePage = () => {
         <>
           {/* Trending Section */}
           {!hasActiveFilters && trendingEvents.length > 0 && (
-            <div className="bg-[#EEF4F0] py-[60px]">
+            <div className="bg-[#080C0A] py-[60px]">
               <section className="container mx-auto px-4 max-w-7xl">
                 <div className="flex items-center justify-between mb-[32px]">
-                  <h2 className="text-[28px] font-[800] text-neutral-900">Trending Events</h2>
-                  <Link to="/discover" className="text-sm text-[#0F9D58] font-bold hover:underline">
+                  <h2 className="text-[28px] font-[800] text-white">Trending Events</h2>
+                  <Link to="/discover" className="text-sm text-[#2ECC71] font-bold hover:underline tracking-tight">
                     View All
                   </Link>
                 </div>
@@ -248,10 +248,10 @@ const HomePage = () => {
           )}
 
           {/* Regular Grid */}
-          <div className="bg-[#FFFFFF] py-[60px]">
+          <div className="bg-[#080C0A] py-[60px]">
             <section className="container mx-auto px-4 max-w-7xl">
               <div className="flex items-center justify-between mb-[32px]">
-                <h2 className="text-[28px] font-[800] text-neutral-900">
+                <h2 className="text-[28px] font-[800] text-white">
                   {hasActiveFilters ? "Search Results" : "Upcoming Events"}
                 </h2>
               </div>
