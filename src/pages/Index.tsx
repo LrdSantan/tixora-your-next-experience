@@ -230,9 +230,9 @@ const HomePage = () => {
         <>
           {/* Trending Section */}
           {!hasActiveFilters && trendingEvents.length > 0 && (
-            <div className="bg-[#F7F9F7] py-[60px]">
+            <div className="bg-[#EEF4F0] py-[60px]">
               <section className="container mx-auto px-4 max-w-7xl">
-                <div className="flex items-center justify-between mb-[32px] border-t-[3px] border-[#1A7A4A] pt-6">
+                <div className="flex items-center justify-between mb-[32px]">
                   <h2 className="text-[28px] font-[800] text-neutral-900">Trending Events</h2>
                   <Link to="/discover" className="text-sm text-[#0F9D58] font-bold hover:underline">
                     View All
@@ -250,7 +250,7 @@ const HomePage = () => {
           {/* Regular Grid */}
           <div className="bg-[#FFFFFF] py-[60px]">
             <section className="container mx-auto px-4 max-w-7xl">
-              <div className="flex items-center justify-between mb-[32px] border-t-[3px] border-[#1A7A4A] pt-6">
+              <div className="flex items-center justify-between mb-[32px]">
                 <h2 className="text-[28px] font-[800] text-neutral-900">
                   {hasActiveFilters ? "Search Results" : "Upcoming Events"}
                 </h2>

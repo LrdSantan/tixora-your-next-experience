@@ -40,15 +40,15 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
   const categoryColor = CATEGORY_COLORS[event.category as EventCategory] || CATEGORY_COLORS['Other'];
 
   return (
-    <Link to={`/events/${event.id}`} className="group block h-full">
-      <div className="bg-card rounded-2xl overflow-hidden border border-border hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full flex flex-col">
+    <Link to={`/events/${event.id}`} className="group block h-full w-full max-w-full">
+      <div className="bg-card rounded-2xl overflow-hidden border border-border hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full flex flex-col w-full max-w-full">
         {/* Cover Image */}
-        <div className="aspect-[16/9] overflow-hidden flex-shrink-0 bg-muted relative">
+        <div className="aspect-[16/9] w-full max-w-full overflow-hidden flex-shrink-0 bg-muted relative">
           {(event.cover_image_url || event.cover_image) && !imgError ? (
             <img
               src={event.cover_image_url || event.cover_image || getEventImage(event)}
               alt={event.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 absolute inset-0"
+              className="w-full max-w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 absolute inset-0"
               loading="lazy"
               onError={() => setImgError(true)}
             />
@@ -91,7 +91,10 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
 
         <div className="p-5 flex flex-col flex-1">
           {/* Title */}
-          <h3 className="font-bold text-foreground text-lg leading-tight line-clamp-2 group-hover:text-primary transition-colors min-h-[3rem]">
+          <h3 
+            className="font-bold text-foreground text-lg leading-tight group-hover:text-primary transition-colors min-h-[3rem]"
+            style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}
+          >
             {event.title}
           </h3>
 
