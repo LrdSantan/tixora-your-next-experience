@@ -45,7 +45,7 @@ export const TicketVisualCardSkeleton = React.memo(({ className }: TicketVisualC
 
         {/* Bottom section skeleton */}
         <div className="px-5 py-7 flex flex-col items-center">
-          <Skeleton className="h-[130px] w-[130px] rounded-xl bg-white/10 mb-3" />
+          <Skeleton className="h-[200px] w-[200px] rounded-xl bg-white/10 mb-3" />
           <Skeleton className="h-2 w-32 bg-white/5" />
         </div>
       </div>

@@ -125,10 +125,10 @@ export const TicketVisualCard = forwardRef<HTMLDivElement, TicketVisualCardProps
           <div className="bg-white p-3 rounded-xl mb-3">
             <QRCodeSVG 
               value={qrValue} 
-              size={130} 
+              size={200} 
               level="H" 
               includeMargin={false}
-              className="w-full h-full max-w-[130px] max-h-[130px]"
+              className="w-full h-full max-w-[200px] max-h-[200px]"
             />
           </div>
           <p className="text-[10px] uppercase tracking-wider font-medium text-white/35">
