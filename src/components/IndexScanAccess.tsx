@@ -74,8 +74,17 @@ export function IndexScanAccess() {
     setLoadingEvents(true);
     setOpen(true);
     
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayIso = today.toISOString();
+    
     if (user?.email === "yusufquadir50@gmail.com") {
-      const { data } = await supabase!.from("events").select("id, title, date").order("created_at", { ascending: false });
+      const { data } = await supabase!
+        .from("events")
+        .select("id, title, date")
+        .eq("status", "active")
+        .gte("date", todayIso)
+        .order("created_at", { ascending: false });
       setEvents(data || []);
     } else {
       // Organizer or Team Member
@@ -94,6 +103,8 @@ export function IndexScanAccess() {
         .from("events")
         .select("id, title, date")
         .in("organizer_id", organizerIds)
+        .eq("status", "active")
+        .gte("date", todayIso)
         .order("created_at", { ascending: false });
         
       setEvents(data || []);
