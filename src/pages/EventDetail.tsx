@@ -1,5 +1,5 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { MapPin, Calendar, Clock, ArrowLeft, Tag } from "lucide-react";
+import { MapPin, Calendar, Clock, ArrowLeft, Tag, Minus, Plus } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { formatPrice, formatDate } from "@/lib/mock-data";
