@@ -101,6 +101,7 @@ export default function VerifyTicketPage() {
   const { qrToken } = useParams<{ qrToken: string }>();
   const [searchParams] = useSearchParams();
   const queryToken = searchParams.get("token");
+  const eventId = searchParams.get("eventId") || searchParams.get("event_id");
   const navigate = useNavigate();
   const supabase = getSupabaseClient();
   const { user, loading: authLoading } = useAuth();
@@ -130,6 +131,24 @@ export default function VerifyTicketPage() {
 
   const isAdmin = !authLoading && user?.email === ADMIN_EMAIL;
   const canMark = isAdmin || isOrganizerOrTeam;
+
+  // ── Initial Scanner Mode Fetch ──
+  useEffect(() => {
+    if (!eventId || !supabase) return;
+    async function fetchEventMode() {
+      const { data, error } = await supabase
+        .from("events")
+        .select("scanner_mode, scanner_mode_locked")
+        .eq("id", eventId)
+        .maybeSingle();
+      
+      if (!error && data) {
+        setScannerMode(data.scanner_mode || "standard");
+        setScannerModeLocked(data.scanner_mode_locked || false);
+      }
+    }
+    fetchEventMode();
+  }, [eventId, supabase]);
 
   // ── Hardware Scanner Support ──
   useEffect(() => {
@@ -634,13 +653,13 @@ export default function VerifyTicketPage() {
       </div>
       
       {scannerModeLocked ? (
-        <div className="flex items-center justify-center gap-3 py-4 bg-[#1A7A4A]/5 border border-[#1A7A4A]/10 rounded-xl mb-2">
-          <div className="w-8 h-8 rounded-full bg-[#1A7A4A]/10 flex items-center justify-center">
-            <Lock className="w-4 h-4 text-[#1A7A4A]" />
-          </div>
+        <div className="flex flex-col items-center justify-center gap-2 py-4 bg-[#1A7A4A]/5 border border-[#1A7A4A]/10 rounded-xl mb-2">
           <span className="font-black text-lg text-[#1A7A4A] uppercase tracking-wider">
             {scannerMode === "express" ? "Express Mode" : "Standard Mode"}
           </span>
+          <div className="text-xs font-semibold text-neutral-500 flex items-center gap-1.5">
+            <Lock className="w-3.5 h-3.5" /> Mode locked by organizer
+          </div>
         </div>
       ) : (
         <div className="flex bg-neutral-100 p-1 rounded-xl mb-3 relative">

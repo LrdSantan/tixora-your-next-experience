@@ -45,6 +45,7 @@ const playSound = (type: "beep" | "buzz") => {
 export const InbuiltScanner = ({ onClose, eventId }: InbuiltScannerProps) => {
   const [scanResult, setScanResult] = useState<"success" | "already-used" | "invalid" | "invalid-event" | "error" | null>(null);
   const [scannerMode, setScannerMode] = useState<"standard" | "express">("standard");
+  const [scannerModeLocked, setScannerModeLocked] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [unsyncedCount, setUnsyncedCount] = useState(0);
   const [isFlashlightOn, setIsFlashlightOn] = useState(false);
@@ -68,6 +69,24 @@ export const InbuiltScanner = ({ onClose, eventId }: InbuiltScannerProps) => {
   }, []);
 
   const [mode, setMode] = useState<"online" | "offline">("online");
+  
+  // ── Initial Scanner Mode Fetch ──
+  useEffect(() => {
+    if (!eventId) return;
+    async function fetchEventMode() {
+      const { data, error } = await getSupabaseClient()!
+        .from("events")
+        .select("scanner_mode, scanner_mode_locked")
+        .eq("id", eventId)
+        .maybeSingle();
+        
+      if (!error && data) {
+        setScannerMode(data.scanner_mode || "standard");
+        setScannerModeLocked(data.scanner_mode_locked || false);
+      }
+    }
+    fetchEventMode();
+  }, [eventId]);
   
   // ── Duplicate Scan Prevention ──
   const lastScannedCode = useRef("");
@@ -224,25 +243,38 @@ export const InbuiltScanner = ({ onClose, eventId }: InbuiltScannerProps) => {
 
       {/* Standard/Express Toggle */}
       <div className="w-full max-w-md mb-4 bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/20">
-        <div className="flex bg-white/10 p-1 rounded-xl relative">
-          <button
-            onClick={() => setScannerMode("standard")}
-            className={cn("flex-1 py-2 text-sm font-bold rounded-lg transition-all duration-200 z-10",
-              scannerMode === "standard" ? "text-white" : "text-white/50")}
-          >STANDARD</button>
-          <button
-            onClick={() => setScannerMode("express")}
-            className={cn("flex-1 py-2 text-sm font-bold rounded-lg transition-all duration-200 z-10",
-              scannerMode === "express" ? "text-white" : "text-white/50")}
-          >EXPRESS</button>
-          <div className={cn(
-            "absolute top-1 bottom-1 w-[calc(50%-4px)] bg-[#1A7A4A] rounded-lg shadow-sm transition-transform duration-300 ease-in-out",
-            scannerMode === "express" ? "translate-x-[calc(100%+8px)]" : "translate-x-0"
-          )} />
-        </div>
-        <p className="text-xs text-white/50 text-center font-medium mt-2">
-          {scannerMode === "standard" ? "Review result before next scan" : "Auto-continue after each scan"}
-        </p>
+        {scannerModeLocked ? (
+          <div className="flex flex-col items-center justify-center py-2">
+            <span className="font-black text-lg text-white uppercase tracking-wider mb-2">
+              {scannerMode === "express" ? "Express Mode" : "Standard Mode"}
+            </span>
+            <div className="text-xs font-semibold text-white/70 flex items-center gap-1.5">
+              <span className="bg-black/20 p-1 rounded-full"><CheckCircle className="w-3 h-3" /></span> Mode locked by organizer
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex bg-white/10 p-1 rounded-xl relative">
+              <button
+                onClick={() => setScannerMode("standard")}
+                className={cn("flex-1 py-2 text-sm font-bold rounded-lg transition-all duration-200 z-10",
+                  scannerMode === "standard" ? "text-white" : "text-white/50")}
+              >STANDARD</button>
+              <button
+                onClick={() => setScannerMode("express")}
+                className={cn("flex-1 py-2 text-sm font-bold rounded-lg transition-all duration-200 z-10",
+                  scannerMode === "express" ? "text-white" : "text-white/50")}
+              >EXPRESS</button>
+              <div className={cn(
+                "absolute top-1 bottom-1 w-[calc(50%-4px)] bg-[#1A7A4A] rounded-lg shadow-sm transition-transform duration-300 ease-in-out",
+                scannerMode === "express" ? "translate-x-[calc(100%+8px)]" : "translate-x-0"
+              )} />
+            </div>
+            <p className="text-xs text-white/50 text-center font-medium mt-2">
+              {scannerMode === "standard" ? "Review result before next scan" : "Auto-continue after each scan"}
+            </p>
+          </>
+        )}
       </div>
 
       {/* Reader Container */}
