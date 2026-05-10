@@ -230,32 +230,38 @@ const HomePage = () => {
         <>
           {/* Trending Section */}
           {!hasActiveFilters && trendingEvents.length > 0 && (
-            <section className="container mx-auto px-4 py-12 max-w-7xl">
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-[28px] font-extrabold text-neutral-900">Trending Events</h2>
-                <Link to="/discover" className="text-sm text-[#0F9D58] font-bold hover:underline">
-                  View All
-                </Link>
+            <div className="bg-[#F7F9F7] py-[60px]">
+              <section className="container mx-auto px-4 max-w-7xl">
+                <div className="flex items-center justify-between mb-[32px] border-t-[3px] border-[#1A7A4A] pt-6">
+                  <h2 className="text-[28px] font-[800] text-neutral-900">Trending Events</h2>
+                  <Link to="/discover" className="text-sm text-[#0F9D58] font-bold hover:underline">
+                    View All
+                  </Link>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {trendingEvents.map((event) => (
+                    <EventCard key={event.id} event={event} />
+                  ))}
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* Regular Grid */}
+          <div className="bg-[#FFFFFF] py-[60px]">
+            <section className="container mx-auto px-4 max-w-7xl">
+              <div className="flex items-center justify-between mb-[32px] border-t-[3px] border-[#1A7A4A] pt-6">
+                <h2 className="text-[28px] font-[800] text-neutral-900">
+                  {hasActiveFilters ? "Search Results" : "Upcoming Events"}
+                </h2>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {trendingEvents.map((event) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {filteredEvents.map((event) => (
                   <EventCard key={event.id} event={event} />
                 ))}
               </div>
             </section>
-          )}
-
-          {/* Regular Grid */}
-          <section className="container mx-auto px-4 py-12 border-t border-neutral-100 max-w-7xl">
-            <h2 className="text-[28px] font-extrabold text-neutral-900 mb-8">
-              {hasActiveFilters ? "Search Results" : "Upcoming Events"}
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {filteredEvents.map((event) => (
-                <EventCard key={event.id} event={event} />
-              ))}
-            </div>
-          </section>
+          </div>
         </>
       )}
     </div>
