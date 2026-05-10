@@ -235,13 +235,15 @@ const HomePage = () => {
               <section className="container mx-auto px-4 max-w-7xl">
                 <div className="flex items-center justify-between mb-[32px]">
                   <h2 className="text-[28px] font-[800] text-white">Trending Events</h2>
-                  <Link to="/discover" className="text-sm text-[#2ECC71] font-bold hover:underline tracking-tight">
+                  <Link to="/discover" className="hidden md:block text-sm text-[#2ECC71] font-bold hover:underline tracking-tight">
                     View All
                   </Link>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="-mx-4 px-4 flex flex-row gap-4 overflow-x-auto pb-6 md:pb-0 md:mx-0 md:px-0 md:grid md:grid-cols-3 md:gap-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:display-none">
                   {trendingEvents.map((event) => (
-                    <EventCard key={event.id} event={event} />
+                    <div key={event.id} className="min-w-[280px] md:min-w-0 flex-shrink-0">
+                      <EventCard event={event} />
+                    </div>
                   ))}
                 </div>
               </section>
