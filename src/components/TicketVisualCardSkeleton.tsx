@@ -8,52 +8,52 @@ interface TicketVisualCardSkeletonProps {
 
 export const TicketVisualCardSkeleton = React.memo(({ className }: TicketVisualCardSkeletonProps) => {
   return (
-    <div className={cn("rounded-xl border border-border bg-card shadow-sm overflow-hidden", className)}>
-      <div className="relative bg-white p-6 md:p-8">
-        
-        {/* Header */}
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-neutral-200 pb-4">
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-8 w-8 rounded-full" />
-            <div className="space-y-1">
-              <Skeleton className="h-5 w-20" />
-              <Skeleton className="h-3 w-24" />
-            </div>
-          </div>
-          <Skeleton className="h-6 w-16 rounded-full" />
-        </div>
-
-        {/* Content Body */}
-        <div className="mt-5 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0 flex-1 space-y-4">
-            <Skeleton className="h-8 w-3/4 md:h-9" />
-
-            <div className="grid gap-4 mt-6">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="space-y-1.5">
-                  <Skeleton className="h-3 w-16" />
-                  <Skeleton className="h-4 w-3/4 max-w-[200px]" />
-                </div>
-              ))}
-            </div>
-            
-            <div className="pt-4">
-              <Skeleton className="h-10 w-[140px] rounded-md" />
-            </div>
-          </div>
-
-          {/* QR Code section */}
-          <div className="relative flex shrink-0 flex-col items-center gap-2 lg:w-[140px]">
-            <Skeleton className="h-[146px] w-[146px] rounded-lg" />
-            <Skeleton className="h-3 w-24 mt-2" />
+    <div className={cn("relative", className)}>
+      <div
+        className="relative overflow-hidden"
+        style={{ backgroundColor: "#111d15", border: "1px solid rgba(26,122,74,0.3)", borderRadius: "16px" }}
+      >
+        {/* Top section — event banner skeleton */}
+        <div className="relative h-[120px] w-full bg-[#1A7A4A]/10 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-t from-[#111d15] via-transparent to-transparent" />
+          <div className="absolute bottom-3 left-5 right-5">
+            <Skeleton className="h-6 w-3/4 bg-white/10" />
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="mt-8 border-t border-neutral-200 pt-4 flex justify-center">
-          <Skeleton className="h-3 w-32" />
+        {/* Middle section skeleton */}
+        <div className="px-5 pt-4 pb-5 space-y-2">
+          <Skeleton className="h-5 w-1/2 bg-white/10" />
+          <Skeleton className="h-3 w-1/4 bg-white/5" />
         </div>
 
+        {/* Dashed divider */}
+        <div className="relative w-full h-[1px] border-t border-dashed border-white/10" />
+
+        {/* Detail grid skeleton */}
+        <div className="px-5 py-5 grid grid-cols-2 gap-y-5 gap-x-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="space-y-2">
+              <Skeleton className="h-2 w-10 bg-white/5" />
+              <Skeleton className="h-4 w-24 bg-white/10" />
+            </div>
+          ))}
+        </div>
+
+        {/* Dashed divider */}
+        <div className="relative w-full h-[1px] border-t border-dashed border-white/10" />
+
+        {/* Bottom section skeleton */}
+        <div className="px-5 py-7 flex flex-col items-center">
+          <Skeleton className="h-[130px] w-[130px] rounded-xl bg-white/10 mb-3" />
+          <Skeleton className="h-2 w-32 bg-white/5" />
+        </div>
+      </div>
+      
+      {/* Action buttons skeleton below */}
+      <div className="mt-4 flex gap-2 justify-end">
+        <Skeleton className="h-9 w-24 rounded-lg bg-white/5" />
+        <Skeleton className="h-9 w-24 rounded-lg bg-white/5" />
       </div>
     </div>
   );

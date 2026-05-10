@@ -50,6 +50,7 @@ type TicketRow = {
     time: string;
     venue: string;
     city: string;
+    cover_image_url?: string;
   } | null;
   ticket_tiers: { name: string } | null;
 };
@@ -76,6 +77,7 @@ function rowToModel(row: TicketRow, buyerName: string, buyerEmail: string): Tick
     resell_status: row.resell_status,
     transfer_status: row.transfer_status,
     transfer_token: row.transfer_token,
+    coverImageUrl: ev?.cover_image_url,
   };
 }
 
@@ -125,7 +127,7 @@ const MyTicketsPage = () => {
           transfer_token,
           user_id,
           recipient_email,
-          events ( title, date, time, venue, city ),
+          events ( title, date, time, venue, city, cover_image_url ),
           ticket_tiers ( name )
         `,
         )
@@ -155,36 +157,42 @@ const MyTicketsPage = () => {
 
   if (!user) {
     return (
-      <div className="container mx-auto px-4 py-20 text-center">
-        <Ticket className="mx-auto mb-4 h-16 w-16 rotate-[-30deg] text-primary" />
-        <h1 className="mb-2 text-2xl font-bold text-foreground">Sign in to view your tickets</h1>
-        <p className="mb-6 text-muted-foreground">You need to be logged in to see your booked tickets.</p>
-        <Link to="/login">
-          <Button className="bg-primary text-primary-foreground">Sign In</Button>
-        </Link>
+      <div className="min-h-screen w-full bg-[#080C0A] text-white flex items-center justify-center">
+        <div className="container mx-auto px-4 py-20 text-center">
+          <Ticket className="mx-auto mb-4 h-16 w-16 rotate-[-30deg] text-[#2ECC71]" />
+          <h1 className="mb-2 text-2xl font-bold text-white">Sign in to view your tickets</h1>
+          <p className="mb-6 text-white/60">You need to be logged in to see your booked tickets.</p>
+          <Link to="/login">
+            <Button className="bg-[#2ECC71] text-black hover:bg-[#25B962]">Sign In</Button>
+          </Link>
+        </div>
       </div>
     );
   }
 
   if (!isSupabaseConfigured || !supabase) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center text-muted-foreground">
-        <p>Supabase is not configured. Add credentials to load your tickets.</p>
+      <div className="min-h-screen w-full bg-[#080C0A] text-white">
+        <div className="container mx-auto px-4 py-16 text-center text-white/60">
+          <p>Supabase is not configured. Add credentials to load your tickets.</p>
+        </div>
       </div>
     );
   }
 
   if (query.isLoading) {
     return (
-      <div className="container mx-auto max-w-3xl space-y-6 px-4 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <Skeleton className="h-8 w-40" />
-        </div>
-        <Skeleton className="h-4 w-64 mb-8" />
-        <div className="space-y-8">
-          <TicketVisualCardSkeleton />
-          <TicketVisualCardSkeleton />
-          <TicketVisualCardSkeleton />
+      <div className="min-h-screen w-full bg-[#080C0A] text-white">
+        <div className="container mx-auto max-w-3xl space-y-6 px-4 py-8">
+          <div className="flex justify-between items-center mb-6">
+            <Skeleton className="h-8 w-40 bg-white/10" />
+          </div>
+          <Skeleton className="h-4 w-64 mb-8 bg-white/10" />
+          <div className="space-y-8">
+            <TicketVisualCardSkeleton />
+            <TicketVisualCardSkeleton />
+            <TicketVisualCardSkeleton />
+          </div>
         </div>
       </div>
     );
@@ -193,9 +201,11 @@ const MyTicketsPage = () => {
   if (query.isError) {
     const err = query.error as Error;
     return (
-      <div className="container mx-auto max-w-lg px-4 py-16 text-center">
-        <p className="text-destructive mb-2">Could not load tickets</p>
-        <p className="text-sm text-muted-foreground">{err.message}</p>
+      <div className="min-h-screen w-full bg-[#080C0A] text-white">
+        <div className="container mx-auto max-w-lg px-4 py-16 text-center">
+          <p className="text-red-400 mb-2">Could not load tickets</p>
+          <p className="text-sm text-white/60">{err.message}</p>
+        </div>
       </div>
     );
   }
@@ -413,30 +423,31 @@ const MyTicketsPage = () => {
   };
 
   return (
-    <div className="container mx-auto max-w-3xl px-4 py-8">
-      <div className="mb-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-foreground">My Tickets</h1>
-        {hasUsedOrExpired && (
-          <Button variant="outline" size="sm" onClick={handleClear} disabled={clearing} className="w-full sm:w-auto text-muted-foreground hover:text-destructive border-dashed">
-            {clearing ? "Clearing..." : "Clear Used & Expired"}
-          </Button>
-        )}
-      </div>
-      <p className="mb-6 text-sm text-muted-foreground">Signed in as {user.email}</p>
-      
-      <div className="mb-8 rounded-lg bg-blue-50 border border-blue-100 p-3 text-sm text-blue-800">
-        <p>Used tickets are automatically removed after 24 hours.</p>
-      </div>
+    <div className="min-h-screen w-full bg-[#080C0A] text-white">
+      <div className="container mx-auto max-w-3xl px-4 py-8">
+        <div className="mb-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h1 className="text-2xl font-bold text-white">My Tickets</h1>
+          {hasUsedOrExpired && (
+            <Button variant="outline" size="sm" onClick={handleClear} disabled={clearing} className="w-full sm:w-auto bg-[rgba(255,255,255,0.06)] text-white/70 hover:text-red-400 border-[rgba(255,255,255,0.12)] border-dashed hover:bg-[rgba(255,255,255,0.1)] hover:border-red-500/30">
+              {clearing ? "Clearing..." : "Clear Used & Expired"}
+            </Button>
+          )}
+        </div>
+        <p className="mb-6 text-sm text-white/50">Signed in as {user.email}</p>
+        
+        <div className="mb-8 rounded-lg bg-[rgba(26,122,74,0.1)] border border-[rgba(26,122,74,0.3)] p-3 text-sm text-[#2ECC71]">
+          <p>Used tickets are automatically removed after 24 hours.</p>
+        </div>
 
-      {rows.length === 0 ? (
-        <p className="text-muted-foreground">No tickets yet. Browse events to get started!</p>
-      ) : (
+        {rows.length === 0 ? (
+          <p className="text-white/60">No tickets yet. Browse events to get started!</p>
+        ) : (
         <div className="space-y-8">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/50" />
             <Input 
               placeholder="Search by event, code, or venue..." 
-              className="pl-9 pr-10" 
+              className="pl-9 pr-10 bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)] text-white placeholder:text-white/30 focus-visible:ring-[#2ECC71]/30" 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -444,7 +455,7 @@ const MyTicketsPage = () => {
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:bg-transparent"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-white/50 hover:text-white hover:bg-[rgba(255,255,255,0.1)]"
                 onClick={() => setSearchQuery("")}
               >
                 <X className="h-4 w-4" />
@@ -454,14 +465,14 @@ const MyTicketsPage = () => {
 
           {filteredRows.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">No tickets found matching "{searchQuery}"</p>
-              <Button variant="link" onClick={() => setSearchQuery("")} className="mt-2 text-primary">Clear search</Button>
+              <p className="text-white/60">No tickets found matching "{searchQuery}"</p>
+              <Button variant="link" onClick={() => setSearchQuery("")} className="mt-2 text-[#2ECC71]">Clear search</Button>
             </div>
           ) : (
             <div className="space-y-12">
           {active.length > 0 && (
             <section>
-              <h2 className="mb-4 text-lg font-semibold text-foreground">Active</h2>
+              <h2 className="mb-4 text-lg font-semibold text-white">Active</h2>
               <div className="space-y-8">
                 {active.map((row) => (
                   <div key={row.id} className="relative">
@@ -479,102 +490,102 @@ const MyTicketsPage = () => {
                         <Badge className="bg-green-600 text-white border-0">Active</Badge>
                       )}
                     </div>
-                    <TicketDownloadBlock model={rowToModel(row, buyerName, buyerEmail)} />
-                    
-                    {!row.is_used && !isEventDatePassed(row.events?.date ? String(row.events.date) : "") && (
-                      <div className="mt-4 flex flex-wrap gap-2 justify-end px-4">
-                        {row.resell_status === 'pending' ? (
-                          <Button variant="outline" size="sm" onClick={() => handleCancelResell(row.id)} className="text-orange-600 border-orange-200">
-                            Cancel Resell
-                          </Button>
-                        ) : row.transfer_status === 'pending' ? (
-                          <div className="flex flex-wrap gap-2 justify-end w-full">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => {
-                                const link = `${window.location.origin}/claim-ticket/${row.transfer_token}`;
-                                handleCopyLink(link, row.id);
-                              }}
-                              className="flex items-center gap-1.5"
-                            >
-                              {copiedId === row.id ? (
-                                <>
-                                  <Check className="h-3.5 w-3.5" />
-                                  Copied!
-                                </>
-                              ) : (
-                                <>
-                                  <Copy className="h-3.5 w-3.5" />
-                                  Copy Link
-                                </>
-                              )}
+                    <TicketDownloadBlock model={rowToModel(row, buyerName, buyerEmail)}>
+                      {!row.is_used && !isEventDatePassed(row.events?.date ? String(row.events.date) : "") && (
+                        <>
+                          {row.resell_status === 'pending' ? (
+                            <Button variant="outline" size="sm" onClick={() => handleCancelResell(row.id)} className="bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)] text-orange-400 hover:bg-[rgba(255,255,255,0.1)] hover:text-orange-300">
+                              Cancel Resell
                             </Button>
-                            
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-green-600 hover:text-green-700 hover:bg-green-50 flex items-center gap-1.5"
-                              onClick={() => {
-                                const link = `${window.location.origin}/claim-ticket/${row.transfer_token}`;
-                                const waUrl = `https://wa.me/?text=${encodeURIComponent("Here's your ticket claim link: " + link)}`;
-                                window.open(waUrl, '_blank');
-                              }}
-                            >
-                              <Share2 className="h-3.5 w-3.5" />
-                              WhatsApp
-                            </Button>
+                          ) : row.transfer_status === 'pending' ? (
+                            <>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => {
+                                  const link = `${window.location.origin}/claim-ticket/${row.transfer_token}`;
+                                  handleCopyLink(link, row.id);
+                                }}
+                                className="bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)] text-white hover:bg-[rgba(255,255,255,0.1)] flex items-center gap-1.5"
+                              >
+                                {copiedId === row.id ? (
+                                  <>
+                                    <Check className="h-3.5 w-3.5" />
+                                    Copied!
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="h-3.5 w-3.5" />
+                                    Copy Link
+                                  </>
+                                )}
+                              </Button>
+                              
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] text-[#2ECC71] hover:text-[#25B962] hover:bg-[rgba(255,255,255,0.1)] flex items-center gap-1.5"
+                                onClick={() => {
+                                  const link = `${window.location.origin}/claim-ticket/${row.transfer_token}`;
+                                  const waUrl = `https://wa.me/?text=${encodeURIComponent("Here's your ticket claim link: " + link)}`;
+                                  window.open(waUrl, '_blank');
+                                }}
+                              >
+                                <Share2 className="h-3.5 w-3.5" />
+                                WhatsApp
+                              </Button>
 
-                            <Button variant="outline" size="sm" onClick={() => handleCancelTransfer(row.id)} className="text-blue-600 border-blue-200">
-                              Cancel Transfer
-                            </Button>
-                          </div>
-                        ) : (
-                          <>
-                            <Button variant="outline" size="sm" onClick={() => handleResell(row.id)}>
-                              Sell Ticket
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => handleTransferInit(row.id)}>
-                              Transfer
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => handleAddToWallet(row.id)}
-                              disabled={isGeneratingWallet === row.id}
-                              className="gap-1.5 border-primary/20 hover:bg-primary/5 hover:text-primary transition-colors"
-                            >
-                              {isGeneratingWallet === row.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Wallet className="h-3.5 w-3.5" />
-                              )}
-                              Wallet
-                            </Button>
-                            
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm" className="gap-1.5">
-                                  <Calendar className="h-3.5 w-3.5" />
-                                  Calendar
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleCalendar(row, 'google')}>
-                                  Google Calendar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleCalendar(row, 'outlook')}>
-                                  Outlook Calendar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleCalendar(row, 'apple')}>
-                                  Apple Calendar / ICS
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </>
-                        )}
-                      </div>
-                    )}
+                              <Button variant="outline" size="sm" onClick={() => handleCancelTransfer(row.id)} className="bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)] text-blue-400 hover:bg-[rgba(255,255,255,0.1)] hover:text-blue-300">
+                                Cancel Transfer
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button variant="outline" size="sm" onClick={() => handleResell(row.id)} className="bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)] text-white hover:bg-[rgba(255,255,255,0.1)]">
+                                Sell Ticket
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => handleTransferInit(row.id)} className="bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)] text-white hover:bg-[rgba(255,255,255,0.1)]">
+                                Transfer
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => handleAddToWallet(row.id)}
+                                disabled={isGeneratingWallet === row.id}
+                                className="bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)] text-white hover:bg-[rgba(255,255,255,0.1)] gap-1.5 transition-colors"
+                              >
+                                {isGeneratingWallet === row.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Wallet className="h-3.5 w-3.5" />
+                                )}
+                                Wallet
+                              </Button>
+                              
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="outline" size="sm" className="bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)] text-white hover:bg-[rgba(255,255,255,0.1)] gap-1.5">
+                                    <Calendar className="h-3.5 w-3.5" />
+                                    Calendar
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="bg-[#111d15] border-[rgba(255,255,255,0.12)] text-white">
+                                  <DropdownMenuItem onClick={() => handleCalendar(row, 'google')} className="hover:bg-[rgba(255,255,255,0.1)] focus:bg-[rgba(255,255,255,0.1)] focus:text-white cursor-pointer">
+                                    Google Calendar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleCalendar(row, 'outlook')} className="hover:bg-[rgba(255,255,255,0.1)] focus:bg-[rgba(255,255,255,0.1)] focus:text-white cursor-pointer">
+                                    Outlook Calendar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleCalendar(row, 'apple')} className="hover:bg-[rgba(255,255,255,0.1)] focus:bg-[rgba(255,255,255,0.1)] focus:text-white cursor-pointer">
+                                    Apple Calendar / ICS
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </TicketDownloadBlock>
                   </div>
                 ))}
               </div>
@@ -583,8 +594,8 @@ const MyTicketsPage = () => {
 
           {expired.length > 0 && (
             <section>
-              <h2 className="mb-4 text-lg font-semibold text-muted-foreground">Past events</h2>
-              <div className="space-y-8 opacity-95">
+              <h2 className="mb-4 text-lg font-semibold text-white/60">Past events</h2>
+              <div className="space-y-8 opacity-80">
                 {expired.map((row) => (
                   <div key={row.id} className="relative">
                     <div className="absolute top-3 right-3 z-10">
@@ -605,10 +616,10 @@ const MyTicketsPage = () => {
         </div>
       )}
       <Dialog open={isInitiateModalOpen} onOpenChange={setIsInitiateModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-[#111d15] text-white border-[rgba(255,255,255,0.12)]">
           <DialogHeader>
             <DialogTitle>Initiate Ticket Transfer</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-white/60">
               Provide the recipient's email address if you want them to get an automatic notification.
             </DialogDescription>
           </DialogHeader>
@@ -623,15 +634,15 @@ const MyTicketsPage = () => {
                 placeholder="friend@example.com"
                 value={transferEmail}
                 onChange={(e) => setTransferEmail(e.target.value)}
-                className="h-10"
+                className="h-10 bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)] text-white placeholder:text-white/30 focus-visible:ring-[#2ECC71]/30"
               />
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-white/50 mt-1">
                 Leave blank to share via link only.
               </p>
             </div>
             
             <Button 
-              className="w-full h-11"
+              className="w-full h-11 bg-[#2ECC71] text-black hover:bg-[#25B962]"
               onClick={handleConfirmTransfer}
               disabled={isSubmittingTransfer}
             >
@@ -642,10 +653,10 @@ const MyTicketsPage = () => {
       </Dialog>
 
       <Dialog open={isTransferModalOpen} onOpenChange={setIsTransferModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-[#111d15] text-white border-[rgba(255,255,255,0.12)]">
           <DialogHeader>
             <DialogTitle>Transfer Link Generated</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-white/60">
               Share this link with the person you want to transfer the ticket to.
             </DialogDescription>
           </DialogHeader>
@@ -655,12 +666,12 @@ const MyTicketsPage = () => {
                 <Input
                   defaultValue={activeTransferLink}
                   readOnly
-                  className="h-10 text-sm font-mono bg-muted"
+                  className="h-10 text-sm font-mono bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)] text-white/80"
                 />
               </div>
               <Button 
                 size="sm" 
-                className="px-3" 
+                className="px-3 bg-[rgba(255,255,255,0.1)] border-[rgba(255,255,255,0.12)] hover:bg-[rgba(255,255,255,0.15)] text-white" 
                 onClick={() => handleCopyLink(activeTransferLink, 'modal')}
               >
                 {copiedId === 'modal' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -680,7 +691,7 @@ const MyTicketsPage = () => {
             </Button>
           </div>
           <DialogFooter className="sm:justify-start">
-            <p className="text-xs text-muted-foreground italic">
+            <p className="text-xs text-white/50 italic">
               Anyone with this link can claim the ticket. Share it carefully.
             </p>
           </DialogFooter>
@@ -688,7 +699,7 @@ const MyTicketsPage = () => {
       </Dialog>
       
       <Dialog open={isComingSoonModalOpen} onOpenChange={setIsComingSoonModalOpen}>
-        <DialogContent className="sm:max-w-md text-center">
+        <DialogContent className="sm:max-w-md text-center bg-[#111d15] text-white border-[rgba(255,255,255,0.12)]">
           <DialogHeader>
             <DialogTitle className="text-center text-xl">Ticket Resell — Coming Soon</DialogTitle>
             <div className="flex justify-center py-6">
@@ -696,7 +707,7 @@ const MyTicketsPage = () => {
                 Coming Soon
               </Badge>
             </div>
-            <DialogDescription className="text-center text-base leading-relaxed text-foreground/80">
+            <DialogDescription className="text-center text-base leading-relaxed text-white/80">
               Can't make it? Soon you'll be able to list your ticket back into the pool. 
               If someone buys it, you get refunded automatically minus a small fee. 
               We're putting the finishing touches on this feature.
@@ -705,7 +716,7 @@ const MyTicketsPage = () => {
           <div className="flex justify-center mt-2">
             <Button 
               onClick={() => setIsComingSoonModalOpen(false)} 
-              className="w-full sm:w-auto px-12 h-11 bg-primary hover:bg-primary/90"
+              className="w-full sm:w-auto px-12 h-11 bg-[#2ECC71] text-black hover:bg-[#25B962]"
             >
               Got it
             </Button>
@@ -713,6 +724,7 @@ const MyTicketsPage = () => {
         </DialogContent>
       </Dialog>
     </div>
+  </div>
   );
 };
 

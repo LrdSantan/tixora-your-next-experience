@@ -1,7 +1,6 @@
 import { forwardRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Ticket } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { formatPrice, formatDate } from "@/lib/mock-data";
 import { formatPurchaseDate } from "@/lib/ticket-utils";
 import { cn } from "@/lib/utils";
@@ -23,6 +22,7 @@ export type TicketVisualModel = {
   purchasedAt: string;
   isUsed?: boolean;
   usedAt?: string | null;
+  coverImageUrl?: string;
 };
 
 type TicketVisualCardProps = {
@@ -44,148 +44,99 @@ export const TicketVisualCard = forwardRef<HTMLDivElement, TicketVisualCardProps
   const qrValue = `https://tixoraafrica.com.ng/verify/${tokenToUse}`;
 
   return (
-    <div className={cn("rounded-xl border border-border bg-card shadow-sm", className)}>
+    <div className={cn("relative", className)}>
       <div
         ref={ref}
-        className="relative overflow-hidden bg-white p-6 text-neutral-900 md:p-8 print:p-8"
+        className="relative overflow-hidden font-sans select-none"
+        style={{ backgroundColor: "#111d15", border: "1px solid rgba(26,122,74,0.3)", borderRadius: "16px" }}
         data-ticket-pdf-root
       >
-        {expired && (
-          <div className="mb-4 rounded-lg bg-red-600 px-3 py-2 text-center text-sm font-bold tracking-wide text-white">
-            Expired — this event date has passed
+        {/* Top section — event banner */}
+        <div className="relative h-[120px] w-full bg-[#1A7A4A]/20 overflow-hidden">
+          {ticket.coverImageUrl && (
+            <img 
+              src={ticket.coverImageUrl} 
+              alt={ticket.eventTitle} 
+              className="absolute inset-0 w-full h-full object-cover" 
+            />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#111d15] via-[#111d15]/40 to-transparent" />
+          <div className="absolute bottom-3 left-5 right-5">
+            <h2 className="text-white font-bold text-lg leading-tight truncate drop-shadow-sm">
+              {ticket.eventTitle}
+            </h2>
           </div>
-        )}
-        {ticket.isUsed && (
-          <div className="mb-4 rounded-lg bg-neutral-600 px-3 py-2 text-center text-sm font-bold tracking-wide text-white">
-            ✓ Ticket Used{ticket.usedAt ? ` · ${new Date(ticket.usedAt).toLocaleString()}` : ""}
-          </div>
-        )}
-
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-neutral-200 pb-4">
-          <div className="flex items-center gap-2">
-            <Ticket className="h-8 w-8 shrink-0 rotate-[-30deg] text-[#1A7A4A]" aria-hidden />
-            <div>
-              <p className="text-lg font-extrabold tracking-tight text-[#1A7A4A]">TIXORA</p>
-              <p className="text-[10px] uppercase tracking-widest text-neutral-500">Official e-ticket</p>
-            </div>
-          </div>
-          <span className="inline-flex items-center rounded-full bg-[#1A7A4A]/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-[#1A7A4A]">
-            {ticket.tierName}
-          </span>
         </div>
 
-        <div className="mt-5 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0 flex-1 space-y-4">
-            <h2 className="text-2xl font-extrabold leading-tight text-neutral-900 md:text-3xl">{ticket.eventTitle}</h2>
+        {/* Middle section — ticket header */}
+        <div className="px-5 pt-4 pb-5">
+          <h3 className="text-white font-bold text-[16px] leading-tight">{ticket.eventTitle}</h3>
+          <p className="text-[#2ECC71] text-[12px] font-semibold mt-1 tracking-wide">{ticket.tierName}</p>
+        </div>
 
-            <dl className="grid gap-2 text-sm">
-              <div>
-                <dt className="text-xs font-medium uppercase tracking-wide text-neutral-500">When</dt>
-                <dd className="font-semibold text-neutral-900">
-                  {formatDate(ticket.eventDate)} · {ticket.eventTime}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium uppercase tracking-wide text-neutral-500">Where</dt>
-                <dd className="font-semibold text-neutral-900">
-                  {ticket.venue}, {ticket.city}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium uppercase tracking-wide text-neutral-500">Tickets</dt>
-                <dd className="font-semibold text-neutral-900">
-                  {ticket.quantity} × {ticket.tierName} · {formatPrice(ticket.amountPaidKobo / 100)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium uppercase tracking-wide text-neutral-500">Buyer</dt>
-                <dd className="font-semibold text-neutral-900">{ticket.buyerName}</dd>
-                <dd className="text-neutral-600">{ticket.buyerEmail}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium uppercase tracking-wide text-neutral-500">Purchased</dt>
-                <dd className="font-mono text-sm text-neutral-800">{formatPurchaseDate(ticket.purchasedAt)}</dd>
-              </div>
-              {ticket.ticketCode && (
-                <div>
-                  <dt className="text-xs font-medium uppercase tracking-wide text-neutral-500">Ticket code</dt>
-                  <dd className="break-all font-mono text-sm font-semibold text-[#1A7A4A]">{ticket.ticketCode}</dd>
-                </div>
-              )}
-              <div>
-                <dt className="text-xs font-medium uppercase tracking-wide text-neutral-500">Ticket reference</dt>
-                <dd className="break-all font-mono text-sm font-semibold text-[#1A7A4A]">{ticket.reference}</dd>
-              </div>
-            </dl>
+        {/* Dashed divider with notches using pseudo-elements */}
+        <div className="relative w-full h-[1px] border-t border-dashed border-white/15 
+          before:content-[''] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-[14px] before:h-[14px] before:rounded-full before:-translate-x-1/2 before:bg-[#080C0A] before:border-r before:border-[rgba(26,122,74,0.3)]
+          after:content-[''] after:absolute after:right-0 after:top-1/2 after:-translate-y-1/2 after:w-[14px] after:h-[14px] after:rounded-full after:translate-x-1/2 after:bg-[#080C0A] after:border-l after:border-[rgba(26,122,74,0.3)]" />
 
-            {download && (
-              <div className="pt-2 print:hidden" data-no-pdf>
-                <Button
-                  type="button"
-                  className="bg-[#1A7A4A] text-white hover:bg-[#155a37]"
-                  disabled={download.loading}
-                  onClick={() => void download.onClick()}
-                >
-                  {download.loading ? "Preparing PDF…" : (download.label ?? "Download PDF")}
-                </Button>
-              </div>
-            )}
+        {/* Detail grid — two columns */}
+        <div className="px-5 py-5 grid grid-cols-2 gap-y-5 gap-x-4">
+          <div>
+            <div className="text-[9px] uppercase tracking-[0.2em] font-bold text-white/40">NAME</div>
+            <div className="text-white text-[12px] font-semibold mt-1 truncate">{ticket.buyerName}</div>
           </div>
-
-          <div className="relative flex shrink-0 flex-col items-center gap-2 lg:w-[240px]">
-            <div className="relative rounded-lg border border-neutral-200 bg-white p-3 flex min-h-[246px] min-w-[246px] items-center justify-center">
+          <div>
+            <div className="text-[9px] uppercase tracking-[0.2em] font-bold text-white/40">LOCATION</div>
+            <div className="text-white text-[12px] font-semibold mt-1 truncate">{ticket.venue}{ticket.city ? `, ${ticket.city}` : ""}</div>
+          </div>
+          <div>
+            <div className="text-[9px] uppercase tracking-[0.2em] font-bold text-white/40">DATE</div>
+            <div className="text-white text-[12px] font-semibold mt-1">{formatDate(ticket.eventDate)}</div>
+          </div>
+          <div>
+            <div className="text-[9px] uppercase tracking-[0.2em] font-bold text-white/40">TIME</div>
+            <div className="text-white text-[12px] font-semibold mt-1">{ticket.eventTime}</div>
+          </div>
+          <div>
+            <div className="text-[9px] uppercase tracking-[0.2em] font-bold text-white/40">TICKET TYPE</div>
+            <div className="text-white text-[12px] font-semibold mt-1 truncate">{ticket.tierName}</div>
+          </div>
+          <div>
+            <div className="text-[9px] uppercase tracking-[0.2em] font-bold text-white/40">STATUS</div>
+            <div className="text-white text-[12px] font-semibold mt-1">
               {ticket.isUsed ? (
-                <div className="text-center">
-                  <Ticket className="mx-auto h-8 w-8 text-neutral-300 mb-2 rotate-[-15deg]" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">TICKET USED</span>
-                </div>
+                <span className="text-white/40">USED</span>
+              ) : expired ? (
+                <span className="text-red-400">EXPIRED</span>
               ) : (
-                <>
-                  <QRCodeSVG 
-                    value={qrValue} 
-                    size={300} 
-                    level="H" 
-                    includeMargin={true}
-                    className="h-full w-full max-w-[220px] max-h-[220px]"
-                  />
-                  {expired && (
-                    <div
-                      className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden rounded-lg bg-white/40"
-                      aria-hidden
-                    >
-                      <span className="rotate-[-32deg] select-none text-center text-base font-black uppercase tracking-[0.25em] text-red-700/95">
-                        EXPIRED
-                      </span>
-                    </div>
-                  )}
-                </>
+                <span className="text-[#2ECC71]">VALID</span>
               )}
             </div>
-            <p className="max-w-[9rem] text-center text-[10px] text-neutral-500">
-              {ticket.isUsed
-                ? "This ticket has already been used."
-                : ticket.ticketCode
-                  ? `Scan to verify QR`
-                  : `Scan at entry — ref. ${ticket.reference.slice(0, 10)}…`}
-            </p>
           </div>
         </div>
 
-        <p className="mt-8 border-t border-neutral-200 pt-4 text-center text-[11px] text-neutral-400">
-          Powered by Tixora
-        </p>
+        {/* Dashed border top above QR section */}
+        <div className="relative w-full h-[1px] border-t border-dashed border-white/15 
+          before:content-[''] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-[14px] before:h-[14px] before:rounded-full before:-translate-x-1/2 before:bg-[#080C0A] before:border-r before:border-[rgba(26,122,74,0.3)]
+          after:content-[''] after:absolute after:right-0 after:top-1/2 after:-translate-y-1/2 after:w-[14px] after:h-[14px] after:rounded-full after:translate-x-1/2 after:bg-[#080C0A] after:border-l after:border-[rgba(26,122,74,0.3)]" />
 
-        {expired && (
-          <div
-            className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden"
-            aria-hidden
-          >
-            <span className="rotate-[-35deg] select-none text-7xl font-black uppercase tracking-widest text-neutral-900/10">
-              EXPIRED
-            </span>
+        {/* Bottom section — QR code */}
+        <div className="px-5 py-7 flex flex-col items-center">
+          <div className="bg-white p-3 rounded-xl mb-3">
+            <QRCodeSVG 
+              value={qrValue} 
+              size={130} 
+              level="H" 
+              includeMargin={false}
+              className="w-full h-full max-w-[130px] max-h-[130px]"
+            />
           </div>
-        )}
+          <p className="text-[10px] uppercase tracking-wider font-medium text-white/35">
+            Scan this QR code at entrance
+          </p>
+        </div>
       </div>
     </div>
   );
 });
+
