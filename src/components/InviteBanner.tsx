@@ -26,7 +26,7 @@ export function InviteBanner() {
       if (!supabase) return;
       const { data } = await supabase
         .from("organizer_team_members")
-        .select("id, organizer_id, email, status")
+        .select("id, organizer_id, email, status, profiles:organizer_id(full_name)")
         .eq("email", user!.email!)
         .eq("status", "pending");
       if (data) setInvites(data);
@@ -73,46 +73,49 @@ export function InviteBanner() {
 
   return (
     <div className="z-40 w-full space-y-2 px-4 pt-3">
-      {visible.map((invite) => (
-        <div
-          key={invite.id}
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 shadow-sm"
-        >
-          <div className="flex items-start gap-3">
-            <Users className="w-5 h-5 text-primary mt-0.5 shrink-0" />
-            <p className="text-sm text-foreground">
-              <span className="font-semibold">Team invitation:</span> You've been invited to join an organizer's team to help scan tickets.
-            </p>
+      {visible.map((invite) => {
+        const organizerName = (invite as any).profiles?.full_name;
+        return (
+          <div
+            key={invite.id}
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 shadow-sm"
+          >
+            <div className="flex items-start gap-3">
+              <Users className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+              <p className="text-sm text-foreground">
+                <span className="font-semibold">Team invitation:</span> You've been invited {organizerName ? `by ${organizerName} ` : ''}to join their team to help scan tickets.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                className="bg-primary text-primary-foreground gap-1 h-8"
+                disabled={responding === invite.id}
+                onClick={() => respond(invite, "accepted")}
+              >
+                <Check className="w-3.5 h-3.5" /> Accept
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1 h-8 text-muted-foreground"
+                disabled={responding === invite.id}
+                onClick={() => respond(invite, "declined")}
+              >
+                Decline
+              </Button>
+              <button
+                type="button"
+                onClick={() => dismiss(invite.id)}
+                className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                aria-label="Dismiss"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              size="sm"
-              className="bg-primary text-primary-foreground gap-1 h-8"
-              disabled={responding === invite.id}
-              onClick={() => respond(invite, "accepted")}
-            >
-              <Check className="w-3.5 h-3.5" /> Accept
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1 h-8 text-muted-foreground"
-              disabled={responding === invite.id}
-              onClick={() => respond(invite, "declined")}
-            >
-              Decline
-            </Button>
-            <button
-              type="button"
-              onClick={() => dismiss(invite.id)}
-              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              aria-label="Dismiss"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
