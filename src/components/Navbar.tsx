@@ -82,7 +82,7 @@ const Navbar = () => {
   const hasOfflineData = (offlineTicketCount ?? 0) > 0;
 
   return (
-    <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border">
+    <nav className="sticky top-0 z-50 bg-white border-b border-neutral-200">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <TixoraLogo />
 
@@ -99,27 +99,18 @@ const Navbar = () => {
 
         <div className="flex items-center gap-3">
           {!isHome && (
-            <Link to="/" className="hidden sm:block">
-              <Button variant="ghost" size="sm" className="text-foreground gap-1.5">
-                <Home className="w-4 h-4" />
-                Home
-              </Button>
+            <Link to="/" className="hidden sm:block text-sm font-medium text-neutral-600 hover:text-neutral-900 transition-colors">
+              Home
             </Link>
           )}
-          <Link to="/discover" className="hidden sm:block">
-            <Button variant="ghost" size="sm" className="text-foreground gap-1.5">
-              <Tag className="w-4 h-4" />
-              Discover
-            </Button>
+          <Link to="/discover" className="hidden sm:block text-sm font-medium text-neutral-600 hover:text-neutral-900 transition-colors">
+            Discover
           </Link>
-          <Link to="/my-tickets" className="hidden sm:block">
-            <Button variant="ghost" size="sm" className="text-foreground gap-1.5">
-              <Ticket className="w-4 h-4" />
-              My tickets
-            </Button>
+          <Link to="/my-tickets" className="hidden sm:block text-sm font-medium text-neutral-600 hover:text-neutral-900 transition-colors">
+            My tickets
           </Link>
           <Link to="/create-event" className="hidden sm:block">
-            <Button variant="ghost" size="sm" className="text-foreground gap-1.5">
+            <Button size="sm" className="bg-[#0A0C0B] text-white hover:bg-neutral-800 rounded-full gap-1.5 px-4">
               <Plus className="w-4 h-4" />
               Create Event
             </Button>

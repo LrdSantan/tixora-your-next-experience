@@ -128,13 +128,13 @@ export function EventSearchInput({
 
   const shellClass =
     variant === "hero"
-      ? "flex items-center bg-background rounded-full px-4 py-3 flex-1 w-full"
-      : "flex items-center bg-muted rounded-full px-4 py-2 w-full";
+      ? "flex items-center bg-white rounded-full px-4 py-3 flex-1 w-full"
+      : "flex items-center bg-neutral-100 rounded-full px-4 py-2 w-full";
 
   return (
     <div ref={rootRef} className={cn("relative", className)}>
       <div className={shellClass}>
-        <Search className="w-4 h-4 text-muted-foreground mr-2 shrink-0" aria-hidden />
+        <Search className={cn("w-4 h-4 mr-2 shrink-0", variant === "hero" ? "text-neutral-500" : "text-muted-foreground")} aria-hidden />
         <input
           type="search"
           value={value}
@@ -149,7 +149,10 @@ export function EventSearchInput({
           aria-controls={showList ? listId : undefined}
           aria-autocomplete="list"
           role="combobox"
-          className="bg-transparent text-sm outline-none w-full text-foreground placeholder:text-muted-foreground"
+          className={cn(
+            "bg-transparent text-sm outline-none w-full",
+            variant === "hero" ? "text-neutral-900 placeholder:text-neutral-500" : "text-foreground placeholder:text-muted-foreground"
+          )}
         />
         {isLoading && value.trim().length >= 2 && (
           <Loader2 className="w-4 h-4 text-primary animate-spin shrink-0 ml-2" />

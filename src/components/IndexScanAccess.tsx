@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { getSupabaseClient } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { QrCode, ArrowRight, Search } from "lucide-react";
+import { QrCode, ArrowRight, Search, ScanLine } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -111,9 +111,10 @@ export function IndexScanAccess() {
       >
         <Button 
           onClick={loadEvents} 
-          className="h-12 px-8 bg-[#1A7A4A] text-white rounded-full font-bold shadow-lg hover:shadow-xl hover:bg-[#155a37] text-base gap-2 transition-all transform hover:-translate-y-0.5 flex items-center"
+          variant="outline"
+          className="h-12 px-8 bg-transparent text-white border-white/20 rounded-full font-bold hover:bg-white/10 text-base gap-2 transition-all flex items-center"
         >
-          <QrCode className="w-5 h-5 flex-shrink-0" />
+          <ScanLine className="w-5 h-5 flex-shrink-0" />
           Scan Tickets
         </Button>
       </div>

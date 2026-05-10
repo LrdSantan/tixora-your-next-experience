@@ -58,6 +58,12 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
             </div>
           )}
           
+          <div className="absolute top-3 left-3">
+            <span className="inline-flex items-center bg-white/95 backdrop-blur-sm text-neutral-900 text-[11px] font-bold px-3 py-1.5 rounded-full shadow-sm">
+              {event.category || 'Event'}
+            </span>
+          </div>
+          
           <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
             <button
               onClick={handleCopy}
@@ -84,18 +90,8 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
         </div>
 
         <div className="p-5 flex flex-col flex-1">
-          {/* Category */}
-          <div className="mb-3">
-            <span className={cn(
-              "inline-block text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg border",
-              categoryColor
-            )}>
-              {event.category || 'Event'}
-            </span>
-          </div>
-
           {/* Title */}
-          <h3 className="font-bold text-foreground text-lg leading-snug line-clamp-2 group-hover:text-primary transition-colors min-h-[3rem]">
+          <h3 className="font-bold text-foreground text-lg leading-tight line-clamp-2 group-hover:text-primary transition-colors min-h-[3rem]">
             {event.title}
           </h3>
 
@@ -114,9 +110,9 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
           </div>
 
           {/* Bottom section */}
-          <div className="flex items-center justify-between pt-4 mt-auto border-t border-border/50">
+          <div className="flex items-center justify-between pt-4 mt-auto border-t border-neutral-100">
             <div className="flex flex-col">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-tight">Starting from</span>
+              <span className="text-[11px] text-muted-foreground font-medium mb-0.5">From</span>
               <p className={cn(
                 "text-base font-extrabold",
                 lowestPrice === 0 ? "text-green-600" : "text-foreground"
@@ -124,8 +120,8 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
                 {lowestPrice === 0 ? "Free" : formatPrice(lowestPrice)}
               </p>
             </div>
-            <Button size="sm" className="bg-primary text-primary-foreground font-bold rounded-xl h-9">
-              View Event
+            <Button size="sm" className="bg-[#0F9D58] hover:bg-[#0F9D58]/90 text-white font-bold rounded-full px-5 h-9">
+              Buy Tickets
             </Button>
           </div>
         </div>

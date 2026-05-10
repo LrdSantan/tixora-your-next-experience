@@ -109,19 +109,26 @@ const HomePage = () => {
         <meta name="description" content="Discover and book tickets for the best events in Nigeria. Concerts, sports, food festivals and more on Tixora." />
       </Helmet>
       
-      <section className="bg-hero text-primary-foreground">
-        <div className="container mx-auto px-4 py-20 md:py-28 text-center space-y-6">
-          <h1 className="text-3xl md:text-6xl font-extrabold leading-tight animate-fade-in-up px-2">
+      <section className="relative overflow-hidden text-white" style={{ minHeight: '600px' }}>
+        <div 
+          className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: "url('/tixora-hero-bg.png')" }}
+        />
+        <div className="absolute inset-0 z-0 bg-[#080C0A]/75" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-[#0F9D58]/20 blur-[120px] rounded-[100%] z-0 pointer-events-none" />
+        
+        <div className="container mx-auto px-4 py-24 md:py-32 text-center space-y-6 relative z-10 flex flex-col items-center justify-center min-h-[600px]">
+          <h1 className="text-4xl md:text-6xl lg:text-[4.5rem] font-extrabold leading-tight animate-fade-in-up px-2 drop-shadow-xl max-w-4xl mx-auto text-white">
             Your Next Experience<br className="hidden sm:block" />Starts Here
           </h1>
           <p
-            className="text-base md:text-lg text-primary-foreground/70 max-w-xl mx-auto"
+            className="text-lg md:text-xl text-white/90 max-w-2xl mx-auto font-medium drop-shadow-md"
             style={{ animationDelay: "0.1s", animation: "fade-in-up 0.6s ease-out 0.1s forwards", opacity: 0 }}
           >
             Discover and book the best concerts, sports, comedy shows, and festivals across Nigeria.
           </p>
           <div
-            className="flex flex-col sm:flex-row items-center gap-3 max-w-xl mx-auto"
+            className="flex flex-col sm:flex-row items-center gap-3 max-w-2xl mx-auto pt-4 w-full"
             style={{ animationDelay: "0.2s", animation: "fade-in-up 0.6s ease-out 0.2s forwards", opacity: 0 }}
           >
             <EventSearchInput
@@ -135,10 +142,10 @@ const HomePage = () => {
             />
             <Button
               type="button"
-              className="bg-secondary text-secondary-foreground font-semibold h-12 px-6 rounded-full w-full sm:w-auto"
+              className="bg-[#0F9D58] hover:bg-[#0F9D58]/90 text-white font-bold h-[52px] px-8 rounded-full w-full sm:w-auto text-base shadow-lg"
               onClick={scrollToBrowse}
             >
-              Find Events <ArrowRight className="w-4 h-4 ml-1" />
+              Find Events <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </div>
           <IndexScanAccess />
@@ -223,14 +230,14 @@ const HomePage = () => {
         <>
           {/* Trending Section */}
           {!hasActiveFilters && trendingEvents.length > 0 && (
-            <section className="container mx-auto px-4 py-8">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-foreground">Trending Events</h2>
-                <Link to="/discover" className="text-sm text-primary font-medium hover:underline">
+            <section className="container mx-auto px-4 py-12 max-w-7xl">
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-[28px] font-extrabold text-neutral-900">Trending Events</h2>
+                <Link to="/discover" className="text-sm text-[#0F9D58] font-bold hover:underline">
                   View All
                 </Link>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {trendingEvents.map((event) => (
                   <EventCard key={event.id} event={event} />
                 ))}
@@ -239,11 +246,11 @@ const HomePage = () => {
           )}
 
           {/* Regular Grid */}
-          <section className="container mx-auto px-4 py-12 border-t border-border/50">
-            <h2 className="text-2xl font-bold text-foreground mb-6">
+          <section className="container mx-auto px-4 py-12 border-t border-neutral-100 max-w-7xl">
+            <h2 className="text-[28px] font-extrabold text-neutral-900 mb-8">
               {hasActiveFilters ? "Search Results" : "Upcoming Events"}
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {filteredEvents.map((event) => (
                 <EventCard key={event.id} event={event} />
               ))}
