@@ -80,7 +80,7 @@ export function BankSettings() {
           if (error) throw error;
           if (data?.ok === false) throw new Error(data.error);
           
-          setAccountName(data.account_name);
+          setAccountName(data.data.account_name);
           toast.success("Account verified!");
         } catch (err: any) {
           console.error("Resolve error:", err);

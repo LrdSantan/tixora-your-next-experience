@@ -1,11 +1,17 @@
+import { useState } from "react";
 import { Settings as SettingsIcon, UserCircle, Landmark, ShieldCheck, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { BankSettings } from "@/components/BankSettings";
+import { PersonalInfoSettings } from "@/components/PersonalInfoSettings";
 import { useAuth } from "@/contexts/auth-context";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+
+type SettingsTab = "bank" | "personal" | "security";
 
 export default function SettingsPage() {
   const { user, loading } = useAuth();
+  const [activeTab, setActiveTab] = useState<SettingsTab>("bank");
 
   if (loading) {
     return (
@@ -51,24 +57,37 @@ export default function SettingsPage() {
       <div className="grid md:grid-cols-[250px_1fr] gap-8 items-start">
         {/* Sidebar Nav */}
         <aside className="space-y-1">
-          <Link
-            to="/settings"
-            className="flex items-center justify-between p-3 rounded-xl bg-primary/5 text-primary border border-primary/10 transition-all font-medium"
+          <button
+            onClick={() => setActiveTab("bank")}
+            className={cn(
+              "w-full flex items-center justify-between p-3 rounded-xl transition-all font-medium border",
+              activeTab === "bank" 
+                ? "bg-primary/5 text-primary border-primary/10 shadow-sm" 
+                : "text-muted-foreground border-transparent hover:bg-muted"
+            )}
           >
             <div className="flex items-center gap-2.5">
               <Landmark className="w-5 h-5" />
               <span>Payouts & Bank</span>
             </div>
-            <ChevronRight className="w-4 h-4 opacity-50" />
-          </Link>
+            <ChevronRight className={cn("w-4 h-4 transition-transform", activeTab === "bank" ? "opacity-100 translate-x-0.5" : "opacity-30")} />
+          </button>
           
-          <div className="flex items-center justify-between p-3 rounded-xl hover:bg-muted text-muted-foreground transition-all cursor-not-allowed group">
+          <button
+            onClick={() => setActiveTab("personal")}
+            className={cn(
+              "w-full flex items-center justify-between p-3 rounded-xl transition-all font-medium border",
+              activeTab === "personal" 
+                ? "bg-primary/5 text-primary border-primary/10 shadow-sm" 
+                : "text-muted-foreground border-transparent hover:bg-muted"
+            )}
+          >
             <div className="flex items-center gap-2.5">
-              <UserCircle className="w-5 h-5 opacity-70 group-hover:opacity-100" />
+              <UserCircle className="w-5 h-5" />
               <span>Personal Info</span>
             </div>
-            <span className="text-[10px] uppercase tracking-wider font-bold bg-muted-foreground/10 px-1.5 py-0.5 rounded opacity-60">Soon</span>
-          </div>
+            <ChevronRight className={cn("w-4 h-4 transition-transform", activeTab === "personal" ? "opacity-100 translate-x-0.5" : "opacity-30")} />
+          </button>
 
           <div className="flex items-center justify-between p-3 rounded-xl hover:bg-muted text-muted-foreground transition-all cursor-not-allowed group">
             <div className="flex items-center gap-2.5">
@@ -81,16 +100,19 @@ export default function SettingsPage() {
 
         {/* Content Area */}
         <div className="space-y-12">
-          <BankSettings />
+          {activeTab === "bank" && <BankSettings />}
+          {activeTab === "personal" && <PersonalInfoSettings />}
           
-          <div className="rounded-2xl border border-border p-6 bg-muted/30">
-            <h3 className="font-bold text-foreground mb-1">Account Visibility</h3>
-            <p className="text-sm text-muted-foreground mb-4">Your email is visible to event organizers when you scan tickets or request transfers.</p>
-            <div className="flex items-center gap-2 p-3 bg-card border border-border rounded-xl">
-              <UserCircle className="w-5 h-5 text-muted-foreground" />
-              <div className="text-sm font-medium truncate">{user.email}</div>
+          {activeTab === "bank" && (
+            <div className="rounded-2xl border border-border p-6 bg-muted/30">
+              <h3 className="font-bold text-foreground mb-1">Account Visibility</h3>
+              <p className="text-sm text-muted-foreground mb-4">Your email is visible to event organizers when you scan tickets or request transfers.</p>
+              <div className="flex items-center gap-2 p-3 bg-card border border-border rounded-xl">
+                <UserCircle className="w-5 h-5 text-muted-foreground" />
+                <div className="text-sm font-medium truncate">{user.email}</div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
