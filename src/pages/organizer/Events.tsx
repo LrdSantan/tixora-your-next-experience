@@ -898,6 +898,9 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             loading="lazy"
           />
+          <span
+            className={`absolute top-2 right-2 text-xs font-semibold px-2.5 py-1 rounded-full border capitalize ${isPast ? "bg-neutral-100 text-neutral-600 border-neutral-200" : statusClass}`}
+          >
             {isPast ? "Past" : event.status}
           </span>
           {event.event_type === 'rsvp' && (
@@ -952,15 +955,16 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
               />
               <OrganizerCouponsModal eventId={event.id} eventTitle={event.title} />
               
-              <Button
-                variant="outline"
-                size="sm"
-                className={cn("h-9 gap-1.5 px-3 border-border hover:bg-muted", activeSection === 'tiers' && "bg-muted")}
-                onClick={() => setActiveSection(activeSection === 'tiers' ? null : 'tiers')}
-                title="Edit Tiers"
-              >
-                <Ticket className="w-3.5 h-3.5" />
-              </Button>
+              {event.event_type === 'ticketed' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn("h-9 gap-1.5 px-3 border-border hover:bg-muted", activeSection === 'tiers' && "bg-muted")}
+                  onClick={() => setActiveSection(activeSection === 'tiers' ? null : 'tiers')}
+                  title="Edit Tiers"
+                >
+                  <Ticket className="w-3.5 h-3.5" />
+                </Button>
               )}
 
               {event.event_type === 'ticketed' && (
