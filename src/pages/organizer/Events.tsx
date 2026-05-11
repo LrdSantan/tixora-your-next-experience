@@ -843,10 +843,7 @@ function OrganizerGuestBlastModal({ event }: { event: OrganizerEvent }) {
 }
 
 function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { event: OrganizerEvent, onUpdate: () => void, onShare: (e: React.MouseEvent) => void, onDelete: (id: string) => void, isPast?: boolean }) {
-  const [isTiersExpanded, setIsTiersExpanded] = useState(false);
-  const [isStatsExpanded, setIsStatsExpanded] = useState(false);
-  const [isSettingsExpanded, setIsSettingsExpanded] = useState(false);
-  const [isQuestionsExpanded, setIsQuestionsExpanded] = useState(false);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const supabase = getSupabaseClient();
@@ -948,8 +945,8 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
               <Button
                 variant="outline"
                 size="sm"
-                className={cn("h-9 gap-1.5 px-3 border-border hover:bg-muted", isTiersExpanded && "bg-muted")}
-                onClick={() => setIsTiersExpanded(!isTiersExpanded)}
+                className={cn("h-9 gap-1.5 px-3 border-border hover:bg-muted", activeSection === 'tiers' && "bg-muted")}
+                onClick={() => setActiveSection(activeSection === 'tiers' ? null : 'tiers')}
                 title="Edit Tiers"
               >
                 <Ticket className="w-3.5 h-3.5" />
@@ -966,8 +963,8 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
               <Button
                 variant="outline"
                 size="sm"
-                className={cn("h-9 gap-1.5 px-3 border-border hover:bg-muted", isQuestionsExpanded && "bg-muted")}
-                onClick={() => setIsQuestionsExpanded(!isQuestionsExpanded)}
+                className={cn("h-9 gap-1.5 px-3 border-border hover:bg-muted", activeSection === 'questions' && "bg-muted")}
+                onClick={() => setActiveSection(activeSection === 'questions' ? null : 'questions')}
                 title="Registration Questions"
               >
                 <ClipboardList className="w-3.5 h-3.5" />
@@ -976,8 +973,8 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
               <Button
                 variant="outline"
                 size="sm"
-                className={cn("h-9 gap-1.5 px-3 border-border hover:bg-muted", isSettingsExpanded && "bg-muted")}
-                onClick={() => setIsSettingsExpanded(!isSettingsExpanded)}
+                className={cn("h-9 gap-1.5 px-3 border-border hover:bg-muted", activeSection === 'settings' && "bg-muted")}
+                onClick={() => setActiveSection(activeSection === 'settings' ? null : 'settings')}
                 title="Event Settings"
               >
                 <Settings className="w-3.5 h-3.5" />
@@ -1030,8 +1027,8 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
           <Button
             variant="ghost"
             size="sm"
-            className={cn("h-9 gap-1.5 px-3 text-muted-foreground hover:text-foreground hover:bg-muted/50", isStatsExpanded && "bg-muted text-foreground")}
-            onClick={() => setIsStatsExpanded(!isStatsExpanded)}
+            className={cn("h-9 gap-1.5 px-3 text-muted-foreground hover:text-foreground hover:bg-muted/50", activeSection === 'stats' && "bg-muted text-foreground")}
+            onClick={() => setActiveSection(activeSection === 'stats' ? null : 'stats')}
             title="View Stats"
           >
             <BarChart3 className="w-3.5 h-3.5" />
@@ -1069,19 +1066,19 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
         </div>
       </div>
       
-      {isTiersExpanded && (
-        <OrganizerTiersEditor event={event} onSaved={() => { setIsTiersExpanded(false); onUpdate(); }} />
+      {activeSection === 'tiers' && (
+        <OrganizerTiersEditor event={event} onSaved={() => { setActiveSection(null); onUpdate(); }} />
       )}
 
-      {isQuestionsExpanded && (
+      {activeSection === 'questions' && (
         <RegistrationQuestionsEditor eventId={event.id} />
       )}
 
-      {isSettingsExpanded && (
+      {activeSection === 'settings' && (
         <OrganizerEventSettings event={event} onUpdate={onUpdate} />
       )}
       
-      {isStatsExpanded && (
+      {activeSection === 'stats' && (
         <OrganizerEventStats eventId={event.id} />
       )}
     </div>
