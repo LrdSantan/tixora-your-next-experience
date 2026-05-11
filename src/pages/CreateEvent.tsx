@@ -331,6 +331,12 @@ export default function CreateEvent() {
             ✋ Free RSVP
           </button>
         </div>
+        
+        {formData.eventType === 'rsvp' && (
+          <p className="text-[12px] text-muted-foreground max-w-[400px] mt-2 leading-relaxed animate-in fade-in slide-in-from-top-1">
+            Attendees register for free — no payment required. Great for meetups, church events, campus gatherings, and any event where you just need a headcount. Everyone gets a QR code for check-in.
+          </p>
+        )}
 
         {formData.eventType === 'rsvp' && (
           <div className="p-5 rounded-2xl bg-[#1A7A4A]/5 border border-[#1A7A4A]/20 space-y-3 animate-in fade-in slide-in-from-top-2">
