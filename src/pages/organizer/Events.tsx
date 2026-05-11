@@ -358,7 +358,7 @@ function OrganizerTiersEditor({ event, onSaved }: { event: OrganizerEvent, onSav
                     onChange={e => updateTier(originalIdx, 'name', e.target.value)} 
                   />
                   <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1.5 mr-1 bg-background px-2.5 py-2 rounded-md border border-input h-10">
+                    <div className="flex items-center gap-1.5 mr-1 bg-background px-2.5 py-2 rounded-md border border-input h-10 shrink-0">
                       <Label htmlFor={`free-${tier.id || idx}`} className="text-[10px] font-bold text-muted-foreground uppercase cursor-pointer select-none">Free</Label>
                       <Switch 
                         id={`free-${tier.id || idx}`}
@@ -375,10 +375,10 @@ function OrganizerTiersEditor({ event, onSaved }: { event: OrganizerEvent, onSav
                         className="scale-75"
                       />
                     </div>
-                    <div className="relative flex-1 min-w-[80px]">
-                      <span className="absolute left-2.5 top-2.5 text-xs text-muted-foreground">₦</span>
+                    <div className="relative flex-1 min-w-[80px] h-10">
+                      <span className="absolute left-2.5 top-[11px] text-xs text-muted-foreground leading-none">₦</span>
                       <Input 
-                        className={cn("h-10 text-sm w-full bg-background pl-6 p-[8px_10px]", tier.isFree && "bg-muted text-muted-foreground")}
+                        className={cn("h-10 text-sm w-full bg-background pl-6 p-[8px_10px] items-center", tier.isFree && "bg-muted text-muted-foreground")}
                         type="number"
                         min="0"
                         placeholder="₦ 0" 
