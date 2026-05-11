@@ -1108,7 +1108,7 @@ export default function OrganizerEventsPage() {
 
   const [events, setEvents] = useState<OrganizerEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"active" | "past">("active");
+  const [activeTab, setActiveTab] = useState<"active" | "past" | "rsvp">("active");
 
   const now = new Date();
   
@@ -1125,7 +1125,12 @@ export default function OrganizerEventsPage() {
 
   const activeEvents = events.filter(e => !isEventPast(e));
   const pastEvents = events.filter(e => isEventPast(e));
-  const displayedEvents = activeTab === "active" ? activeEvents : pastEvents;
+  const rsvpEvents = events.filter(e => e.event_type === 'rsvp');
+  
+  const displayedEvents = 
+    activeTab === "active" ? activeEvents : 
+    activeTab === "past" ? pastEvents : 
+    rsvpEvents;
 
   const handleLocalDelete = (eventId: string) => {
     setEvents(prev => prev.filter(e => e.id !== eventId));
@@ -1210,13 +1215,19 @@ export default function OrganizerEventsPage() {
               onClick={() => setActiveTab("active")}
               className={cn("inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50", activeTab === "active" && "bg-background text-foreground shadow")}
             >
-              Active Events
+              Active
             </button>
             <button
               onClick={() => setActiveTab("past")}
               className={cn("inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50", activeTab === "past" && "bg-background text-foreground shadow")}
             >
-              Past Events
+              Past
+            </button>
+            <button
+              onClick={() => setActiveTab("rsvp")}
+              className={cn("inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50", activeTab === "rsvp" && "bg-background text-foreground shadow")}
+            >
+              RSVPs
             </button>
           </div>
           <Button asChild className="bg-primary text-primary-foreground gap-2 shrink-0">
@@ -1249,22 +1260,40 @@ export default function OrganizerEventsPage() {
       ) : displayedEvents.length === 0 ? (
         /* Empty state */
         <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-6 py-20 text-center">
-          <CalendarDays className="w-14 h-14 text-primary mx-auto mb-5 opacity-60" />
-          <h2 className="text-xl font-semibold text-foreground mb-2">
-            {activeTab === "active" ? "No active events yet. Create your first event." : "No past events found."}
-          </h2>
-          <p className="text-sm text-muted-foreground mb-8 max-w-sm mx-auto">
-            {activeTab === "active" 
-              ? "Get started by creating your first event — set up tiers, accept payments, and manage attendees all in one place."
-              : "Your previously hosted events will appear here once their dates have passed."}
-          </p>
-          {activeTab === "active" && (
-            <Button asChild className="bg-primary text-primary-foreground gap-2">
-              <Link to="/create-event">
-                <Plus className="w-4 h-4" />
-                Create Event
-              </Link>
-            </Button>
+          {activeTab === 'rsvp' ? (
+             <>
+               <span className="text-4xl mb-5 block">✋</span>
+               <h2 className="text-xl font-semibold text-foreground mb-2">No RSVP events yet</h2>
+               <p className="text-sm text-muted-foreground mb-8 max-w-sm mx-auto">
+                 RSVP events are free to attend — perfect for meetups, campus gatherings, and community events.
+               </p>
+               <Button asChild className="bg-[#1A7A4A] hover:bg-[#1A7A4A]/90 text-white gap-2">
+                 <Link to="/create-event">
+                   <Plus className="w-4 h-4" />
+                   Create RSVP Event
+                 </Link>
+               </Button>
+             </>
+          ) : (
+            <>
+              <CalendarDays className="w-14 h-14 text-primary mx-auto mb-5 opacity-60" />
+              <h2 className="text-xl font-semibold text-foreground mb-2">
+                {activeTab === "active" ? "No active events yet. Create your first event." : "No past events found."}
+              </h2>
+              <p className="text-sm text-muted-foreground mb-8 max-w-sm mx-auto">
+                {activeTab === "active" 
+                  ? "Get started by creating your first event — set up tiers, accept payments, and manage attendees all in one place."
+                  : "Your previously hosted events will appear here once their dates have passed."}
+              </p>
+              {activeTab === "active" && (
+                <Button asChild className="bg-primary text-primary-foreground gap-2">
+                  <Link to="/create-event">
+                    <Plus className="w-4 h-4" />
+                    Create Event
+                  </Link>
+                </Button>
+              )}
+            </>
           )}
         </div>
       ) : (
