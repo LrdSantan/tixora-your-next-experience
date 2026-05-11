@@ -21,6 +21,8 @@ type EventRow = {
   payout_status: string | null;
   created_at: string;
   ticket_tiers: TicketTierRow[] | null;
+  event_type: 'ticketed' | 'rsvp' | null;
+  rsvp_limit: number | null;
 };
 
 type TicketTierRow = {
@@ -66,6 +68,8 @@ function mapRow(row: EventRow): Event {
     payout_status: row.payout_status ?? 'unpaid',
     created_at: row.created_at,
     ticket_tiers: tiers,
+    event_type: (row.event_type ?? 'ticketed') as 'ticketed' | 'rsvp',
+    rsvp_limit: row.rsvp_limit ?? null,
   };
 }
 
@@ -92,6 +96,11 @@ export async function fetchEvents(filterActive = true): Promise<Event[]> {
       payout_status,
       organizer_email,
       organizer_phone,
+      is_private,
+      is_multi_day,
+      event_days,
+      event_type,
+      rsvp_limit,
       ticket_tiers (
         id,
         event_id,
@@ -153,6 +162,11 @@ export async function fetchEventById(id: string): Promise<Event | null> {
       account_name,
       payout_status,
       created_at,
+      is_multi_day,
+      event_days,
+      is_private,
+      event_type,
+      rsvp_limit,
       ticket_tiers (
         id,
         event_id,

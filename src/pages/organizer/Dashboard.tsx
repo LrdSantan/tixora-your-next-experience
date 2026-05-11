@@ -44,6 +44,8 @@ type EventAnalytics = {
   event_days: string[];
   total_sold: number;
   total_revenue: number;
+  event_type: 'ticketed' | 'rsvp';
+  rsvp_limit: number | null;
   tiers: Tier[];
   top_tier: Tier | null;
 };
@@ -68,6 +70,7 @@ export default function OrganizerDashboard() {
         .from("events")
         .select(`
           id, title, date, status, organizer_id, is_multi_day, event_days,
+          event_type, rsvp_limit,
           ticket_tiers ( id, name, price, total_quantity, remaining_quantity ),
           tickets ( id, tier_id, amount_paid, quantity )
         `)
@@ -101,6 +104,8 @@ export default function OrganizerDashboard() {
           event_days: event.event_days || [],
           total_sold,
           total_revenue,
+          event_type: event.event_type || 'ticketed',
+          rsvp_limit: event.rsvp_limit,
           tiers,
           top_tier
         };
@@ -239,8 +244,8 @@ export default function OrganizerDashboard() {
                   <th className="px-6 py-4 font-semibold text-center w-12"></th>
                   <th className="px-6 py-4 font-semibold">Event Details</th>
                   <th className="px-6 py-4 font-semibold text-center">Date</th>
-                  <th className="px-6 py-4 font-semibold min-w-[150px]">Sales Status</th>
-                  <th className="px-6 py-4 font-semibold text-right">Revenue</th>
+                  <th className="px-6 py-4 font-semibold min-w-[150px]">Attendance</th>
+                  <th className="px-6 py-4 font-semibold text-right">Revenue / Fee</th>
                   <th className="px-6 py-4 font-semibold text-center">Top Tier</th>
                 </tr>
               </thead>
@@ -279,14 +284,16 @@ export default function OrganizerDashboard() {
                         <td className="px-6 py-5">
                           <div className="max-w-[140px]">
                             <div className="flex justify-between text-[11px] mb-1 font-bold">
-                              <span>{event.total_sold.toLocaleString()} sold</span>
+                              <span>{event.total_sold.toLocaleString()} {event.event_type === 'rsvp' ? 'rsvp\'d' : 'sold'}</span>
                               <span className="text-muted-foreground">{Math.round(soldPercentage)}%</span>
                             </div>
                             <Progress value={soldPercentage} className="h-1.5" />
                           </div>
                         </td>
                         <td className="px-6 py-5 font-bold text-foreground text-right tabular-nums">
-                          {formatPrice(event.total_revenue)}
+                          {event.event_type === 'rsvp' ? (
+                            <span className="text-[#2ECC71] text-xs font-black">FREE RSVP</span>
+                          ) : formatPrice(event.total_revenue)}
                         </td>
                         <td className="px-6 py-5 text-center">
                           {event.top_tier ? (

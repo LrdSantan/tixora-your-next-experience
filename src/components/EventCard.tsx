@@ -71,10 +71,15 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
             </div>
           )}
           
-          <div className="absolute top-3 left-3">
+          <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start">
             <span className="inline-flex items-center bg-[#1A7A4A] text-white text-[9px] font-bold px-2 py-0.5 uppercase tracking-widest rounded-full shadow-lg">
               {event.category || 'Event'}
             </span>
+            {event.event_type === 'rsvp' && (
+              <span className="inline-flex items-center bg-[#2ECC71] text-black text-[9px] font-black px-2 py-0.5 uppercase tracking-tighter rounded-full shadow-lg">
+                RSVP Only
+              </span>
+            )}
           </div>
         </div>
 
@@ -103,13 +108,15 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
           {/* Bottom section */}
           <div className="flex items-center justify-between pt-3 border-t border-white/5">
             <div className="flex flex-col">
-              <span className="text-[10px] font-medium uppercase tracking-tighter" style={{ color: "rgba(255,255,255,0.4)" }}>From</span>
-              <p className="text-[16px] font-bold" style={{ color: lowestPrice === 0 ? "#2ECC71" : "#D4A33C" }}>
-                {lowestPrice === 0 ? "Free" : formatPrice(lowestPrice)}
+              <span className="text-[10px] font-medium uppercase tracking-tighter" style={{ color: "rgba(255,255,255,0.4)" }}>
+                {event.event_type === 'rsvp' ? "Entry" : "From"}
+              </span>
+              <p className="text-[16px] font-bold" style={{ color: (event.event_type === 'rsvp' || lowestPrice === 0) ? "#2ECC71" : "#D4A33C" }}>
+                {event.event_type === 'rsvp' ? "Free RSVP" : (lowestPrice === 0 ? "Free" : formatPrice(lowestPrice))}
               </p>
             </div>
             <Button className="bg-[#1A7A4A] hover:bg-[#1A7A4A]/90 text-white font-bold rounded-full px-4 h-8 text-[11px] transition-all active:scale-95">
-              Buy Tickets
+              {event.event_type === 'rsvp' ? "Reserve Spot" : "Buy Tickets"}
             </Button>
           </div>
         </div>

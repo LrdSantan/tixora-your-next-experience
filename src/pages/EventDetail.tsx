@@ -20,6 +20,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { generateCalendarLinks, downloadIcs } from "@/lib/calendar";
+import { useAuth } from "@/contexts/auth-context";
+import { getSupabaseClient } from "@/lib/supabase";
+import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const SITE_URL = "https://tixoraafrica.com.ng";
 
@@ -33,7 +38,24 @@ const EventDetailPage = () => {
     .reduce((sum, i) => sum + i.quantity, 0);
   const [addedTier, setAddedTier] = useState<string | null>(null);
   const [hoveredTier, setHoveredTier] = useState<TicketTier | null>(null);
+  const { user } = useAuth();
+  const supabase = getSupabaseClient();
   const [sidebarQty, setSidebarQty] = useState(1);
+  
+  // RSVP Form state
+  const [rsvpName, setRsvpName] = useState("");
+  const [rsvpEmail, setRsvpEmail] = useState("");
+  const [isRsvping, setIsRsvping] = useState(false);
+  const [rsvpSuccess, setRsvpSuccess] = useState(false);
+
+  // Pre-fill RSVP form if user is logged in
+  useEffect(() => {
+    if (user) {
+      setRsvpEmail(user.email || "");
+      const fullName = (user.user_metadata as any)?.full_name || "";
+      setRsvpName(fullName);
+    }
+  }, [user]);
 
   // Reset side bar quantity when hovered tier changes
   useEffect(() => {
@@ -112,7 +134,48 @@ const EventDetailPage = () => {
     setTimeout(() => setAddedTier(null), 1500);
   };
 
-  const lowestPrice = Math.min(...event.ticket_tiers.map((t) => t.price));
+  const handleRsvp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supabase || !event) return;
+    if (!rsvpName.trim() || !rsvpEmail.trim()) {
+      toast.error("Please fill in your name and email.");
+      return;
+    }
+
+    try {
+      setIsRsvping(true);
+      const { data, error } = await supabase.rpc('submit_rsvp', {
+        p_event_id: event.id,
+        p_user_id: user?.id || null,
+        p_name: rsvpName,
+        p_email: rsvpEmail
+      });
+
+      if (error) {
+        if (error.message.includes('fully_booked')) throw new Error("This event is fully booked.");
+        if (error.message.includes('already_rsvpd')) throw new Error("You have already RSVP'd for this event.");
+        throw error;
+      }
+
+      // Success! Trigger email
+      const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+      fetch(`${baseUrl}/functions/v1/send-ticket-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reference: data.reference })
+      }).catch(err => console.error("Email trigger failed:", err));
+
+      setRsvpSuccess(true);
+      toast.success("RSVP confirmed! Check your email.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to RSVP. Please try again.");
+    } finally {
+      setIsRsvping(false);
+    }
+  };
+
+  const lowestPrice = Math.min(...(event.ticket_tiers?.map((t) => t.price) || [0]));
+  const rsvpTier = event.event_type === 'rsvp' ? event.ticket_tiers?.[0] : null;
 
   // What the sidebar shows — hovered tier takes priority, otherwise event defaults
   const sidebarTier = hoveredTier;
@@ -220,12 +283,94 @@ const EventDetailPage = () => {
               </p>
             </div>
 
-            {/* Ticket selection */}
+            {/* Ticket selection OR RSVP Form */}
             <div className="space-y-4 pt-4">
               {isExpired ? (
                 <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-8 text-center">
                   <h2 className="text-xl font-bold text-red-400 mb-2">This event has ended</h2>
-                  <p className="text-red-300/70">Tickets are no longer available for purchase.</p>
+                  <p className="text-red-300/70">Registrations are no longer available.</p>
+                </div>
+              ) : event.event_type === 'rsvp' ? (
+                <div className="space-y-6">
+                  {rsvpSuccess ? (
+                    <div className="p-8 rounded-2xl bg-[#1A7A4A]/10 border border-[#1A7A4A]/20 text-center space-y-4 animate-in zoom-in-95 duration-500">
+                      <div className="w-16 h-16 bg-[#1A7A4A] rounded-full flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(26,122,74,0.3)]">
+                        <Check className="w-8 h-8 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold text-white">You're on the list!</h2>
+                        <p className="text-[#2ECC71] mt-1 font-medium">Confirmation sent to {rsvpEmail}</p>
+                      </div>
+                      <p className="text-sm text-white/50 max-w-xs mx-auto">
+                        We've sent your RSVP details and access code to your email. See you at the event!
+                      </p>
+                      <Button variant="outline" onClick={() => setRsvpSuccess(false)} className="border-white/10 text-white/60 hover:text-white hover:bg-white/5">
+                        Register another guest
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="bg-[#0F1612] border border-white/10 rounded-2xl p-6 md:p-8 space-y-6 shadow-2xl">
+                      <div className="space-y-1">
+                        <h2 className="text-[20px] font-bold text-white flex items-center gap-2">
+                          ✋ Free RSVP Entry
+                        </h2>
+                        <p className="text-sm text-white/40">Enter your details to reserve your spot. It's completely free!</p>
+                      </div>
+
+                      <form onSubmit={handleRsvp} className="space-y-5">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="rsvp-name" className="text-xs font-bold uppercase tracking-wider text-white/50">Full Name</Label>
+                            <Input 
+                              id="rsvp-name"
+                              placeholder="John Doe" 
+                              className="bg-black/40 border-white/10 h-12 focus:border-[#2ECC71]/50 focus:ring-[#2ECC71]/20"
+                              value={rsvpName}
+                              onChange={e => setRsvpName(e.target.value)}
+                              disabled={isRsvping}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="rsvp-email" className="text-xs font-bold uppercase tracking-wider text-white/50">Email Address</Label>
+                            <Input 
+                              id="rsvp-email"
+                              type="email"
+                              placeholder="john@example.com" 
+                              className="bg-black/40 border-white/10 h-12 focus:border-[#2ECC71]/50 focus:ring-[#2ECC71]/20"
+                              value={rsvpEmail}
+                              onChange={e => setRsvpEmail(e.target.value)}
+                              disabled={isRsvping || !!user}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="pt-2">
+                          <Button 
+                            type="submit" 
+                            disabled={isRsvping || (rsvpTier?.remaining_quantity ?? 0) <= 0}
+                            className="w-full h-14 bg-[#1A7A4A] hover:bg-[#15613a] text-white font-black text-lg rounded-xl shadow-[0_10px_20px_rgba(26,122,74,0.2)] transition-all hover:-translate-y-0.5 active:translate-y-0"
+                          >
+                            {isRsvping ? "Processing..." : (rsvpTier?.remaining_quantity ?? 0) <= 0 ? "Fully Booked" : "Reserve My Spot →"}
+                          </Button>
+                          
+                          {rsvpTier && rsvpTier.remaining_quantity < 50 && rsvpTier.remaining_quantity > 0 && (
+                            <p className="text-center text-xs text-orange-400 mt-4 font-bold animate-pulse uppercase tracking-widest">
+                              Hurry! Only {rsvpTier.remaining_quantity} spots left
+                            </p>
+                          )}
+                          {rsvpTier && rsvpTier.remaining_quantity <= 0 && (
+                            <p className="text-center text-xs text-red-400 mt-4 font-bold uppercase tracking-widest">
+                              Registration Closed · Event Full
+                            </p>
+                          )}
+                        </div>
+                      </form>
+
+                      <div className="pt-4 border-t border-white/5 text-center">
+                        <p className="text-[11px] text-white/30 uppercase tracking-widest font-bold">Powered by Tixora</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <>
@@ -421,10 +566,10 @@ const EventDetailPage = () => {
                 )}
               >
                 <p className="text-[12px] uppercase tracking-widest mb-1" style={{ color: "rgba(255,255,255,0.4)" }}>
-                  {lowestPrice === 0 ? "Price" : "Starting from"}
+                  {event.event_type === 'rsvp' ? "Entry" : (lowestPrice === 0 ? "Price" : "Starting from")}
                 </p>
-                <p className="text-3xl font-black" style={{ color: lowestPrice === 0 ? "#2ECC71" : "#D4A33C" }}>
-                  {lowestPrice === 0 ? "Free" : formatPrice(lowestPrice)}
+                <p className="text-3xl font-black" style={{ color: (event.event_type === 'rsvp' || lowestPrice === 0) ? "#2ECC71" : "#D4A33C" }}>
+                  {event.event_type === 'rsvp' ? "Free RSVP" : (lowestPrice === 0 ? "Free" : formatPrice(lowestPrice))}
                 </p>
               </div>
 

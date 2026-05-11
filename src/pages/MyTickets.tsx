@@ -44,6 +44,7 @@ type TicketRow = {
   transfer_token: string | null;
   user_id: string | null;
   recipient_email: string | null;
+  is_rsvp: boolean;
   events: {
     title: string;
     date: string;
@@ -88,6 +89,7 @@ const MyTicketsPage = () => {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [clearing, setClearing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'tickets' | 'rsvps'>('tickets');
   
   // Transfer Flow state
   const [isInitiateModalOpen, setIsInitiateModalOpen] = useState(false);
@@ -127,6 +129,7 @@ const MyTicketsPage = () => {
           transfer_token,
           user_id,
           recipient_email,
+          is_rsvp,
           events ( title, date, time, venue, city, cover_image_url ),
           ticket_tiers ( name )
         `,
@@ -224,6 +227,15 @@ const MyTicketsPage = () => {
 
   const active = filteredRows.filter((r) => !isEventDatePassed(r.events?.date ? String(r.events.date) : ""));
   const expired = filteredRows.filter((r) => isEventDatePassed(r.events?.date ? String(r.events.date) : ""));
+
+  const ticketRows = filteredRows.filter(r => !r.is_rsvp);
+  const rsvpRows = filteredRows.filter(r => r.is_rsvp);
+
+  const activeTickets = ticketRows.filter(r => !isEventDatePassed(r.events?.date ? String(r.events.date) : ""));
+  const expiredTickets = ticketRows.filter(r => isEventDatePassed(r.events?.date ? String(r.events.date) : ""));
+  
+  const activeRsvps = rsvpRows.filter(r => !isEventDatePassed(r.events?.date ? String(r.events.date) : ""));
+  const expiredRsvps = rsvpRows.filter(r => isEventDatePassed(r.events?.date ? String(r.events.date) : ""));
 
   const handleResell = (ticketId: string) => {
     setIsComingSoonModalOpen(true);
@@ -440,9 +452,37 @@ const MyTicketsPage = () => {
         </div>
 
         {rows.length === 0 ? (
-          <p className="text-white/60">No tickets yet. Browse events to get started!</p>
+          <div className="text-center py-20 bg-white/5 rounded-3xl border border-white/5">
+            <Ticket className="mx-auto mb-4 h-12 w-12 text-white/20" />
+            <p className="text-white/60">No tickets or RSVPs yet. Browse events to get started!</p>
+            <Link to="/discover">
+              <Button variant="link" className="text-[#2ECC71] mt-2">Explore Events</Button>
+            </Link>
+          </div>
         ) : (
         <div className="space-y-8">
+          {/* Tabs */}
+          <div className="flex p-1 bg-white/5 rounded-xl border border-white/5">
+            <button
+              onClick={() => setActiveTab('tickets')}
+              className={cn(
+                "flex-1 py-2.5 text-sm font-bold rounded-lg transition-all",
+                activeTab === 'tickets' ? "bg-[#1A7A4A] text-white shadow-lg" : "text-white/40 hover:text-white/60"
+              )}
+            >
+              My Tickets ({ticketRows.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('rsvps')}
+              className={cn(
+                "flex-1 py-2.5 text-sm font-bold rounded-lg transition-all",
+                activeTab === 'rsvps' ? "bg-[#1A7A4A] text-white shadow-lg" : "text-white/40 hover:text-white/60"
+              )}
+            >
+              My RSVPs ({rsvpRows.length})
+            </button>
+          </div>
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/50" />
             <Input 
@@ -461,157 +501,125 @@ const MyTicketsPage = () => {
                 <X className="h-4 w-4" />
               </Button>
             )}
-          </div>
-
-          {filteredRows.length === 0 ? (
+          </div>          {filteredRows.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-white/60">No tickets found matching "{searchQuery}"</p>
+              <p className="text-white/60">No {activeTab} found matching "{searchQuery}"</p>
               <Button variant="link" onClick={() => setSearchQuery("")} className="mt-2 text-[#2ECC71]">Clear search</Button>
             </div>
           ) : (
             <div className="space-y-12">
-          {active.length > 0 && (
-            <section>
-              <h2 className="mb-4 text-lg font-semibold text-white">Active</h2>
-              <div className="space-y-8">
-                {active.map((row) => (
-                  <div key={row.id} className="relative">
-                    {/* Used/Active badge overlay */}
-                    <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-2">
-                      {row.is_used ? (
-                        <Badge className="bg-neutral-500 text-white border-0">
-                          Used {row.used_at ? `· ${new Date(row.used_at).toLocaleDateString()}` : ""}
-                        </Badge>
-                      ) : row.resell_status === 'pending' ? (
-                        <Badge className="bg-orange-500 text-white border-0">For Resell</Badge>
-                      ) : row.transfer_status === 'pending' ? (
-                        <Badge className="bg-blue-600 text-white border-0">Transfer Pending</Badge>
-                      ) : (
-                        <Badge className="bg-green-600 text-white border-0">Active</Badge>
-                      )}
+              {activeTab === 'tickets' ? (
+                <div className="space-y-12">
+                  {activeTickets.length > 0 ? (
+                    <section>
+                      <h2 className="mb-4 text-lg font-semibold text-white">Active Tickets</h2>
+                      <div className="space-y-8">
+                        {activeTickets.map((row) => (
+                          <div key={row.id} className="relative">
+                            <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-2">
+                              {row.is_used ? (
+                                <Badge className="bg-neutral-500 text-white border-0">Used</Badge>
+                              ) : row.resell_status === 'pending' ? (
+                                <Badge className="bg-orange-500 text-white border-0">For Resell</Badge>
+                              ) : row.transfer_status === 'pending' ? (
+                                <Badge className="bg-blue-600 text-white border-0">Transfer Pending</Badge>
+                              ) : (
+                                <Badge className="bg-green-600 text-white border-0">Active</Badge>
+                              )}
+                            </div>
+                            <TicketDownloadBlock model={rowToModel(row, buyerName, buyerEmail)}>
+                              {!row.is_used && !isEventDatePassed(row.events?.date ? String(row.events.date) : "") && (
+                                <div className="flex flex-wrap gap-2">
+                                  {row.resell_status === 'pending' ? (
+                                    <Button variant="outline" size="sm" onClick={() => handleCancelResell(row.id)} className="bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)] text-orange-400">Cancel Resell</Button>
+                                  ) : row.transfer_status === 'pending' ? (
+                                    <Button variant="outline" size="sm" onClick={() => handleCancelTransfer(row.id)} className="bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)] text-blue-400">Cancel Transfer</Button>
+                                  ) : (
+                                    <>
+                                      <Button variant="outline" size="sm" onClick={() => handleResell(row.id)} className="bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)]">Sell</Button>
+                                      <Button variant="outline" size="sm" onClick={() => handleTransferInit(row.id)} className="bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)]">Transfer</Button>
+                                      <Button variant="outline" size="sm" onClick={() => handleAddToWallet(row.id)} className="bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)]">Wallet</Button>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </TicketDownloadBlock>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  ) : (
+                    <div className="text-center py-12 border border-dashed border-white/10 rounded-2xl bg-white/[0.02]">
+                      <p className="text-white/40">No active tickets.</p>
+                      <Link to="/discover">
+                        <Button variant="link" className="text-[#2ECC71] mt-2">Explore Events</Button>
+                      </Link>
                     </div>
-                    <TicketDownloadBlock model={rowToModel(row, buyerName, buyerEmail)}>
-                      {!row.is_used && !isEventDatePassed(row.events?.date ? String(row.events.date) : "") && (
-                        <>
-                          {row.resell_status === 'pending' ? (
-                            <Button variant="outline" size="sm" onClick={() => handleCancelResell(row.id)} className="bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)] text-orange-400 hover:bg-[rgba(255,255,255,0.1)] hover:text-orange-300">
-                              Cancel Resell
-                            </Button>
-                          ) : row.transfer_status === 'pending' ? (
-                            <>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => {
-                                  const link = `${window.location.origin}/claim-ticket/${row.transfer_token}`;
-                                  handleCopyLink(link, row.id);
-                                }}
-                                className="bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)] text-white hover:bg-[rgba(255,255,255,0.1)] flex items-center gap-1.5"
-                              >
-                                {copiedId === row.id ? (
-                                  <>
-                                    <Check className="h-3.5 w-3.5" />
-                                    Copied!
-                                  </>
-                                ) : (
-                                  <>
-                                    <Copy className="h-3.5 w-3.5" />
-                                    Copy Link
-                                  </>
-                                )}
-                              </Button>
-                              
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] text-[#2ECC71] hover:text-[#25B962] hover:bg-[rgba(255,255,255,0.1)] flex items-center gap-1.5"
-                                onClick={() => {
-                                  const link = `${window.location.origin}/claim-ticket/${row.transfer_token}`;
-                                  const waUrl = `https://wa.me/?text=${encodeURIComponent("Here's your ticket claim link: " + link)}`;
-                                  window.open(waUrl, '_blank');
-                                }}
-                              >
-                                <Share2 className="h-3.5 w-3.5" />
-                                WhatsApp
-                              </Button>
+                  )}
 
-                              <Button variant="outline" size="sm" onClick={() => handleCancelTransfer(row.id)} className="bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)] text-blue-400 hover:bg-[rgba(255,255,255,0.1)] hover:text-blue-300">
-                                Cancel Transfer
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button variant="outline" size="sm" onClick={() => handleResell(row.id)} className="bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)] text-white hover:bg-[rgba(255,255,255,0.1)]">
-                                Sell Ticket
-                              </Button>
-                              <Button variant="outline" size="sm" onClick={() => handleTransferInit(row.id)} className="bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)] text-white hover:bg-[rgba(255,255,255,0.1)]">
-                                Transfer
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => handleAddToWallet(row.id)}
-                                disabled={isGeneratingWallet === row.id}
-                                className="bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)] text-white hover:bg-[rgba(255,255,255,0.1)] gap-1.5 transition-colors"
-                              >
-                                {isGeneratingWallet === row.id ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <Wallet className="h-3.5 w-3.5" />
-                                )}
-                                Wallet
-                              </Button>
-                              
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="outline" size="sm" className="bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)] text-white hover:bg-[rgba(255,255,255,0.1)] gap-1.5">
-                                    <Calendar className="h-3.5 w-3.5" />
-                                    Calendar
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="bg-[#111d15] border-[rgba(255,255,255,0.12)] text-white">
-                                  <DropdownMenuItem onClick={() => handleCalendar(row, 'google')} className="hover:bg-[rgba(255,255,255,0.1)] focus:bg-[rgba(255,255,255,0.1)] focus:text-white cursor-pointer">
-                                    Google Calendar
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleCalendar(row, 'outlook')} className="hover:bg-[rgba(255,255,255,0.1)] focus:bg-[rgba(255,255,255,0.1)] focus:text-white cursor-pointer">
-                                    Outlook Calendar
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleCalendar(row, 'apple')} className="hover:bg-[rgba(255,255,255,0.1)] focus:bg-[rgba(255,255,255,0.1)] focus:text-white cursor-pointer">
-                                    Apple Calendar / ICS
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </>
-                          )}
-                        </>
-                      )}
-                    </TicketDownloadBlock>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {expired.length > 0 && (
-            <section>
-              <h2 className="mb-4 text-lg font-semibold text-white/60">Past events</h2>
-              <div className="space-y-8 opacity-80">
-                {expired.map((row) => (
-                  <div key={row.id} className="relative">
-                    <div className="absolute top-3 right-3 z-10">
-                      {row.is_used ? (
-                        <Badge className="bg-neutral-500 text-white border-0">Used</Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-muted-foreground">Unused</Badge>
-                      )}
+                  {expiredTickets.length > 0 && (
+                    <section>
+                      <h2 className="mb-4 text-lg font-semibold text-white/60">Past Tickets</h2>
+                      <div className="space-y-8 opacity-60 grayscale">
+                        {expiredTickets.map((row) => (
+                          <TicketDownloadBlock key={row.id} model={rowToModel(row, buyerName, buyerEmail)} />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-12">
+                  {activeRsvps.length > 0 ? (
+                    <section>
+                      <h2 className="mb-4 text-lg font-semibold text-white">Active RSVPs</h2>
+                      <div className="space-y-8">
+                        {activeRsvps.map((row) => (
+                          <div key={row.id} className="relative">
+                            <div className="absolute top-3 right-3 z-10">
+                              <Badge className="bg-[#1A7A4A] text-white border-0 shadow-lg uppercase tracking-widest text-[10px]">RSVP CONFIRMED</Badge>
+                            </div>
+                            <TicketDownloadBlock model={rowToModel(row, buyerName, buyerEmail)}>
+                              <div className="flex gap-2">
+                                <Button variant="outline" size="sm" onClick={() => handleAddToWallet(row.id)} className="bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)]">Wallet</Button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" size="sm" className="bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)]">Calendar</Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="bg-[#111d15] border-white/10 text-white">
+                                    <DropdownMenuItem onClick={() => handleCalendar(row, 'google')} className="focus:bg-white/5 cursor-pointer">Google</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleCalendar(row, 'outlook')} className="focus:bg-white/5 cursor-pointer">Outlook</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleCalendar(row, 'apple')} className="focus:bg-white/5 cursor-pointer">Apple/ICS</DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </TicketDownloadBlock>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  ) : (
+                    <div className="text-center py-20 border border-dashed border-white/10 rounded-3xl bg-white/[0.02]">
+                      <p className="text-white/40">You haven't RSVP'd to any upcoming events.</p>
+                      <Link to="/discover">
+                        <Button variant="link" className="text-[#2ECC71] mt-2">Explore Events</Button>
+                      </Link>
                     </div>
-                    <TicketDownloadBlock model={rowToModel(row, buyerName, buyerEmail)} />
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
+                  )}
+
+                  {expiredRsvps.length > 0 && (
+                    <section>
+                      <h2 className="mb-4 text-lg font-semibold text-white/60">Past RSVPs</h2>
+                      <div className="space-y-8 opacity-60 grayscale">
+                        {expiredRsvps.map((row) => (
+                          <TicketDownloadBlock key={row.id} model={rowToModel(row, buyerName, buyerEmail)} />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}

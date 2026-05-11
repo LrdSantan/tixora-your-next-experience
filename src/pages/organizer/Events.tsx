@@ -51,6 +51,8 @@ type OrganizerEvent = {
   is_multi_day: boolean | null;
   event_days: string[] | null;
   is_private: boolean;
+  event_type: 'ticketed' | 'rsvp';
+  rsvp_limit: number | null;
   ticket_tiers: Array<{
     id: string;
     name: string;
@@ -445,10 +447,10 @@ function OrganizerTiersEditor({ event, onSaved }: { event: OrganizerEvent, onSav
   );
 }
 
-function OrganizerEventStats({ eventId }: { eventId: string }) {
+function OrganizerEventStats({ event }: { event: OrganizerEvent }) {
   const supabase = getSupabaseClient();
   const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState<{ totalRevenue: number; tiers: { name: string; count: number; revenue: number }[] } | null>(null);
+  const [stats, setStats] = useState<{ totalCount: number; totalRevenue: number; tiers: { name: string; count: number; revenue: number }[] } | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -459,7 +461,7 @@ function OrganizerEventStats({ eventId }: { eventId: string }) {
       const { data, error } = await supabase
         .from('tickets')
         .select('amount_paid, tier_id, ticket_tiers(name)')
-        .eq('event_id', eventId)
+        .eq('event_id', event.id)
         .eq('status', 'confirmed');
         
       if (error) {
@@ -492,27 +494,29 @@ function OrganizerEventStats({ eventId }: { eventId: string }) {
           ...stat
         }));
         
-        setStats({ totalRevenue, tiers });
+        setStats({ totalCount: data.length, totalRevenue, tiers });
       }
       if (isMounted) setIsLoading(false);
     }
     
     loadStats();
     return () => { isMounted = false; };
-  }, [eventId, supabase]);
+  }, [event.id, supabase]);
 
   return (
     <div className="mt-2 pt-3 border-t border-border space-y-3 bg-muted/30 rounded-lg p-4 mx-4 mb-4">
       <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
-        <BarChart3 className="w-4 h-4 text-green-600" /> Revenue & Sales Breakdown
+        <BarChart3 className="w-4 h-4 text-green-600" /> {event.event_type === 'rsvp' ? 'RSVP Registration Breakdown' : 'Revenue & Sales Breakdown'}
       </h4>
       {isLoading ? (
         <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
       ) : stats ? (
         <div className="space-y-4">
           <div className="flex items-center justify-between bg-background border border-border rounded-md p-3">
-            <span className="text-sm font-medium text-muted-foreground">Total Revenue</span>
-            <span className="text-lg font-bold text-green-600">{formatPrice(stats.totalRevenue)}</span>
+            <span className="text-sm font-medium text-muted-foreground">{event.event_type === 'rsvp' ? 'Total RSVPs' : 'Total Revenue'}</span>
+            <span className={cn("text-lg font-bold", event.event_type === 'rsvp' ? "text-primary" : "text-green-600")}>
+              {event.event_type === 'rsvp' ? stats.totalCount : formatPrice(stats.totalRevenue)}
+            </span>
           </div>
           
           {stats.tiers.length > 0 ? (
@@ -522,9 +526,9 @@ function OrganizerEventStats({ eventId }: { eventId: string }) {
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 text-xs text-muted-foreground border-b border-border">
                     <tr>
-                      <th className="text-left font-medium p-2">Tier</th>
-                      <th className="text-right font-medium p-2">Sold</th>
-                      <th className="text-right font-medium p-2">Revenue</th>
+                      <th className="text-left font-medium p-2">Tier / Type</th>
+                      <th className="text-right font-medium p-2">{event.event_type === 'rsvp' ? 'Registrations' : 'Sold'}</th>
+                      {event.event_type === 'ticketed' && <th className="text-right font-medium p-2">Revenue</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -532,7 +536,7 @@ function OrganizerEventStats({ eventId }: { eventId: string }) {
                       <tr key={idx} className="hover:bg-muted/30 transition-colors">
                         <td className="p-2 font-medium">{tier.name}</td>
                         <td className="p-2 text-right text-muted-foreground">{tier.count}</td>
-                        <td className="p-2 text-right text-green-600 font-medium">{formatPrice(tier.revenue)}</td>
+                        {event.event_type === 'ticketed' && <td className="p-2 text-right text-green-600 font-medium">{formatPrice(tier.revenue)}</td>}
                       </tr>
                     ))}
                   </tbody>
@@ -894,11 +898,13 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             loading="lazy"
           />
-          <span
-            className={`absolute top-2 right-2 text-xs font-semibold px-2.5 py-1 rounded-full border capitalize ${isPast ? "bg-neutral-100 text-neutral-600 border-neutral-200" : statusClass}`}
-          >
             {isPast ? "Past" : event.status}
           </span>
+          {event.event_type === 'rsvp' && (
+            <span className="absolute top-2 left-2 text-[10px] font-black px-2 py-0.5 rounded-md bg-[#2ECC71] text-black border-0 uppercase tracking-tighter shadow-lg">
+              RSVP Event
+            </span>
+          )}
         </div>
       </Link>
 
@@ -923,12 +929,16 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
         <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <Ticket className="w-3.5 h-3.5" />
-            {totalSold} / {totalCapacity} sold
+            {event.event_type === 'rsvp' ? `${totalSold} / ${event.rsvp_limit || '∞'} rsvp'd` : `${totalSold} / ${totalCapacity} sold`}
           </span>
-          {lowestPrice !== null && (
-            <span className="font-semibold text-primary">
-              {lowestPrice === 0 ? "Free" : `From ${formatPrice(lowestPrice)}`}
-            </span>
+          {event.event_type === 'rsvp' ? (
+             <span className="font-bold text-[#2ECC71]">FREE RSVP</span>
+          ) : (
+            lowestPrice !== null && (
+              <span className="font-semibold text-primary">
+                {lowestPrice === 0 ? "Free" : `From ${formatPrice(lowestPrice)}`}
+              </span>
+            )
           )}
         </div>
 
@@ -951,8 +961,11 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
               >
                 <Ticket className="w-3.5 h-3.5" />
               </Button>
+              )}
 
-              <OrganizerPayoutModal event={event} onSuccess={onUpdate} />
+              {event.event_type === 'ticketed' && (
+                <OrganizerPayoutModal event={event} onSuccess={onUpdate} />
+              )}
               
               <OrganizerScannerSettingsModal event={event} onSuccess={onUpdate} />
 
@@ -1079,7 +1092,7 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
       )}
       
       {activeSection === 'stats' && (
-        <OrganizerEventStats eventId={event.id} />
+        <OrganizerEventStats event={event} />
       )}
     </div>
   );
@@ -1139,6 +1152,7 @@ export default function OrganizerEventsPage() {
       .select(
         `id, title, date, time, venue, city, category, cover_image_url, status, created_at,
          bank_name, account_number, account_name, is_multi_day, event_days, scanner_mode, scanner_mode_locked, is_private,
+         event_type, rsvp_limit,
          ticket_tiers ( id, name, price, total_quantity, remaining_quantity )`
       )
       .eq("organizer_id", user.id)

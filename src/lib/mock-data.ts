@@ -22,6 +22,8 @@ export interface Event {
   is_multi_day?: boolean;
   event_days?: string[];
   is_private?: boolean;
+  event_type?: 'ticketed' | 'rsvp';
+  rsvp_limit?: number | null;
 }
 
 export interface TicketTier {

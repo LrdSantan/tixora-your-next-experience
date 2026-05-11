@@ -52,7 +52,9 @@ export default function CreateEvent() {
     organizerEmail: "",
     organizerPhone: "",
     isPrivate: false,
+    eventType: "ticketed" as "ticketed" | "rsvp",
   });
+  const [rsvpLimit, setRsvpLimit] = useState<number | "">("");
   const [bankSearchOpen, setBankSearchOpen] = useState(false);
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [isMultiDay, setIsMultiDay] = useState(false);
@@ -97,13 +99,15 @@ export default function CreateEvent() {
     if (!formData.city.trim()) errs.city = "City is required.";
 
     // Payout Details Validation
-    if (!formData.bankName) errs.bankName = "Bank name is required.";
-    if (!formData.accountNumber.trim()) {
-      errs.accountNumber = "Account number is required.";
-    } else if (!/^\d{10}$/.test(formData.accountNumber)) {
-      errs.accountNumber = "Account number must be exactly 10 digits.";
+    if (formData.eventType === "ticketed") {
+      if (!formData.bankName) errs.bankName = "Bank name is required.";
+      if (!formData.accountNumber.trim()) {
+        errs.accountNumber = "Account number is required.";
+      } else if (!/^\d{10}$/.test(formData.accountNumber)) {
+        errs.accountNumber = "Account number must be exactly 10 digits.";
+      }
+      if (!formData.accountName.trim()) errs.accountName = "Account name is required.";
     }
-    if (!formData.accountName.trim()) errs.accountName = "Account name is required.";
     
     // Organizer Details Validation
     if (!formData.organizerEmail.trim()) {
@@ -146,15 +150,17 @@ export default function CreateEvent() {
     if (!formData.time) errs.time = "Time is required.";
     if (!coverImage) errs.coverImage = "Cover image is required to be uploaded.";
 
-    if (tiers.length === 0) {
-      errs.tiers = "At least 1 ticket tier is required.";
-    } else {
-      for (let i = 0; i < tiers.length; i++) {
-        const t = tiers[i];
-        const isPriceValid = t.isFree ? true : (t.price !== "" && t.price >= 0);
-        if (!t.name.trim() || !isPriceValid || t.quantity === "" || t.quantity <= 0) {
-          errs.tiers = "Please ensure all tiers have a name, valid price, and quantity > 0.";
-          break;
+    if (formData.eventType === "ticketed") {
+      if (tiers.length === 0) {
+        errs.tiers = "At least 1 ticket tier is required.";
+      } else {
+        for (let i = 0; i < tiers.length; i++) {
+          const t = tiers[i];
+          const isPriceValid = t.isFree ? true : (t.price !== "" && t.price >= 0);
+          if (!t.name.trim() || !isPriceValid || t.quantity === "" || t.quantity <= 0) {
+            errs.tiers = "Please ensure all tiers have a name, valid price, and quantity > 0.";
+            break;
+          }
         }
       }
     }
@@ -233,20 +239,36 @@ export default function CreateEvent() {
           is_multi_day: isMultiDay,
           event_days: isMultiDay ? generateEventDays(formData.date, endDate) : [],
           is_private: formData.isPrivate,
+          event_type: formData.eventType,
+          rsvp_limit: formData.eventType === 'rsvp' ? (rsvpLimit || null) : null,
         })
         .select()
         .single();
 
       if (eventError) throw eventError;
 
-      const tiersToInsert = tiers.map(t => ({
-        event_id: eventData.id,
-        name: t.name,
-        description: t.description,
-        price: t.price,
-        total_quantity: t.quantity,
-        remaining_quantity: t.quantity,
-      }));
+      let tiersToInsert;
+      
+      if (formData.eventType === 'rsvp') {
+        const limit = rsvpLimit || 999999;
+        tiersToInsert = [{
+          event_id: eventData.id,
+          name: 'RSVP',
+          description: 'Free RSVP Entry',
+          price: 0,
+          total_quantity: limit,
+          remaining_quantity: limit,
+        }];
+      } else {
+        tiersToInsert = tiers.map(t => ({
+          event_id: eventData.id,
+          name: t.name,
+          description: t.description,
+          price: t.price,
+          total_quantity: t.quantity,
+          remaining_quantity: t.quantity,
+        }));
+      }
 
       const { error: tiersError } = await supabase
         .from('ticket_tiers')
@@ -282,6 +304,53 @@ export default function CreateEvent() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-10" noValidate>
+        {/* Event Type Toggle */}
+        <div className="flex flex-col sm:flex-row gap-4 p-1 bg-muted rounded-2xl border border-border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setFormData({ ...formData, eventType: 'ticketed' })}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 py-4 px-6 rounded-xl transition-all font-bold text-sm",
+              formData.eventType === 'ticketed' 
+                ? "bg-white text-[#1A7A4A] shadow-sm" 
+                : "text-muted-foreground hover:bg-white/50"
+            )}
+          >
+            🎟 Ticketed Event
+          </button>
+          <button
+            type="button"
+            onClick={() => setFormData({ ...formData, eventType: 'rsvp' })}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 py-4 px-6 rounded-xl transition-all font-bold text-sm",
+              formData.eventType === 'rsvp' 
+                ? "bg-white text-[#1A7A4A] shadow-sm" 
+                : "text-muted-foreground hover:bg-white/50"
+            )}
+          >
+            ✋ Free RSVP
+          </button>
+        </div>
+
+        {formData.eventType === 'rsvp' && (
+          <div className="p-5 rounded-2xl bg-[#1A7A4A]/5 border border-[#1A7A4A]/20 space-y-3 animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-bold text-[#1A7A4A] uppercase tracking-wider">RSVP Capacity</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">Maximum number of people who can RSVP. Leave blank for unlimited.</p>
+              </div>
+              <div className="w-32">
+                <Input 
+                  type="number" 
+                  placeholder="Unlimited" 
+                  className="h-11 border-[#1A7A4A]/30 focus-visible:ring-[#1A7A4A]/30"
+                  value={rsvpLimit}
+                  onChange={e => setRsvpLimit(e.target.value === "" ? "" : parseInt(e.target.value) || "")}
+                />
+              </div>
+            </div>
+          </div>
+        )}
         {/* Section 1: Event Details */}
         <section className="space-y-6">
           <h2 className="text-xl font-bold border-b pb-2">1. Event Details</h2>
@@ -415,151 +484,155 @@ export default function CreateEvent() {
         </section>
 
         {/* Section 3: Ticket Tiers */}
-        <section className="space-y-6">
-          <div className="flex items-center justify-between border-b pb-2">
-            <h2 className="text-xl font-bold">3. Ticket Tiers</h2>
-            <Button type="button" variant="outline" size="sm" onClick={handleAddTier} disabled={tiers.length >= 5} className="gap-1.5 h-8">
-              <Plus className="w-3.5 h-3.5" /> Add Tier
-            </Button>
-          </div>
-          {errors.tiers && <p className="text-sm text-destructive font-medium">{errors.tiers}</p>}
-          <div className="space-y-4">
-            {tiers.map((tier, index) => (
-              <div key={tier.id} className="p-5 border rounded-xl bg-card relative">
-                <div className="absolute top-4 right-4">
-                  <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveTier(tier.id)} disabled={tiers.length === 1} className="text-muted-foreground hover:text-destructive h-8 w-8">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-                
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Tier {index + 1}</h3>
-                  <div className="flex items-center gap-2 pr-10">
-                    <Label htmlFor={`free-toggle-${tier.id}`} className="text-xs font-semibold text-muted-foreground uppercase cursor-pointer">Free Ticket</Label>
-                    <Switch 
-                      id={`free-toggle-${tier.id}`}
-                      checked={tier.isFree}
-                      onCheckedChange={(checked) => {
-                        setTiers(prev => prev.map(t => 
-                          t.id === tier.id 
-                            ? { ...t, isFree: checked, price: checked ? 0 : t.price }
-                            : t
-                        ));
-                      }}
-                    />
-                    {tier.isFree && (
-                      <span className="ml-2 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-bold border border-green-200">FREE</span>
-                    )}
+        {formData.eventType === "ticketed" && (
+          <section className="space-y-6">
+            <div className="flex items-center justify-between border-b pb-2">
+              <h2 className="text-xl font-bold">3. Ticket Tiers</h2>
+              <Button type="button" variant="outline" size="sm" onClick={handleAddTier} disabled={tiers.length >= 5} className="gap-1.5 h-8">
+                <Plus className="w-3.5 h-3.5" /> Add Tier
+              </Button>
+            </div>
+            {errors.tiers && <p className="text-sm text-destructive font-medium">{errors.tiers}</p>}
+            <div className="space-y-4">
+              {tiers.map((tier, index) => (
+                <div key={tier.id} className="p-5 border rounded-xl bg-card relative">
+                  <div className="absolute top-4 right-4">
+                    <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveTier(tier.id)} disabled={tiers.length === 1} className="text-muted-foreground hover:text-destructive h-8 w-8">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Tier {index + 1}</h3>
+                    <div className="flex items-center gap-2 pr-10">
+                      <Label htmlFor={`free-toggle-${tier.id}`} className="text-xs font-semibold text-muted-foreground uppercase cursor-pointer">Free Ticket</Label>
+                      <Switch 
+                        id={`free-toggle-${tier.id}`}
+                        checked={tier.isFree}
+                        onCheckedChange={(checked) => {
+                          setTiers(prev => prev.map(t => 
+                            t.id === tier.id 
+                              ? { ...t, isFree: checked, price: checked ? 0 : t.price }
+                              : t
+                          ));
+                        }}
+                      />
+                      {tier.isFree && (
+                        <span className="ml-2 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-bold border border-green-200">FREE</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Tier Name <span className="text-destructive">*</span></label>
+                      <Input placeholder="e.g. VIP" value={tier.name} onChange={e => handleTierChange(tier.id, "name", e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Quantity Available <span className="text-destructive">*</span></label>
+                      <Input type="number" min="1" placeholder="e.g. 100" value={tier.quantity} onChange={e => handleTierChange(tier.id, "quantity", e.target.value === "" ? "" : parseInt(e.target.value) || 0)} />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Price (₦) <span className="text-destructive">*</span></label>
+                      <Input 
+                        type="number" 
+                        min="0" 
+                        placeholder={tier.isFree ? "0" : "e.g. 5000"} 
+                        value={tier.isFree ? 0 : tier.price} 
+                        onChange={e => handleTierChange(tier.id, "price", e.target.value === "" ? "" : parseInt(e.target.value) || 0)} 
+                        disabled={tier.isFree}
+                        className={cn("h-11 text-sm p-[8px_10px] min-w-[80px]", tier.isFree ? "bg-muted/50" : "")}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Description (Optional)</label>
+                      <Input placeholder="What does this include?" value={tier.description} onChange={e => handleTierChange(tier.id, "description", e.target.value)} />
+                    </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Tier Name <span className="text-destructive">*</span></label>
-                    <Input placeholder="e.g. VIP" value={tier.name} onChange={e => handleTierChange(tier.id, "name", e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Quantity Available <span className="text-destructive">*</span></label>
-                    <Input type="number" min="1" placeholder="e.g. 100" value={tier.quantity} onChange={e => handleTierChange(tier.id, "quantity", e.target.value === "" ? "" : parseInt(e.target.value) || 0)} />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Price (₦) <span className="text-destructive">*</span></label>
-                    <Input 
-                      type="number" 
-                      min="0" 
-                      placeholder={tier.isFree ? "0" : "e.g. 5000"} 
-                      value={tier.isFree ? 0 : tier.price} 
-                      onChange={e => handleTierChange(tier.id, "price", e.target.value === "" ? "" : parseInt(e.target.value) || 0)} 
-                      disabled={tier.isFree}
-                      className={cn("h-11 text-sm p-[8px_10px] min-w-[80px]", tier.isFree ? "bg-muted/50" : "")}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Description (Optional)</label>
-                    <Input placeholder="What does this include?" value={tier.description} onChange={e => handleTierChange(tier.id, "description", e.target.value)} />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Section 4: Payout Details */}
-        <section className="space-y-6">
-          <h2 className="text-xl font-bold border-b pb-2">4. Payout Details</h2>
-          <p className="text-sm text-muted-foreground">Enter the bank details where you want to receive your payouts from ticket sales.</p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Bank Name <span className="text-destructive">*</span></label>
-              <Popover open={bankSearchOpen} onOpenChange={setBankSearchOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={bankSearchOpen}
-                    className="w-full justify-between h-11 px-4 font-normal"
-                  >
-                    {formData.bankName ? formData.bankName : "Search bank..."}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                  <Command>
-                    <CommandInput placeholder="Search bank..." />
-                    <CommandList>
-                      <CommandEmpty>No bank found.</CommandEmpty>
-                      <CommandGroup>
-                        {NIGERIAN_BANKS.map((bank) => (
-                          <CommandItem
-                            key={bank}
-                            value={bank}
-                            onSelect={(currentValue) => {
-                              setFormData({ ...formData, bankName: currentValue });
-                              setBankSearchOpen(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                formData.bankName === bank ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {bank}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-              {errors.bankName && <p className="text-xs text-destructive">{errors.bankName}</p>}
-            </div>
+        {formData.eventType === "ticketed" && (
+          <section className="space-y-6">
+            <h2 className="text-xl font-bold border-b pb-2">4. Payout Details</h2>
+            <p className="text-sm text-muted-foreground">Enter the bank details where you want to receive your payouts from ticket sales.</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Bank Name <span className="text-destructive">*</span></label>
+                <Popover open={bankSearchOpen} onOpenChange={setBankSearchOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={bankSearchOpen}
+                      className="w-full justify-between h-11 px-4 font-normal"
+                    >
+                      {formData.bankName ? formData.bankName : "Search bank..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                    <Command>
+                      <CommandInput placeholder="Search bank..." />
+                      <CommandList>
+                        <CommandEmpty>No bank found.</CommandEmpty>
+                        <CommandGroup>
+                          {NIGERIAN_BANKS.map((bank) => (
+                            <CommandItem
+                              key={bank}
+                              value={bank}
+                              onSelect={(currentValue) => {
+                                setFormData({ ...formData, bankName: currentValue });
+                                setBankSearchOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  formData.bankName === bank ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {bank}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                {errors.bankName && <p className="text-xs text-destructive">{errors.bankName}</p>}
+              </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Account Number <span className="text-destructive">*</span></label>
-              <Input 
-                placeholder="e.g. 0123456789" 
-                maxLength={10} 
-                value={formData.accountNumber} 
-                onChange={e => {
-                  const val = e.target.value.replace(/\D/g, "");
-                  setFormData({ ...formData, accountNumber: val });
-                }} 
-              />
-              {errors.accountNumber && <p className="text-xs text-destructive">{errors.accountNumber}</p>}
-            </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Account Number <span className="text-destructive">*</span></label>
+                <Input 
+                  placeholder="e.g. 0123456789" 
+                  maxLength={10} 
+                  value={formData.accountNumber} 
+                  onChange={e => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    setFormData({ ...formData, accountNumber: val });
+                  }} 
+                />
+                {errors.accountNumber && <p className="text-xs text-destructive">{errors.accountNumber}</p>}
+              </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-medium">Account Name <span className="text-destructive">*</span></label>
-              <Input 
-                placeholder="The name on the bank account" 
-                value={formData.accountName} 
-                onChange={e => setFormData({ ...formData, accountName: e.target.value })} 
-              />
-              {errors.accountName && <p className="text-xs text-destructive">{errors.accountName}</p>}
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-medium">Account Name <span className="text-destructive">*</span></label>
+                <Input 
+                  placeholder="The name on the bank account" 
+                  value={formData.accountName} 
+                  onChange={e => setFormData({ ...formData, accountName: e.target.value })} 
+                />
+                {errors.accountName && <p className="text-xs text-destructive">{errors.accountName}</p>}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* Section 5: Organizer Contact Details */}
         <section className="space-y-6">
