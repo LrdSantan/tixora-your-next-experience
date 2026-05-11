@@ -375,10 +375,10 @@ function OrganizerTiersEditor({ event, onSaved }: { event: OrganizerEvent, onSav
                         className="scale-75"
                       />
                     </div>
-                    <div className="relative flex-1">
-                      <span className="absolute left-2.5 top-2 text-xs text-muted-foreground">₦</span>
+                    <div className="relative flex-1 min-w-[80px]">
+                      <span className="absolute left-2.5 top-2.5 text-xs text-muted-foreground">₦</span>
                       <Input 
-                        className={cn("h-9 text-sm w-full bg-background pl-6", tier.isFree && "bg-muted text-muted-foreground")}
+                        className={cn("h-10 text-sm w-full bg-background pl-6 p-[8px_10px]", tier.isFree && "bg-muted text-muted-foreground")}
                         type="number"
                         min="0"
                         placeholder="Price" 

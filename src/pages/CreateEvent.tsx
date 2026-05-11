@@ -470,7 +470,7 @@ export default function CreateEvent() {
                       value={tier.isFree ? 0 : tier.price} 
                       onChange={e => handleTierChange(tier.id, "price", e.target.value === "" ? "" : parseInt(e.target.value) || 0)} 
                       disabled={tier.isFree}
-                      className={tier.isFree ? "bg-muted/50" : ""}
+                      className={cn("h-11 text-sm p-[8px_10px] min-w-[80px]", tier.isFree ? "bg-muted/50" : "")}
                     />
                   </div>
                   <div className="space-y-2">
