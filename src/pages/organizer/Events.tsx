@@ -376,12 +376,12 @@ function OrganizerTiersEditor({ event, onSaved }: { event: OrganizerEvent, onSav
                       />
                     </div>
                     <div className="relative flex-1 min-w-[80px] h-10">
-                      <span className="absolute left-2.5 top-[11px] text-xs text-muted-foreground leading-none">₦</span>
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground leading-none">₦</span>
                       <Input 
-                        className={cn("h-10 text-sm w-full bg-background pl-6 p-[8px_10px] items-center", tier.isFree && "bg-muted text-muted-foreground")}
+                        className={cn("h-10 text-sm w-full bg-background pl-6 pr-2.5 py-2", tier.isFree && "bg-muted text-muted-foreground")}
                         type="number"
                         min="0"
-                        placeholder="₦ 0" 
+                        placeholder="0" 
                         value={tier.isFree ? 0 : tier.price} 
                         onChange={e => updateTier(originalIdx, 'price', e.target.value === '' ? '' : parseFloat(e.target.value))} 
                         disabled={tier.isFree}
