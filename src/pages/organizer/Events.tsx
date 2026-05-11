@@ -1254,7 +1254,7 @@ export default function OrganizerEventsPage() {
         </div>
       ) : (
         /* Events grid */
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-5 sm:grid-cols-2 items-start">
           {displayedEvents.map((event) => (
             <OrganizerEventCard 
               key={event.id} 
