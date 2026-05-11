@@ -352,13 +352,13 @@ function OrganizerTiersEditor({ event, onSaved }: { event: OrganizerEvent, onSav
               <div key={tier.id || idx} className="space-y-1.5">
                 <div className="space-y-2">
                   <Input 
-                    className="h-9 text-sm w-full bg-background" 
+                    className="h-10 text-sm w-full bg-background p-[8px_10px]" 
                     placeholder="Tier name e.g. Regular, VIP..." 
                     value={tier.name} 
                     onChange={e => updateTier(originalIdx, 'name', e.target.value)} 
                   />
                   <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1.5 mr-1 bg-background px-2 py-1 rounded-md border border-input h-9">
+                    <div className="flex items-center gap-1.5 mr-1 bg-background px-2.5 py-2 rounded-md border border-input h-10">
                       <Label htmlFor={`free-${tier.id || idx}`} className="text-[10px] font-bold text-muted-foreground uppercase cursor-pointer select-none">Free</Label>
                       <Switch 
                         id={`free-${tier.id || idx}`}
@@ -381,14 +381,14 @@ function OrganizerTiersEditor({ event, onSaved }: { event: OrganizerEvent, onSav
                         className={cn("h-10 text-sm w-full bg-background pl-6 p-[8px_10px]", tier.isFree && "bg-muted text-muted-foreground")}
                         type="number"
                         min="0"
-                        placeholder="Price" 
+                        placeholder="₦ 0" 
                         value={tier.isFree ? 0 : tier.price} 
                         onChange={e => updateTier(originalIdx, 'price', e.target.value === '' ? '' : parseFloat(e.target.value))} 
                         disabled={tier.isFree}
                       />
                     </div>
                     <Input 
-                      className="h-9 text-sm w-24 bg-background" 
+                      className="h-10 text-sm w-24 bg-background p-[8px_10px]" 
                       type="number"
                       min={tier.tickets_sold}
                       placeholder="Cap" 
@@ -398,7 +398,7 @@ function OrganizerTiersEditor({ event, onSaved }: { event: OrganizerEvent, onSav
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="h-9 w-9 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 shrink-0"
+                      className="h-10 w-10 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 shrink-0"
                       onClick={() => removeTier(originalIdx)}
                       title={tier.tickets_sold > 0 ? "Cannot delete tier with existing sales" : "Delete tier row"}
                     >
