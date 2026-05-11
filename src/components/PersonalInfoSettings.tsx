@@ -37,7 +37,13 @@ export function PersonalInfoSettings() {
           .eq("id", user.id)
           .maybeSingle();
 
-        if (error) throw error;
+        if (error) {
+          console.error("[PersonalInfoSettings] Fetch error:", error);
+          throw error;
+        }
+        
+        console.log("[PersonalInfoSettings] Loaded profile:", data);
+        
         if (data) {
           setFormData({
             fullName: data.full_name || "",
@@ -47,8 +53,8 @@ export function PersonalInfoSettings() {
           });
         }
       } catch (err: any) {
+        console.error("[PersonalInfoSettings] Detailed error:", err);
         toast.error("Failed to load profile details");
-        console.error(err);
       } finally {
         setIsLoading(false);
       }
@@ -72,9 +78,7 @@ export function PersonalInfoSettings() {
 
     setIsUploading(true);
     try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${user.id}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
+      const filePath = `${user.id}/avatar`;
 
       const { error: uploadError } = await supabase.storage
         .from("avatars")
