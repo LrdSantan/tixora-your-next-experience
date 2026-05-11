@@ -89,6 +89,14 @@ export const EventCardHorizontal = React.memo(({ event }: EventCardHorizontalPro
               <MapPin className="w-3 h-3 text-[#1A7A4A] shrink-0" />
               <span className="truncate">{event.venue}, {event.city}</span>
             </div>
+            {event.organizer_name && (
+              <div className="flex items-center gap-1.5 text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>
+                <div className="w-4 h-4 rounded-full bg-white/5 flex items-center justify-center">
+                  <span className="text-[8px] opacity-60">👤</span>
+                </div>
+                <span className="truncate">{event.organizer_name}</span>
+              </div>
+            )}
           </div>
 
           <div className="mt-1 flex items-baseline gap-1.5">

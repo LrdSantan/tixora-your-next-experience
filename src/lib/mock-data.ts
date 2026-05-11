@@ -24,6 +24,9 @@ export interface Event {
   is_private?: boolean;
   event_type?: 'ticketed' | 'rsvp';
   rsvp_limit?: number | null;
+  organizer_name?: string;
+  organizer_avatar?: string;
+  organizer_bio?: string;
 }
 
 export interface TicketTier {

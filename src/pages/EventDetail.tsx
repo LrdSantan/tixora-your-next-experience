@@ -281,6 +281,34 @@ const EventDetailPage = () => {
               <p className="text-[15px] leading-[1.8]" style={{ color: "rgba(255,255,255,0.7)" }}>
                 {event.description}
               </p>
+
+              {/* Organizer Info Block */}
+              {event.organizer_name && (
+                <div className="mt-8 pt-8 border-t border-white/5 flex flex-col gap-4">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.35)" }}>
+                    Hosted by
+                  </span>
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-full overflow-hidden bg-white/5 shrink-0 border border-white/10 flex items-center justify-center shadow-lg">
+                      {event.organizer_avatar ? (
+                        <img src={event.organizer_avatar} alt={event.organizer_name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-lg font-bold text-white/20">
+                          {event.organizer_name.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <h4 className="text-[15px] font-bold text-white">{event.organizer_name}</h4>
+                      {event.organizer_bio && (
+                        <p className="text-[13px] leading-relaxed max-w-lg" style={{ color: "rgba(255,255,255,0.5)" }}>
+                          {event.organizer_bio}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Ticket selection OR RSVP Form */}

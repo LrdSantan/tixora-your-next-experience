@@ -105,6 +105,24 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
             </div>
           </div>
 
+          {/* Organizer row */}
+          {(event.organizer_name || event.organizer_avatar) && (
+            <div className="flex items-center gap-1.5 pt-1">
+              <div className="w-5 h-5 rounded-full overflow-hidden bg-white/5 shrink-0 border border-white/10">
+                {event.organizer_avatar ? (
+                  <img src={event.organizer_avatar} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-[10px] text-white/20">
+                    {event.organizer_name?.charAt(0)}
+                  </div>
+                )}
+              </div>
+              <span className="text-[11px] font-medium truncate" style={{ color: "rgba(255,255,255,0.45)" }}>
+                {event.organizer_name}
+              </span>
+            </div>
+          )}
+
           {/* Bottom section */}
           <div className="flex items-center justify-between pt-3 border-t border-white/5">
             <div className="flex flex-col">

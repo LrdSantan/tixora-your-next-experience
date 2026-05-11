@@ -23,6 +23,11 @@ type EventRow = {
   ticket_tiers: TicketTierRow[] | null;
   event_type: 'ticketed' | 'rsvp' | null;
   rsvp_limit: number | null;
+  profiles: {
+    full_name: string | null;
+    avatar_url: string | null;
+    bio: string | null;
+  } | null;
 };
 
 type TicketTierRow = {
@@ -70,6 +75,9 @@ function mapRow(row: EventRow): Event {
     ticket_tiers: tiers,
     event_type: (row.event_type ?? 'ticketed') as 'ticketed' | 'rsvp',
     rsvp_limit: row.rsvp_limit ?? null,
+    organizer_name: row.profiles?.full_name || undefined,
+    organizer_avatar: row.profiles?.avatar_url || undefined,
+    organizer_bio: row.profiles?.bio || undefined,
   };
 }
 
@@ -101,6 +109,11 @@ export async function fetchEvents(filterActive = true): Promise<Event[]> {
       event_days,
       event_type,
       rsvp_limit,
+      profiles (
+        full_name,
+        avatar_url,
+        bio
+      ),
       ticket_tiers (
         id,
         event_id,
@@ -167,6 +180,11 @@ export async function fetchEventById(id: string): Promise<Event | null> {
       is_private,
       event_type,
       rsvp_limit,
+      profiles (
+        full_name,
+        avatar_url,
+        bio
+      ),
       ticket_tiers (
         id,
         event_id,
@@ -224,6 +242,10 @@ export async function fetchEventSearch(searchQuery: string): Promise<Event[]> {
       category,
       cover_image_url,
       status,
+      profiles (
+        full_name,
+        avatar_url
+      ),
       ticket_tiers (
         price
       )
