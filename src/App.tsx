@@ -86,6 +86,7 @@ const AppLayout = ({ children, showNav = true }: { children: React.ReactNode; sh
     {showNav && <Footer />}
   </div>
 );
+const App = () => {
   useEffect(() => {
     setupNetworkListeners();
   }, []);
