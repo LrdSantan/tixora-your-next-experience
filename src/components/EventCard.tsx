@@ -54,22 +54,21 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
         </button>
         {/* Cover Image */}
         <div className="h-[120px] w-full overflow-hidden flex-shrink-0 relative bg-[#0d1a10]">
-          {(event.cover_image_url || event.cover_image) && !imgError ? (
-            <>
-              <img
-                src={event.cover_image_url || event.cover_image || getEventImage(event)}
-                alt={event.title}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                loading="lazy"
-                onError={() => setImgError(true)}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0F1612] via-transparent to-transparent opacity-80" />
-            </>
+          {!imgError ? (
+            <img
+              src={getEventImage(event)}
+              alt={event.title}
+              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+              loading="lazy"
+              crossOrigin="anonymous"
+              onError={() => setImgError(true)}
+            />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <Calendar className="w-10 h-10 text-white/10" />
             </div>
           )}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0F1612] via-[#111d15]/40 to-transparent opacity-80" />
           
           <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start">
             <span className="inline-flex items-center bg-[#1A7A4A] text-white text-[9px] font-bold px-2 py-0.5 uppercase tracking-widest rounded-full shadow-lg">
@@ -105,23 +104,21 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
             </div>
           </div>
 
-          {/* Organizer row */}
-          {(event.organizer_name || event.organizer_avatar) && (
-            <div className="flex items-center gap-1.5 pt-1">
-              <div className="w-5 h-5 rounded-full overflow-hidden bg-white/5 shrink-0 border border-white/10">
-                {event.organizer_avatar ? (
-                  <img src={event.organizer_avatar} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[10px] text-white/20">
-                    {event.organizer_name?.charAt(0)}
-                  </div>
-                )}
-              </div>
-              <span className="text-[11px] font-medium truncate" style={{ color: "rgba(255,255,255,0.45)" }}>
-                {event.organizer_name}
-              </span>
+          {/* Organizer row — Always render for consistent height */}
+          <div className="flex items-center gap-1.5 pt-1 h-6">
+            <div className="w-5 h-5 rounded-full overflow-hidden bg-white/5 shrink-0 border border-white/10 flex items-center justify-center">
+              {event.organizer_avatar ? (
+                <img src={event.organizer_avatar} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-[9px] font-bold text-white/20 uppercase">
+                  {(event.organizer_name || event.organizer_profile?.full_name || "O").charAt(0)}
+                </div>
+              )}
             </div>
-          )}
+            <span className="text-[11px] font-medium truncate" style={{ color: "rgba(255,255,255,0.45)" }}>
+              {event.organizer_name || event.organizer_profile?.full_name || "Organizer"}
+            </span>
+          </div>
 
           {/* Bottom section */}
           <div className="flex items-center justify-between pt-3 border-t border-white/5">
