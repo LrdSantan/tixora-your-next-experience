@@ -1,4 +1,7 @@
 import React, { Suspense, useEffect } from "react";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import { setupNetworkListeners } from "@/lib/errorHandler";
+
 import { HelmetProvider } from "react-helmet-async";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
