@@ -27,6 +27,11 @@ export interface Event {
   organizer_name?: string;
   organizer_avatar?: string;
   organizer_bio?: string;
+  organizer_profile?: {
+    full_name: string | null;
+    avatar_url: string | null;
+    bio: string | null;
+  } | null;
 }
 
 export interface TicketTier {

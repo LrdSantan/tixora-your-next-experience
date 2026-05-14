@@ -38,33 +38,46 @@ async function enrichEventsWithOrganizers(events: Event[]): Promise<Event[]> {
   if (organizerIds.length === 0) return events;
 
   try {
-    const { data: profiles, error } = await supabase
+    let profilesQuery = supabase
       .from("profiles")
-      .select("id, full_name, avatar_url, bio")
-      .in("id", organizerIds);
+      .select("id, full_name, avatar_url, bio");
+    
+    if (organizerIds.length === 1) {
+      profilesQuery = profilesQuery.eq("id", organizerIds[0]);
+    } else {
+      profilesQuery = profilesQuery.in("id", organizerIds);
+    }
+
+    const { data: profiles, error } = await profilesQuery;
 
     if (error) {
       console.error("[events] Failed to fetch organizer profiles:", error);
-      return events;
+      return events.map(e => ({ ...e, organizer_profile: null }));
     }
 
     const profileMap = new Map(profiles?.map(p => [p.id, p]));
 
     return events.map(event => {
-      if (!event.organizer_id) return event;
+      if (!event.organizer_id) return { ...event, organizer_profile: null };
       const profile = profileMap.get(event.organizer_id);
-      if (!profile) return event;
+      
+      if (!profile) return { ...event, organizer_profile: null };
 
       return {
         ...event,
         organizer_name: profile.full_name || event.organizer_name,
         organizer_avatar: profile.avatar_url || event.organizer_avatar,
-        organizer_bio: profile.bio || event.organizer_bio
+        organizer_bio: profile.bio || event.organizer_bio,
+        organizer_profile: {
+          full_name: profile.full_name,
+          avatar_url: profile.avatar_url,
+          bio: profile.bio
+        }
       };
     });
   } catch (err) {
     console.error("[events] Error enriching events with organizers:", err);
-    return events;
+    return events.map(e => ({ ...e, organizer_profile: null }));
   }
 }
 
@@ -113,9 +126,6 @@ function mapRow(row: EventRow): Event {
     ticket_tiers: tiers,
     event_type: (row.event_type ?? 'ticketed') as 'ticketed' | 'rsvp',
     rsvp_limit: row.rsvp_limit ?? null,
-    organizer_name: row.profiles?.full_name || undefined,
-    organizer_avatar: row.profiles?.avatar_url || undefined,
-    organizer_bio: row.profiles?.bio || undefined,
   };
 }
 
