@@ -38,8 +38,8 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
   };
 
   return (
-    <Link to={`/events/${event.id}`} className="group block w-full">
-      <div className="bg-[#0F1612] rounded-[16px] overflow-hidden border border-white/5 transition-all duration-500 hover:border-[#1A7A4A]/40 flex flex-col w-full relative max-h-[280px]">
+    <Link to={`/events/${event.id}`} className="group block w-full h-full">
+      <div className="bg-[#0F1612] rounded-[16px] overflow-hidden border border-white/5 transition-all duration-500 hover:border-[#1A7A4A]/40 flex flex-col w-full relative h-full min-h-[380px]">
         {/* Copy Link Button */}
         <button
           onClick={handleCopy}
@@ -82,7 +82,7 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
           </div>
         </div>
 
-        <div className="p-4 flex flex-col space-y-3">
+        <div className="p-4 flex flex-col flex-1 space-y-3">
           {/* Title */}
           <h3 
             className="font-bold text-white text-[15px] leading-snug transition-colors line-clamp-1"
@@ -121,7 +121,7 @@ const EventCard = React.memo(({ event }: EventCardProps) => {
           </div>
 
           {/* Bottom section */}
-          <div className="flex items-center justify-between pt-3 border-t border-white/5">
+          <div className="flex items-center justify-between pt-3 border-t border-white/5 mt-auto">
             <div className="flex flex-col">
               <span className="text-[10px] font-medium uppercase tracking-tighter" style={{ color: "rgba(255,255,255,0.4)" }}>
                 {event.event_type === 'rsvp' ? "Entry" : "From"}
