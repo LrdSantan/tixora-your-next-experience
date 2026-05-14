@@ -1,6 +1,6 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Check, Info } from "lucide-react";
+import { ArrowLeft, Check, Info, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/store/cart-store";
@@ -134,7 +134,7 @@ interface SummaryContentProps {
   isGuest: boolean;
 }
 
-import { ChevronDown, ChevronUp } from "lucide-react";
+
 
 const SummaryContent = ({
   lineItems,
