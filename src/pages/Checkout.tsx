@@ -258,7 +258,7 @@ export default function CheckoutPage() {
   const { user, loading: authLoading } = useAuth();
   const [paying, setPaying] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [attendee, setAttendee] = useState({ name: "", email: "" });
+  const [attendee, setAttendee] = useState({ name: "", email: "", phone: "" });
   const [registrationAnswers, setRegistrationAnswers] = useState<Record<string, string>>({});
 
   const [couponCode, setCouponCode] = useState("");
@@ -281,7 +281,7 @@ export default function CheckoutPage() {
     }
     const meta = user?.user_metadata as { full_name?: string } | undefined;
     if (meta?.full_name) {
-      setAttendee((a) => ({ ...a, name: a.name || meta.full_name || "" }));
+      setAttendee((a) => ({ ...a, name: a.name || meta.full_name || "", email: a.email || user.email || "" }));
     }
   }, [user]);
 
@@ -436,22 +436,126 @@ export default function CheckoutPage() {
 
 
 
-  const handlePayWithPaystack = () => {
+  // Resolved email for Paystack/Receipts
+  const resolvedEmail = useMemo(() => {
+    if (!isGuest && user?.email) return user.email.trim();
+    return (attendee.email || "").trim();
+  }, [isGuest, user?.email, attendee.email]);
+
+  // Paystack Configuration Memo
+  const paystackConfig = useMemo(() => {
+    const pk = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY?.trim();
+    if (!pk || finalTotal <= 0) return null;
+
+    return {
+      publicKey: pk,
+      email: resolvedEmail,
+      amountKobo: Math.round(nairaToKobo(finalTotal)),
+      reference: generatePaymentReference(),
+      metadata: {
+        guest_email: (attendee.email || "").trim(),
+        guest_name: (attendee.name || "").trim(),
+        guest_phone: (attendee.phone || "").trim(),
+        custom_fields: [
+          { display_name: "Guest Name", variable_name: "guest_name", value: (attendee.name || "").trim() },
+          { display_name: "Guest Email", variable_name: "guest_email", value: (attendee.email || "").trim() },
+          { display_name: "Guest Phone", variable_name: "guest_phone", value: (attendee.phone || "").trim() }
+        ]
+      }
+    };
+  }, [resolvedEmail, finalTotal, attendee.email, attendee.name, attendee.phone]);
+
+  const handlePaymentSuccess = useCallback((response: any) => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    void (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        // Extract reference correctly (could be string or object depending on version)
+        const reference = typeof response === 'string' ? response : (response as any)?.reference;
+
+        const payload: any = {
+          reference,
+          lines: lineItems.map((i) => ({ tier_id: i.tierId, quantity: i.quantity })),
+          ...(isBuyingForFriend && user
+            ? {
+                recipient_email: (attendee.email || "").trim(),
+                guest_name: (attendee.name || "").trim(),
+              }
+            : {}),
+          guest_email: (attendee.email || "").trim(),
+          guest_name: (attendee.name || "").trim(),
+          guest_phone: (attendee.phone || "").trim(),
+        };
+        if (appliedCoupon) payload.coupon_code = appliedCoupon.code;
+
+        const answersArray = Object.entries(registrationAnswers).map(([qid, ans]) => ({ question_id: qid, answer: ans }));
+        if (answersArray.length > 0) payload.registration_answers = answersArray;
+
+        console.log("[Checkout] Calling complete-paystack-payment with payload:", payload);
+
+        const timeoutId = setTimeout(() => {
+          toast.info("Still processing your order, please wait...", { duration: 10000 });
+        }, 10000);
+
+        const { data: fnBody, error: fnError } = await supabase.functions.invoke<PaystackFnResponse>("complete-paystack-payment", {
+          body: payload,
+          headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
+        });
+
+        clearTimeout(timeoutId);
+
+        const responseData = fnBody?.data || (fnError as any)?.context?.data || (fnError as any)?.details?.data || (fnBody as any)?.details?.data;
+        const hasExistingTickets = Array.isArray(responseData?.tickets) && responseData.tickets.length > 0;
+
+        if (!hasExistingTickets && (fnError || !fnBody?.ok)) {
+          const errorMsg = fnError?.message || (fnBody as any)?.error || "Could not complete your order.";
+          toast.error(errorMsg);
+          return;
+        }
+
+        const tickets: ConfirmationTicket[] = responseData.tickets.map((t: any) => ({
+          id: t.id,
+          reference: t.reference,
+          ticketCode: t.ticket_code,
+          qrToken: t.qr_token ?? undefined,
+          amountPaidKobo: t.amount_paid,
+          quantity: t.quantity,
+          eventTitle: t.event_title,
+          tierName: t.tier_name,
+          venue: t.venue,
+          city: t.city,
+          date: String(t.date),
+          time: t.time,
+        }));
+
+        clearCart();
+        toast.success("Payment successful");
+        navigate("/confirmation", {
+          state: { tickets, buyerName: attendee.name, buyerEmail: attendee.email, purchasedAt: new Date().toISOString(), isGuest: isGuest },
+        });
+      } catch (e) {
+        toast.error("Something went wrong confirming payment.");
+      } finally {
+        setPaying(false);
+      }
+    })();
+  }, [lineItems, isBuyingForFriend, user, attendee, appliedCoupon, registrationAnswers, navigate, isGuest, clearCart]);
+
+  const handlePayWithPaystack = useCallback(() => {
     if (!agreedToTerms) {
       toast.error("Please agree to the terms before proceeding.");
       return;
     }
 
     const supabase = getSupabaseClient();
-    const pk = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY?.trim();
-    if (!pk) {
-      toast.error("Missing VITE_PAYSTACK_PUBLIC_KEY.");
-      return;
-    }
     if (!supabase || !isSupabaseConfigured) {
       toast.error("Supabase is not configured.");
       return;
     }
+
     if (lineItems.length === 0) {
       toast.error("Select at least one ticket.");
       return;
@@ -469,10 +573,11 @@ export default function CheckoutPage() {
             reference: freeReference,
             lines: lineItems.map((i) => ({ tier_id: i.tierId, quantity: i.quantity })),
             is_free: true,
-            guest_email: attendee.email.trim(),
-            guest_name: attendee.name.trim(),
+            guest_email: (attendee.email || "").trim(),
+            guest_name: (attendee.name || "").trim(),
+            guest_phone: (attendee.phone || "").trim(),
             ...(isBuyingForFriend && user
-              ? { recipient_email: attendee.email.trim() }
+              ? { recipient_email: (attendee.email || "").trim() }
               : {}),
           };
           if (appliedCoupon) payload.coupon_code = appliedCoupon.code;
@@ -531,124 +636,18 @@ export default function CheckoutPage() {
       return;
     }
 
-    const reference = generatePaymentReference();
-    const amountKobo = Math.round(nairaToKobo(finalTotal));
-
-    // For authenticated users, always prefer user.email from the auth session
-    // (not user_metadata) as the primary email source.
-    const resolvedEmail = (!isGuest && user?.email)
-      ? user.email.trim()
-      : attendee.email.trim();
-
-    console.log("[Checkout] Resolved payment email:", resolvedEmail, "| isGuest:", isGuest, "| user?.email:", user?.email);
-
-    const paystackConfig = {
-      publicKey: pk,
-      email: resolvedEmail,
-      amountKobo,
-      reference,
-    };
-
-    console.log("email:", paystackConfig.email, typeof paystackConfig.email);
-    console.log("amount:", paystackConfig.amountKobo, typeof paystackConfig.amountKobo);
-    console.log("reference:", paystackConfig.reference, typeof paystackConfig.reference);
-    console.log("key:", pk ? `${pk.slice(0, 8)}...` : "MISSING", typeof pk);
-
-    if (!resolvedEmail) {
-      toast.error("Could not determine your email address. Please sign in again.");
+    if (!paystackConfig) {
+      toast.error("Paystack configuration is incomplete. Check your settings.");
       return;
     }
-
-    const paystackMetadata = {
-      guest_email: attendee.email.trim(),
-      guest_name: attendee.name.trim(),
-      guest_phone: attendee.phone.trim(),
-      custom_fields: [
-        { display_name: "Guest Name", variable_name: "guest_name", value: attendee.name.trim() },
-        { display_name: "Guest Email", variable_name: "guest_email", value: attendee.email.trim() },
-        { display_name: "Guest Phone", variable_name: "guest_phone", value: attendee.phone.trim() }
-      ]
-    };
 
     setPaying(true);
     openPaystackInline({
       ...paystackConfig,
-      metadata: paystackMetadata,
-      onSuccess: (response) => {
-        void (async () => {
-          try {
-            const { data: { session } } = await supabase.auth.getSession();
-            
-            // Extract reference correctly (could be string or object depending on version)
-            const reference = typeof response === 'string' ? response : (response as any)?.reference;
-
-            const payload: any = {
-              reference,
-              lines: lineItems.map((i) => ({ tier_id: i.tierId, quantity: i.quantity })),
-              ...(isBuyingForFriend && user
-                ? {
-                    recipient_email: attendee.email.trim(),
-                    guest_name: attendee.name.trim(),
-                  }
-                : {}),
-            };
-            if (appliedCoupon) payload.coupon_code = appliedCoupon.code;
-
-            const answersArray = Object.entries(registrationAnswers).map(([qid, ans]) => ({ question_id: qid, answer: ans }));
-            if (answersArray.length > 0) payload.registration_answers = answersArray;
-
-            console.log("[Checkout] Calling complete-paystack-payment with payload:", payload);
-
-            const timeoutId = setTimeout(() => {
-              toast.info("Still processing your order, please wait...", { duration: 10000 });
-            }, 10000);
-
-            const { data: fnBody, error: fnError } = await supabase.functions.invoke<PaystackFnResponse>("complete-paystack-payment", {
-              body: payload,
-              headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
-            });
-
-            clearTimeout(timeoutId);
-
-            const responseData = fnBody?.data || (fnError as any)?.context?.data || (fnError as any)?.details?.data || (fnBody as any)?.details?.data;
-            const hasExistingTickets = Array.isArray(responseData?.tickets) && responseData.tickets.length > 0;
-
-            if (!hasExistingTickets && (fnError || !fnBody?.ok)) {
-              const errorMsg = fnError?.message || (fnBody as any)?.error || "Could not complete your order.";
-              toast.error(errorMsg);
-              return;
-            }
-
-            const tickets: ConfirmationTicket[] = responseData.tickets.map((t: any) => ({
-              id: t.id,
-              reference: t.reference,
-              ticketCode: t.ticket_code,
-              qrToken: t.qr_token ?? undefined,
-              amountPaidKobo: t.amount_paid,
-              quantity: t.quantity,
-              eventTitle: t.event_title,
-              tierName: t.tier_name,
-              venue: t.venue,
-              city: t.city,
-              date: String(t.date),
-              time: t.time,
-            }));
-
-            clearCart();
-            toast.success("Payment successful");
-            navigate("/confirmation", {
-              state: { tickets, buyerName: attendee.name, buyerEmail: attendee.email, purchasedAt: new Date().toISOString(), isGuest: isGuest },
-            });
-          } catch (e) {
-            toast.error("Something went wrong confirming payment.");
-          } finally {
-            setPaying(false);
-          }
-        })();
-      },
+      onSuccess: handlePaymentSuccess,
       onCancel: () => setPaying(false),
     });
-  };
+  }, [agreedToTerms, lineItems, finalTotal, attendee, isBuyingForFriend, user, appliedCoupon, registrationAnswers, isGuest, paystackConfig, handlePaymentSuccess, clearCart, navigate]);
 
   const handleRSVP = async () => {
     if (!validateAttendee()) return;
