@@ -23,12 +23,50 @@ type EventRow = {
   ticket_tiers: TicketTierRow[] | null;
   event_type: 'ticketed' | 'rsvp' | null;
   rsvp_limit: number | null;
-  profiles: {
+  profiles?: {
     full_name: string | null;
     avatar_url: string | null;
     bio: string | null;
   } | null;
 };
+
+async function enrichEventsWithOrganizers(events: Event[]): Promise<Event[]> {
+  const supabase = getSupabaseClient();
+  if (!supabase || events.length === 0) return events;
+
+  const organizerIds = Array.from(new Set(events.map(e => e.organizer_id).filter(Boolean))) as string[];
+  if (organizerIds.length === 0) return events;
+
+  try {
+    const { data: profiles, error } = await supabase
+      .from("profiles")
+      .select("id, full_name, avatar_url, bio")
+      .in("id", organizerIds);
+
+    if (error) {
+      console.error("[events] Failed to fetch organizer profiles:", error);
+      return events;
+    }
+
+    const profileMap = new Map(profiles?.map(p => [p.id, p]));
+
+    return events.map(event => {
+      if (!event.organizer_id) return event;
+      const profile = profileMap.get(event.organizer_id);
+      if (!profile) return event;
+
+      return {
+        ...event,
+        organizer_name: profile.full_name || event.organizer_name,
+        organizer_avatar: profile.avatar_url || event.organizer_avatar,
+        organizer_bio: profile.bio || event.organizer_bio
+      };
+    });
+  } catch (err) {
+    console.error("[events] Error enriching events with organizers:", err);
+    return events;
+  }
+}
 
 type TicketTierRow = {
   id: string;
@@ -98,6 +136,7 @@ export async function fetchEvents(filterActive = true): Promise<Event[]> {
       category,
       cover_image_url,
       status,
+      organizer_id,
       bank_name,
       account_number,
       account_name,
@@ -109,11 +148,6 @@ export async function fetchEvents(filterActive = true): Promise<Event[]> {
       event_days,
       event_type,
       rsvp_limit,
-      profiles (
-        full_name,
-        avatar_url,
-        bio
-      ),
       ticket_tiers (
         id,
         event_id,
@@ -137,7 +171,7 @@ export async function fetchEvents(filterActive = true): Promise<Event[]> {
   const { data, error } = await query.order("date", { ascending: true });
 
   if (error) {
-    console.warn("[events] Supabase fetch failed, using local mock data:", error.message);
+    console.error("[events] Supabase fetch failed:", error);
     return EVENTS;
   }
 
@@ -146,7 +180,8 @@ export async function fetchEvents(filterActive = true): Promise<Event[]> {
     return EVENTS;
   }
 
-  return rows.map(mapRow);
+  const events = rows.map(mapRow);
+  return await enrichEventsWithOrganizers(events);
 }
 
 export async function fetchEventById(id: string): Promise<Event | null> {
@@ -180,11 +215,6 @@ export async function fetchEventById(id: string): Promise<Event | null> {
       is_private,
       event_type,
       rsvp_limit,
-      profiles (
-        full_name,
-        avatar_url,
-        bio
-      ),
       ticket_tiers (
         id,
         event_id,
@@ -200,7 +230,7 @@ export async function fetchEventById(id: string): Promise<Event | null> {
     .single();
 
   if (error || !data) {
-    console.warn("[events] Supabase fetchEventById failed:", error?.message);
+    console.error("[events] Supabase fetchEventById failed:", error);
     return EVENTS.find((e) => e.id === id) || null;
   }
 
@@ -220,7 +250,9 @@ export async function fetchEventById(id: string): Promise<Event | null> {
     }
   }
 
-  return mapRow(eventRow);
+  const event = mapRow(eventRow);
+  const enriched = await enrichEventsWithOrganizers([event]);
+  return enriched[0];
 }
 
 export async function fetchEventSearch(searchQuery: string): Promise<Event[]> {
@@ -242,10 +274,7 @@ export async function fetchEventSearch(searchQuery: string): Promise<Event[]> {
       category,
       cover_image_url,
       status,
-      profiles (
-        full_name,
-        avatar_url
-      ),
+      organizer_id,
       ticket_tiers (
         price
       )
@@ -259,9 +288,10 @@ export async function fetchEventSearch(searchQuery: string): Promise<Event[]> {
     .limit(10);
 
   if (error) {
-    console.warn("[events] Supabase fetchEventSearch failed:", error.message);
+    console.error("[events] Supabase fetchEventSearch failed:", error);
     return [];
   }
 
-  return ((data ?? []) as EventRow[]).map(mapRow);
+  const events = ((data ?? []) as EventRow[]).map(mapRow);
+  return await enrichEventsWithOrganizers(events);
 }
