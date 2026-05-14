@@ -86,60 +86,66 @@ const AppLayout = ({ children, showNav = true }: { children: React.ReactNode; sh
     {showNav && <Footer />}
   </div>
 );
+  useEffect(() => {
+    setupNetworkListeners();
+  }, []);
 
-const App = () => (
-  <HelmetProvider>
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <ScrollToTop />
-            <Suspense fallback={<DelayedFallback />}>
-              <Routes>
-                <Route path="/" element={<AppLayout><Index /></AppLayout>} />
-                <Route path="/events/:id" element={<AppLayout><EventDetail /></AppLayout>} />
-                <Route path="/checkout" element={<AppLayout><CheckoutPage /></AppLayout>} />
-                <Route path="/confirmation" element={<AppLayout><ConfirmationPage /></AppLayout>} />
-                <Route path="/my-tickets" element={<AppLayout><MyTicketsPage /></AppLayout>} />
-                <Route path="/login" element={<AppLayout showNav={false}><LoginPage /></AppLayout>} />
-                <Route path="/signup" element={<AppLayout showNav={false}><SignupPage /></AppLayout>} />
-                <Route path="/create-event" element={<AppLayout><CreateEvent /></AppLayout>} />
-                <Route path="/admin" element={<AppLayout showNav={false}><AdminDashboard /></AppLayout>} />
-                <Route path="/search" element={<AppLayout><SearchPage /></AppLayout>} />
-                <Route path="/organizer/dashboard" element={<AppLayout><OrganizerDashboard /></AppLayout>} />
-                <Route path="/organizer/events" element={<AppLayout><OrganizerEventsPage /></AppLayout>} />
+  return (
+    <ErrorBoundary>
+      <HelmetProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <ScrollToTop />
+                <Suspense fallback={<DelayedFallback />}>
+                  <Routes>
+                    <Route path="/" element={<AppLayout><Index /></AppLayout>} />
+                    <Route path="/events/:id" element={<AppLayout><EventDetail /></AppLayout>} />
+                    <Route path="/checkout" element={<AppLayout><CheckoutPage /></AppLayout>} />
+                    <Route path="/confirmation" element={<AppLayout><ConfirmationPage /></AppLayout>} />
+                    <Route path="/my-tickets" element={<AppLayout><MyTicketsPage /></AppLayout>} />
+                    <Route path="/login" element={<AppLayout showNav={false}><LoginPage /></AppLayout>} />
+                    <Route path="/signup" element={<AppLayout showNav={false}><SignupPage /></AppLayout>} />
+                    <Route path="/create-event" element={<AppLayout><CreateEvent /></AppLayout>} />
+                    <Route path="/admin" element={<AppLayout showNav={false}><AdminDashboard /></AppLayout>} />
+                    <Route path="/search" element={<AppLayout><SearchPage /></AppLayout>} />
+                    <Route path="/organizer/dashboard" element={<AppLayout><OrganizerDashboard /></AppLayout>} />
+                    <Route path="/organizer/events" element={<AppLayout><OrganizerEventsPage /></AppLayout>} />
 
-                <Route path="/organizer/team" element={<AppLayout><OrganizerTeamPage /></AppLayout>} />
-                <Route path="/about" element={<AppLayout><AboutPage /></AppLayout>} />
-                <Route path="/contact" element={<AppLayout><ContactPage /></AppLayout>} />
-                <Route path="/blog" element={<AppLayout><BlogPage /></AppLayout>} />
-                <Route path="/blog/:slug" element={<AppLayout><BlogPostPage /></AppLayout>} />
-                <Route path="/privacy" element={<AppLayout><PrivacyPage /></AppLayout>} />
-                <Route path="/terms" element={<AppLayout><TermsPage /></AppLayout>} />
-                <Route path="/faq" element={<AppLayout><FAQPage /></AppLayout>} />
-                <Route path="/discover" element={<AppLayout><DiscoverPage /></AppLayout>} />
-                <Route path="/marketplace" element={<AppLayout><ResellMarketplace /></AppLayout>} />
-                <Route path="/resell/checkout/:resellId" element={<AppLayout><ResellCheckout /></AppLayout>} />
-                <Route path="/claim-ticket/:transferToken" element={<AppLayout><ClaimTicket /></AppLayout>} />
-                <Route path="/settings" element={<AppLayout><SettingsPage /></AppLayout>} />
-                <Route path="/admin/payouts" element={<AppLayout showNav={false}><AdminPayoutsPage /></AppLayout>} />
-                <Route path="/admin/events/:id/scan" element={<AppLayout><HighSpeedScannerPage /></AppLayout>} />
-                <Route path="/verify/:qrToken?" element={<VerifyTicketPage />} />
-                <Route path="/set-password" element={<AppLayout showNav={false}><SetPasswordPage /></AppLayout>} />
-                <Route path="/feedback/:eventId" element={<AppLayout showNav={false}><EventFeedback /></AppLayout>} />
-                <Route path="/waitlist-checkout" element={<AppLayout><WaitlistCheckoutPage /></AppLayout>} />
-                <Route path="/wallet" element={<AppLayout><WalletPage /></AppLayout>} />
-                <Route path="/calendar.ics" element={<AppLayout><IcsDownloadPage /></AppLayout>} />
-                <Route path="*" element={<AppLayout><NotFound /></AppLayout>} />
-              </Routes>
-            </Suspense>
-          </BrowserRouter>
-        </TooltipProvider>
-      </AuthProvider>
-    </QueryClientProvider>
-  </HelmetProvider>
-);
+                    <Route path="/organizer/team" element={<AppLayout><OrganizerTeamPage /></AppLayout>} />
+                    <Route path="/about" element={<AppLayout><AboutPage /></AppLayout>} />
+                    <Route path="/contact" element={<AppLayout><ContactPage /></AppLayout>} />
+                    <Route path="/blog" element={<AppLayout><BlogPage /></AppLayout>} />
+                    <Route path="/blog/:slug" element={<AppLayout><BlogPostPage /></AppLayout>} />
+                    <Route path="/privacy" element={<AppLayout><PrivacyPage /></AppLayout>} />
+                    <Route path="/terms" element={<AppLayout><TermsPage /></AppLayout>} />
+                    <Route path="/faq" element={<AppLayout><FAQPage /></AppLayout>} />
+                    <Route path="/discover" element={<AppLayout><DiscoverPage /></AppLayout>} />
+                    <Route path="/marketplace" element={<AppLayout><ResellMarketplace /></AppLayout>} />
+                    <Route path="/resell/checkout/:resellId" element={<AppLayout><ResellCheckout /></AppLayout>} />
+                    <Route path="/claim-ticket/:transferToken" element={<AppLayout><ClaimTicket /></AppLayout>} />
+                    <Route path="/settings" element={<AppLayout><SettingsPage /></AppLayout>} />
+                    <Route path="/admin/payouts" element={<AppLayout showNav={false}><AdminPayoutsPage /></AppLayout>} />
+                    <Route path="/admin/events/:id/scan" element={<AppLayout><HighSpeedScannerPage /></AppLayout>} />
+                    <Route path="/verify/:qrToken?" element={<VerifyTicketPage />} />
+                    <Route path="/set-password" element={<AppLayout showNav={false}><SetPasswordPage /></AppLayout>} />
+                    <Route path="/feedback/:eventId" element={<AppLayout showNav={false}><EventFeedback /></AppLayout>} />
+                    <Route path="/waitlist-checkout" element={<AppLayout><WaitlistCheckoutPage /></AppLayout>} />
+                    <Route path="/wallet" element={<AppLayout><WalletPage /></AppLayout>} />
+                    <Route path="/calendar.ics" element={<AppLayout><IcsDownloadPage /></AppLayout>} />
+                    <Route path="*" element={<AppLayout><NotFound /></AppLayout>} />
+                  </Routes>
+                </Suspense>
+              </BrowserRouter>
+            </TooltipProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </HelmetProvider>
+    </ErrorBoundary>
+  );
+};
 
 export default App;

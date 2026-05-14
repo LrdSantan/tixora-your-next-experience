@@ -1,5 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchEvents, fetchEventById, fetchEventSearch } from "@/lib/events";
+import { fetchEvents, fetchEventById, fetchEventSearch, fetchTrendingEvents } from "@/lib/events";
+
+export function useTrendingEvents() {
+  return useQuery({
+    queryKey: ["events", "trending"],
+    queryFn: () => fetchTrendingEvents(),
+    staleTime: 300_000, // 5 minutes
+  });
+}
 
 export function useEvents() {
   return useQuery({

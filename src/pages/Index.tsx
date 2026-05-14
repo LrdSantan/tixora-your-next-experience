@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import EventCard from "@/components/EventCard";
 import { EventCardHorizontal } from "@/components/EventCardHorizontal";
-import { useEvents } from "@/hooks/use-events";
+import { useEvents, useTrendingEvents } from "@/hooks/use-events";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCallback, useMemo, useRef } from "react";
 import { Helmet } from "react-helmet-async";
@@ -50,6 +50,7 @@ function EventsEmptyState({
 const HomePage = () => {
   const browseRef = useRef<HTMLElement>(null);
   const { data: events = [], isLoading, isError } = useEvents();
+  const { data: trendingEvents = [] } = useTrendingEvents();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const q = searchParams.get("q") ?? "";
@@ -84,16 +85,6 @@ const HomePage = () => {
       }),
     [events, q, selectedCategory, datePreset],
   );
-
-  // Trending events: top 6 by quantity_sold, active, and not private
-  const trendingEvents = useMemo(() => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    return events
-      .filter(e => e.status === 'active' && !e.is_private && new Date(e.date) >= today)
-      .sort((a, b) => (b.quantity_sold || 0) - (a.quantity_sold || 0))
-      .slice(0, 6);
-  }, [events]);
 
   const hasActiveFilters = Boolean(q.trim() || selectedCategory || datePreset !== "all");
   const showEmpty = !isLoading && !isError && filteredEvents.length === 0;

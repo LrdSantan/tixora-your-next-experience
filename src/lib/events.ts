@@ -1,5 +1,7 @@
 import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
 import { EVENTS, type Event } from "@/lib/mock-data";
+import { handleSupabaseError } from "./errorHandler";
+
 
 type EventRow = {
   id: string;
@@ -181,7 +183,7 @@ export async function fetchEvents(filterActive = true): Promise<Event[]> {
   const { data, error } = await query.order("date", { ascending: true });
 
   if (error) {
-    console.error("[events] Supabase fetch failed:", error);
+    handleSupabaseError(error);
     return EVENTS;
   }
 
@@ -240,7 +242,7 @@ export async function fetchEventById(id: string): Promise<Event | null> {
     .single();
 
   if (error || !data) {
-    console.error("[events] Supabase fetchEventById failed:", error);
+    handleSupabaseError(error);
     return EVENTS.find((e) => e.id === id) || null;
   }
 
@@ -298,10 +300,62 @@ export async function fetchEventSearch(searchQuery: string): Promise<Event[]> {
     .limit(10);
 
   if (error) {
-    console.error("[events] Supabase fetchEventSearch failed:", error);
+    handleSupabaseError(error);
     return [];
   }
 
   const events = ((data ?? []) as EventRow[]).map(mapRow);
   return await enrichEventsWithOrganizers(events);
+}
+export async function fetchTrendingEvents(): Promise<Event[]> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return EVENTS.slice(0, 6);
+
+  const today = new Date().toISOString().split("T")[0];
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  // 1. Fetch active, upcoming, non-private events
+  const { data: eventsData, error: eventsError } = await supabase
+    .from("events")
+    .select("id, title, date, time, venue, city, category, cover_image_url, status, organizer_id, created_at, event_type, ticket_tiers(price)")
+    .eq("status", "active")
+    .eq("is_private", false)
+    .gte("date", today);
+
+  if (eventsError || !eventsData) {
+    handleSupabaseError(eventsError);
+    return EVENTS.slice(0, 6);
+  }
+
+  // 2. Fetch ticket sales in the last 7 days for these events
+  const { data: salesData, error: salesError } = await supabase
+    .from("tickets")
+    .select("event_id")
+    .eq("status", "confirmed")
+    .gte("created_at", sevenDaysAgo.toISOString());
+
+  // 3. Count sales per event
+  const salesMap: Record<string, number> = {};
+  if (!salesError && salesData) {
+    salesData.forEach((s) => {
+      salesMap[s.event_id] = (salesMap[s.event_id] || 0) + 1;
+    });
+  }
+
+  // 4. Sort and limit
+  const rows = (eventsData as any[]) as EventRow[];
+  const events = rows.map(mapRow);
+  
+  const trending = events
+    .sort((a, b) => {
+      const salesA = salesMap[a.id] || 0;
+      const salesB = salesMap[b.id] || 0;
+      if (salesB !== salesA) return salesB - salesA;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    })
+    .slice(0, 6);
+
+  // 5. Enrich with organizers
+  return await enrichEventsWithOrganizers(trending);
 }
