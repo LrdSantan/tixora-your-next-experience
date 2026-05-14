@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { cn } from "@/lib/utils";
+
 import { Ticket, Search, X, Copy, Check, ExternalLink, Share2, Wallet, Loader2, Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";

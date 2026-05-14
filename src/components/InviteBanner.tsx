@@ -24,12 +24,30 @@ export function InviteBanner() {
 
     async function fetchInvites() {
       if (!supabase) return;
-      const { data } = await supabase
+      
+      const { data, error } = await supabase
         .from("organizer_team_members")
-        .select("id, organizer_id, email, status, profiles:organizer_id(full_name)")
+        .select("id, organizer_id, email, status")
         .eq("email", user!.email!)
         .eq("status", "pending");
-      if (data) setInvites(data);
+      
+      if (error || !data) return;
+
+      const organizerIds = [...new Set(data.map(i => i.organizer_id))];
+      if (organizerIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", organizerIds);
+        
+        const merged = data.map(invite => ({
+          ...invite,
+          organizer_name: profiles?.find(p => p.id === invite.organizer_id)?.full_name
+        }));
+        setInvites(merged as any);
+      } else {
+        setInvites(data);
+      }
     }
 
     fetchInvites();
@@ -74,7 +92,7 @@ export function InviteBanner() {
   return (
     <div className="z-40 w-full space-y-2 px-4 pt-3">
       {visible.map((invite) => {
-        const organizerName = (invite as any).profiles?.full_name;
+        const organizerName = (invite as any).organizer_name;
         return (
           <div
             key={invite.id}
