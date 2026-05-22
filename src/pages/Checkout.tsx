@@ -149,6 +149,7 @@ const SummaryContent = ({
   setStep,
   isGuest
 }: SummaryContentProps) => {
+  const { user } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
   const totalQty = lineItems.reduce((acc, item) => acc + (Number(item.quantity) || 0), 0);
   const eventName = itemsByEvent.length > 0 ? itemsByEvent[0].eventTitle : "Your Order";
@@ -218,9 +219,20 @@ const SummaryContent = ({
         <span className="tabular-nums" style={{ color: ACCENT }}>{formatPrice(finalTotal)}</span>
       </div>
 
+      {step === 0 && user && (
+        <Button 
+          type="button" 
+          className="mt-5 h-12 w-full rounded-xl font-semibold text-white hidden lg:flex" 
+          style={{ backgroundColor: lineItems.length > 0 ? ACCENT : undefined }} 
+          disabled={lineItems.length === 0} 
+          onClick={() => setStep(1)}
+        >
+          Continue
+        </Button>
+      )}
     </div>
 
-    {step === 0 && (
+    {step === 0 && !user && (
       <Button 
         type="button" 
         className="mt-5 h-12 w-full rounded-xl font-semibold text-white flex" 
