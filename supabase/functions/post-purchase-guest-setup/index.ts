@@ -146,7 +146,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
       if (createError) {
         if (createError.message?.includes("already been registered") ||
-          createError.message?.includes("already exists")) {
+            createError.message?.includes("already exists")) {
           console.error(`${LOG} createUser race: user already exists for ${guestEmail}`);
         } else {
           console.error(`${LOG} createUser failed`, createError);

@@ -15,7 +15,9 @@ import { extractTicketToken } from "@/lib/scanner";
 
 const ADMIN_EMAIL = "yusufquadir50@gmail.com";
 
+// Shape returned by the verify_ticket_by_qr RPC (flat — no nested joins)
 type TicketData = {
+  // RPC uses ticket_id, but we store it as id locally for compat
   id: string;
   ticket_code: string;
   reference: string;
@@ -23,22 +25,21 @@ type TicketData = {
   is_used: boolean;
   used_at: string | null;
   created_at: string;
-  qr_token: string | null;
   event_id: string | null;
   guest_name: string | null;
-  events: {
-    title: string;
-    date: string;
-    time: string;
-    venue: string;
-    city: string;
-    organizer_id: string | null;
-    is_multi_day: boolean | null;
-    event_days: string[] | null;
-    scanner_mode?: "standard" | "express";
-    scanner_mode_locked?: boolean;
-  } | null;
-  ticket_tiers: { name: string } | null;
+  // Flat event fields from the RPC
+  event_title: string | null;
+  event_date: string | null;
+  event_time: string | null;
+  event_venue: string | null;
+  event_city: string | null;
+  organizer_id: string | null;
+  is_multi_day: boolean | null;
+  event_days: string[] | null;
+  scanner_mode: "standard" | "express" | null;
+  scanner_mode_locked: boolean | null;
+  // Flat tier field from the RPC
+  tier_name: string | null;
 };
 
 type RecentScan = {
@@ -273,41 +274,59 @@ export default function VerifyTicketPage() {
       }
 
       setIsOfflineMode(false);
-      const { data, error } = await supabase
-        .from("tickets")
-        .select(`
-          id,
-          ticket_code,
-          reference,
-          amount_paid,
-          is_used,
-          used_at,
-          created_at,
-          qr_token,
-          event_id,
-          guest_name,
-          events ( title, date, time, venue, city, organizer_id, is_multi_day, event_days, scanner_mode, scanner_mode_locked ),
-          ticket_tiers ( name )
-        `)
-        .or(`qr_token.eq.${cleanToken},ticket_code.eq.${cleanToken}`)
-        .maybeSingle();
 
-      if (error || !data) {
+      // ── Secure RPC: replaces direct anon-key read of the tickets table ──
+      const { data: rpcData, error } = await supabase.rpc("verify_ticket_by_qr", {
+        p_qr_token: cleanToken,
+      });
+
+      if (error || !rpcData) {
         setPageState("not_found");
         return;
       }
 
-      setTicket(data as TicketData);
-      
-      // If we're online but the ticket is in our local sync queue, 
+      if (!rpcData.valid) {
+        // RPC returns { valid: false, reason: '...' } for unauthorized or missing tickets
+        console.warn("[Verify] RPC rejected:", rpcData.reason);
+        setPageState("not_found");
+        return;
+      }
+
+      // Normalise: RPC returns ticket_id; store it as id for compat with the rest of the component
+      const data: TicketData = {
+        id:                  rpcData.ticket_id,
+        ticket_code:         rpcData.ticket_code,
+        reference:           rpcData.reference,
+        amount_paid:         rpcData.amount_paid,
+        is_used:             rpcData.is_used,
+        used_at:             rpcData.used_at,
+        created_at:          rpcData.created_at,
+        event_id:            rpcData.event_id,
+        guest_name:          rpcData.guest_name,
+        event_title:         rpcData.event_title,
+        event_date:          rpcData.event_date,
+        event_time:          rpcData.event_time,
+        event_venue:         rpcData.event_venue,
+        event_city:          rpcData.event_city,
+        organizer_id:        rpcData.organizer_id,
+        is_multi_day:        rpcData.is_multi_day,
+        event_days:          rpcData.event_days,
+        scanner_mode:        rpcData.scanner_mode,
+        scanner_mode_locked: rpcData.scanner_mode_locked,
+        tier_name:           rpcData.tier_name,
+      };
+
+      setTicket(data);
+
+      // If we're online but the ticket is in our local sync queue,
       // it means it hasn't synced yet but we want to show it as "Used" locally.
       const queue = SyncQueue.get();
       const isPending = queue.find(s => s.id === data.id);
-      
+
       let nextState: PageState = "valid";
       if (isPending) {
         nextState = "used";
-      } else if (data.events?.is_multi_day) {
+      } else if (data.is_multi_day) {
         const today = new Date().toISOString().split('T')[0];
         const { data: scanData } = await supabase
           .from("ticket_scans")
@@ -322,23 +341,19 @@ export default function VerifyTicketPage() {
 
       setPageState(nextState);
 
-      const ev = data.events;
       let currentMode: "standard" | "express" = "standard";
-      if (ev) {
-        const locked = ev.scanner_mode_locked || false;
-        const mode = ev.scanner_mode || "standard";
-        
+      {
+        const locked = data.scanner_mode_locked ?? false;
+        const mode   = (data.scanner_mode as "standard" | "express") || "standard";
+
         setScannerModeLocked(locked);
-        
-        // Always respect the locked setting. 
-        // If not locked, we still default to the event's mode on every scan/load 
-        // as per the requirement "not freely toggled by the scanner operator".
+        // Always respect the locked setting.
         setScannerMode(mode);
         currentMode = mode;
       }
 
       const guestName = data.guest_name || `Ref: ${data.reference}`;
-      const tierName = data.ticket_tiers?.name || "Ticket";
+      const tierName  = data.tier_name || "Ticket";
 
       if (nextState !== "valid") {
         setRecentScans(prev => [{
@@ -393,7 +408,9 @@ export default function VerifyTicketPage() {
     }
   }, [ticket?.event_id, supabase]);
 
-  // Check if the current user is organizer or accepted team member
+  // Check if the current user is organizer or accepted team member.
+  // The RPC already enforces this, but we still need this flag for the UI
+  // (to know whether to show the "Mark as used" button in standard mode).
   useEffect(() => {
     async function checkOrganizerAccess() {
       if (authLoading) return;
@@ -403,7 +420,8 @@ export default function VerifyTicketPage() {
           setIsOrganizerOrTeam(false);
           return;
         }
-        const organizerId = ticket.events?.organizer_id;
+        // organizer_id is now a flat field on the TicketData object
+        const organizerId = ticket.organizer_id;
         if (!organizerId) {
           setIsOrganizerOrTeam(false);
           return;
@@ -512,9 +530,9 @@ export default function VerifyTicketPage() {
     if (!supabase) return;
     setMarking(true);
 
-    const isMultiDay = targetTicket.events?.is_multi_day;
-    const guestName = targetTicket.guest_name || `Ref: ${targetTicket.reference}`;
-    const tierName = targetTicket.ticket_tiers?.name || "Ticket";
+    const isMultiDay = targetTicket.is_multi_day;
+    const guestName  = targetTicket.guest_name || `Ref: ${targetTicket.reference}`;
+    const tierName   = targetTicket.tier_name || "Ticket";
 
     try {
       if (!navigator.onLine) {
@@ -887,8 +905,7 @@ export default function VerifyTicketPage() {
     );
   }
 
-  const ev = ticket?.events;
-  const tierName = ticket?.ticket_tiers?.name ?? "Ticket";
+  const tierName   = ticket?.tier_name ?? "Ticket";
   const amountPaid = ticket ? `₦${(ticket.amount_paid / 100).toLocaleString()}` : "";
 
   // ── Already Scanned Today (multi-day) ──
@@ -917,7 +934,7 @@ export default function VerifyTicketPage() {
               <p className="text-sm font-semibold text-amber-700">⚠️ Do not grant entry again today. This is a multi-day ticket — it is valid on other event days.</p>
             </div>
 
-            <TicketDetailCard ticket={ticket!} ev={ev} tierName={tierName} amountPaid={amountPaid} />
+            <TicketDetailCard ticket={ticket!} tierName={tierName} amountPaid={amountPaid} />
 
             <div className="text-center">
               <Link to="/" className="mt-6 inline-block text-sm text-primary hover:underline">← Back to Tixora</Link>
@@ -969,7 +986,7 @@ export default function VerifyTicketPage() {
               </p>
             </div>
 
-            <TicketDetailCard ticket={ticket!} ev={ev} tierName={tierName} amountPaid={amountPaid} />
+            <TicketDetailCard ticket={ticket!} tierName={tierName} amountPaid={amountPaid} />
 
             <div className="text-center">
               <Link to="/" className="mt-6 inline-block text-sm text-primary hover:underline">← Back to Tixora</Link>
@@ -1010,7 +1027,7 @@ export default function VerifyTicketPage() {
           <p className="text-sm font-semibold text-green-700">✅ Safe to grant entry</p>
         </div>
 
-        <TicketDetailCard ticket={ticket!} ev={ev} tierName={tierName} amountPaid={amountPaid} />
+        <TicketDetailCard ticket={ticket!} tierName={tierName} amountPaid={amountPaid} />
 
         {/* Organizer / Team: Mark as Used */}
         {canMark ? (
@@ -1081,29 +1098,28 @@ function ScanCounter({ count }: { count: number }) {
 // ── Shared detail card ──
 function TicketDetailCard({
   ticket,
-  ev,
   tierName,
   amountPaid,
 }: {
   ticket: TicketData;
-  ev: TicketData["events"];
   tierName: string;
   amountPaid: string;
 }) {
+  const hasEvent = Boolean(ticket.event_title);
   return (
     <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-5 space-y-3 text-sm">
       <div className="flex items-center gap-2 mb-1">
         <Ticket className="w-5 h-5 text-[#1A7A4A] rotate-[-20deg] shrink-0" />
-        <span className="font-extrabold text-base text-neutral-900">{ev?.title ?? "Event"}</span>
+        <span className="font-extrabold text-base text-neutral-900">{ticket.event_title ?? "Event"}</span>
       </div>
       <DetailRow label="Ticket Code" value={<span className="font-mono font-bold text-[#1A7A4A]">{ticket.ticket_code}</span>} />
       <DetailRow label="Tier" value={tierName} />
       <DetailRow label="Amount Paid" value={amountPaid} />
-      {ev && (
+      {hasEvent && (
         <>
-          <DetailRow label="Date" value={new Date(ev.date).toLocaleDateString("en-NG", { dateStyle: "long" })} />
-          <DetailRow label="Time" value={ev.time} />
-          <DetailRow label="Venue" value={`${ev.venue}, ${ev.city}`} />
+          <DetailRow label="Date" value={new Date(ticket.event_date!).toLocaleDateString("en-NG", { dateStyle: "long" })} />
+          <DetailRow label="Time" value={ticket.event_time ?? ""} />
+          <DetailRow label="Venue" value={`${ticket.event_venue ?? ""}, ${ticket.event_city ?? ""}`} />
         </>
       )}
       <DetailRow label="Purchased" value={new Date(ticket.created_at).toLocaleDateString("en-NG", { dateStyle: "medium" })} />
