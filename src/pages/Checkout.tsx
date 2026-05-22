@@ -218,18 +218,19 @@ const SummaryContent = ({
         <span className="tabular-nums" style={{ color: ACCENT }}>{formatPrice(finalTotal)}</span>
       </div>
 
-      {step === 0 && (
-        <Button 
-          type="button" 
-          className="mt-5 h-12 w-full rounded-xl font-semibold text-white flex" 
-          style={{ backgroundColor: lineItems.length > 0 ? ACCENT : undefined }} 
-          disabled={lineItems.length === 0} 
-          onClick={() => setStep(1)}
-        >
-          Continue
-        </Button>
-      )}
     </div>
+
+    {step === 0 && (
+      <Button 
+        type="button" 
+        className="mt-5 h-12 w-full rounded-xl font-semibold text-white flex" 
+        style={{ backgroundColor: lineItems.length > 0 ? ACCENT : undefined }} 
+        disabled={lineItems.length === 0} 
+        onClick={() => setStep(1)}
+      >
+        Continue
+      </Button>
+    )}
   </div>
   );
 };
