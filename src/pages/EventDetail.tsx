@@ -1,5 +1,5 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { MapPin, Calendar, Clock, ArrowLeft, Tag, Minus, Plus } from "lucide-react";
+import { MapPin, Calendar, Clock, ArrowLeft, Tag, Minus, Plus, Check } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { formatPrice, formatDate } from "@/lib/mock-data";
@@ -158,12 +158,112 @@ const EventDetailPage = () => {
       }
 
       // Success! Trigger email
-      const baseUrl = import.meta.env.VITE_SUPABASE_URL;
-      fetch(`${baseUrl}/functions/v1/send-ticket-email`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reference: data.reference })
-      }).catch(err => console.error("Email trigger failed:", err));
+      try {
+        const { data: ticketData } = await supabase
+          .from('tickets')
+          .select('*, ticket_tiers(name)')
+          .eq('id', data.ticket_id)
+          .maybeSingle();
+
+        const actualTicket = ticketData as any;
+        const finalQrToken = actualTicket?.qr_token || data.ticket_code;
+        const finalQrCode = actualTicket?.qr_code || undefined;
+
+        const emailPayload = {
+          type: "ticket_confirmation",
+          buyerName: rsvpName,
+          buyerEmail: rsvpEmail,
+          eventTitle: event.title,
+          purchasedAt: actualTicket?.created_at || new Date().toISOString(),
+          tickets: [
+            {
+              tierName: actualTicket?.ticket_tiers?.name || rsvpTier?.name || "Free RSVP",
+              quantity: 1,
+              amountPaid: "₦0.00",
+              venue: event.venue || "Venue",
+              city: event.city || "",
+              date: event.date || "",
+              time: event.time || "",
+              reference: actualTicket?.reference || data.reference,
+              ticketCode: actualTicket?.ticket_code || data.ticket_code,
+              qrToken: finalQrToken,
+              qrCode: finalQrCode
+            }
+          ]
+        };
+
+        console.log("Sending email payload to send-ticket-email:", emailPayload);
+
+        const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+        const emailRes = await fetch(`${baseUrl}/functions/v1/send-ticket-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${anonKey}`
+          },
+          body: JSON.stringify(emailPayload)
+        });
+
+        if (!emailRes.ok) {
+          const errText = await emailRes.text().catch(() => "");
+          console.error("Email trigger responded with error status:", emailRes.status, errText);
+        } else {
+          console.log("Email sent successfully!");
+        }
+
+        // Navigate to confirmation page
+        navigate("/confirmation", {
+          state: {
+            tickets: [
+              {
+                id: data.ticket_id,
+                reference: actualTicket?.reference || data.reference,
+                ticketCode: actualTicket?.ticket_code || data.ticket_code,
+                qrToken: finalQrToken,
+                amountPaidKobo: 0,
+                quantity: 1,
+                eventTitle: event.title,
+                tierName: actualTicket?.ticket_tiers?.name || rsvpTier?.name || "Free RSVP",
+                venue: event.venue || "",
+                city: event.city || "",
+                date: event.date ? String(event.date) : "",
+                time: event.time || "",
+              }
+            ],
+            buyerName: rsvpName,
+            buyerEmail: rsvpEmail,
+            purchasedAt: actualTicket?.created_at || new Date().toISOString()
+          }
+        });
+      } catch (emailErr) {
+        console.error("Email trigger or navigation failed:", emailErr);
+        // Fallback navigation so the user is still redirected to confirmation
+        navigate("/confirmation", {
+          state: {
+            tickets: [
+              {
+                id: data.ticket_id,
+                reference: data.reference,
+                ticketCode: data.ticket_code,
+                qrToken: data.ticket_code,
+                amountPaidKobo: 0,
+                quantity: 1,
+                eventTitle: event.title,
+                tierName: rsvpTier?.name || "Free RSVP",
+                venue: event.venue || "",
+                city: event.city || "",
+                date: event.date ? String(event.date) : "",
+                time: event.time || "",
+              }
+            ],
+            buyerName: rsvpName,
+            buyerEmail: rsvpEmail,
+            purchasedAt: new Date().toISOString()
+          }
+        });
+      }
 
       setRsvpSuccess(true);
       toast.success("RSVP confirmed! Check your email.");
