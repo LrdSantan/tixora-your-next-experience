@@ -27,17 +27,49 @@ Deno.serve(async (req) => {
       throw new Error("Missing environment variables");
     }
 
+    // ✅ FIX: Extract and verify JWT before doing anything
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized: Missing token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const jwt = authHeader.replace("Bearer ", "");
     const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized: Invalid token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const body: BlastRequest = await req.json();
     const { event_id, subject, message, organizer_id, channel } = body;
 
     if (!event_id || !subject || !message || !organizer_id) {
-      return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Only email channel is supported
+    // ✅ FIX: Verify caller's JWT identity matches organizer_id in payload
+    if (user.id !== organizer_id) {
+      return new Response(JSON.stringify({ error: "Unauthorized: Token does not match organizer" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (channel && channel !== "email") {
-      return new Response(JSON.stringify({ error: "Only 'email' channel is supported" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Only 'email' channel is supported" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // 1. Validate organizer owns the event
@@ -48,11 +80,17 @@ Deno.serve(async (req) => {
       .single();
 
     if (eventError || !event) {
-      return new Response(JSON.stringify({ error: "Event not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Event not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     if (event.organizer_id !== organizer_id) {
-      return new Response(JSON.stringify({ error: "Unauthorized: You do not own this event" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Unauthorized: You do not own this event" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // 2. Fetch recipients
@@ -62,12 +100,13 @@ Deno.serve(async (req) => {
       .eq("event_id", event_id)
       .eq("status", "confirmed");
 
-    if (ticketsError) {
-      throw ticketsError;
-    }
+    if (ticketsError) throw ticketsError;
 
     if (!tickets || tickets.length === 0) {
-      return new Response(JSON.stringify({ success: true, sent: 0, message: "No confirmed ticket holders found" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(
+        JSON.stringify({ success: true, sent: 0, message: "No confirmed ticket holders found" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // 3. Send emails via Resend
@@ -139,14 +178,14 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({ success: true, sent: sentCount, errors }), {
       status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (err: any) {
     console.error("Fatal error in send-guest-blast:", err);
     return new Response(JSON.stringify({ error: err.message || "Unexpected error" }), {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

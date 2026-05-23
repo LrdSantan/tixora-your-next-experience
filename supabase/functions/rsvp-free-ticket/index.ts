@@ -81,16 +81,10 @@ Deno.serve(async (req) => {
     // 3. Resolve user_id
     let resolvedUserId = providedUserId;
     if (!resolvedUserId) {
-      const { data: { users }, error: listError } = await supabase.auth.admin.listUsers({
-        page: 1,
-        perPage: 1000
-      });
-      if (listError) throw listError;
+      const { data: existingUser, error: getUserError } = await supabase.auth.admin.getUserByEmail(email);
 
-      const existingUser = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
-
-      if (existingUser) {
-        resolvedUserId = existingUser.id;
+      if (existingUser?.user && !getUserError) {
+        resolvedUserId = existingUser.user.id;
       } else {
         const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
           email,

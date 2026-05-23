@@ -7,17 +7,23 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
-// To set up a daily cron job for this endpoint, go to cron-job.org and 
-// point it to: https://hxvgoavigoopcgbmvltf.supabase.co/functions/v1/cleanup-used-tickets
-// Use a GET or POST request.
-
 serve(async (req: Request) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
+    // ✅ FIX: Verify secret token before doing anything
+    const cleanupSecret = Deno.env.get("CLEANUP_SECRET");
+    const incomingSecret = req.headers.get("x-cleanup-secret");
+
+    if (!cleanupSecret || incomingSecret !== cleanupSecret) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -25,12 +31,8 @@ serve(async (req: Request) => {
       throw new Error("Missing SUPABASE environment variables");
     }
 
-    // Must use service role key to bypass RLS and delete rows safely
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Delete tickets that are used and using a time older than 24 hours
-    // Supabase JS allows comparing dates but the exact "interval" logic is better 
-    // done correctly. We can compute the 24 hours ago date in JS.
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
     const { data: deletedRows, error } = await supabase
@@ -38,7 +40,7 @@ serve(async (req: Request) => {
       .delete()
       .eq("is_used", true)
       .lt("used_at", twentyFourHoursAgo)
-      .select("id"); // Select deleted IDs to count them
+      .select("id");
 
     if (error) {
       console.error("Error deleting tickets:", error);

@@ -41,7 +41,7 @@ async function enrichEventsWithOrganizers(events: Event[]): Promise<Event[]> {
 
   try {
     let profilesQuery = supabase
-      .from("profiles")
+      .from("public_profiles")
       .select("id, full_name, avatar_url, bio");
     
     if (organizerIds.length === 1) {
