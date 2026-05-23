@@ -465,6 +465,7 @@ export default function AdminDashboard() {
   const [teamBlastMessage, setTeamBlastMessage] = useState("");
   const [teamBlastRecipients, setTeamBlastRecipients] = useState("");
   const [isSendingTeamBlast, setIsSendingTeamBlast] = useState(false);
+  const [isImportingEmails, setIsImportingEmails] = useState(false);
 
   const handleCleanupTickets = async () => {
     if (!supabase) return;
@@ -718,6 +719,39 @@ export default function AdminDashboard() {
       toast.error(err.message || "Failed to send blast");
     } finally {
       setIsSendingTeamBlast(false);
+    }
+  };
+
+  const handleImportEmails = async () => {
+    if (!supabase) return;
+    try {
+      setIsImportingEmails(true);
+      const { data, error } = await supabase
+        .from('tickets')
+        .select('guest_email')
+        .eq('status', 'confirmed');
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        toast.error("No confirmed guest emails found in database");
+        return;
+      }
+
+      const uniqueEmails = Array.from(
+        new Set(
+          data
+            .map((t: any) => t.guest_email?.trim())
+            .filter((email: string) => email && email.includes("@"))
+        )
+      );
+
+      setTeamBlastRecipients(uniqueEmails.join("\n"));
+      toast.success(`${uniqueEmails.length} email${uniqueEmails.length !== 1 ? 's' : ''} imported`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to import emails");
+    } finally {
+      setIsImportingEmails(false);
     }
   };
 
@@ -1266,7 +1300,19 @@ export default function AdminDashboard() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold">Recipients</label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-semibold">Recipients</label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleImportEmails}
+                  disabled={isImportingEmails}
+                  className="h-8 text-xs font-bold border-[#1A7A4A]/40 text-[#1A7A4A] hover:bg-[#1A7A4A]/10"
+                >
+                  {isImportingEmails ? "Importing..." : "⬇ Import from Database"}
+                </Button>
+              </div>
               <Textarea
                 placeholder="Paste emails here, one per line or comma separated..."
                 className="min-h-[120px] rounded-xl font-mono text-sm"
