@@ -461,6 +461,11 @@ export default function AdminDashboard() {
   const [alertType, setAlertType] = useState<'warning' | 'info' | 'error' | 'success'>("info");
   const [isAlertSubmitting, setIsAlertSubmitting] = useState(false);
 
+  const [teamBlastSubject, setTeamBlastSubject] = useState("");
+  const [teamBlastMessage, setTeamBlastMessage] = useState("");
+  const [teamBlastRecipients, setTeamBlastRecipients] = useState("");
+  const [isSendingTeamBlast, setIsSendingTeamBlast] = useState(false);
+
   const handleCleanupTickets = async () => {
     if (!supabase) return;
     if (!window.confirm("This will permanently delete all tickets that were used more than 24 hours ago. Are you sure?")) return;
@@ -688,6 +693,34 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleTeamBlast = async () => {
+    if (!supabase) return;
+    const recipients = teamBlastRecipients
+      .split(/[\n,]+/)
+      .map(e => e.trim())
+      .filter(e => e.includes("@"));
+
+    if (!teamBlastSubject.trim()) return toast.error("Subject is required");
+    if (!teamBlastMessage.trim()) return toast.error("Message is required");
+    if (recipients.length === 0) return toast.error("No valid recipients found");
+
+    try {
+      setIsSendingTeamBlast(true);
+      const { data, error } = await supabase.functions.invoke('send-team-blast', {
+        body: { subject: teamBlastSubject, message: teamBlastMessage, recipients }
+      });
+      if (error) throw error;
+      toast.success(`Blast sent to ${data?.sent || 0} recipient${data?.sent !== 1 ? 's' : ''}!`);
+      setTeamBlastSubject("");
+      setTeamBlastMessage("");
+      setTeamBlastRecipients("");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send blast");
+    } finally {
+      setIsSendingTeamBlast(false);
+    }
+  };
+
   if (loading || isInitializing) return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       <div className="mb-8">
@@ -785,6 +818,7 @@ export default function AdminDashboard() {
           <TabsTrigger value="blog" className="rounded-lg px-6 h-full font-bold">Blog Feed</TabsTrigger>
           <TabsTrigger value="txs" className="rounded-lg px-6 h-full font-bold">Transactions</TabsTrigger>
           <TabsTrigger value="alerts" className="rounded-lg px-6 h-full font-bold">Alerts</TabsTrigger>
+          <TabsTrigger value="team-blast" className="rounded-lg px-6 h-full font-bold">Team Blast</TabsTrigger>
         </TabsList>
 
         <TabsContent value="events" className="space-y-4">
@@ -1201,6 +1235,60 @@ export default function AdminDashboard() {
                 )}
               </div>
             </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="team-blast" className="space-y-6">
+          <div className="bg-card border rounded-2xl p-6 shadow-sm space-y-6 max-w-2xl mx-auto">
+            <div className="space-y-1">
+              <h3 className="font-bold text-xl text-foreground">Team Tixora Broadcast</h3>
+              <p className="text-sm text-muted-foreground">Send a message as Team Tixora to any email addresses — promotions, announcements, season wishes, and more.</p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold">Subject</label>
+              <Input
+                placeholder="e.g. Happy New Year from Team Tixora 🎉"
+                value={teamBlastSubject}
+                onChange={e => setTeamBlastSubject(e.target.value)}
+                className="h-12 rounded-xl"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold">Message</label>
+              <Textarea
+                placeholder="Write your message here..."
+                className="min-h-[160px] rounded-xl"
+                value={teamBlastMessage}
+                onChange={e => setTeamBlastMessage(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold">Recipients</label>
+              <Textarea
+                placeholder="Paste emails here, one per line or comma separated..."
+                className="min-h-[120px] rounded-xl font-mono text-sm"
+                value={teamBlastRecipients}
+                onChange={e => setTeamBlastRecipients(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                {teamBlastRecipients
+                  .split(/[\n,]+/)
+                  .map(e => e.trim())
+                  .filter(e => e.includes("@")).length} recipient(s) detected
+              </p>
+            </div>
+
+            <Button
+              onClick={handleTeamBlast}
+              disabled={isSendingTeamBlast}
+              className="w-full h-12 text-base font-bold rounded-xl shadow-sm animate-in fade-in zoom-in-95 duration-150"
+              style={{ backgroundColor: '#1A7A4A' }}
+            >
+              {isSendingTeamBlast ? "Sending..." : "Send Blast →"}
+            </Button>
           </div>
         </TabsContent>
       </Tabs>
