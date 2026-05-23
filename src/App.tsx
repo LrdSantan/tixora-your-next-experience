@@ -14,6 +14,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import CartDrawer from "@/components/CartDrawer";
 import { InviteBanner } from "@/components/InviteBanner";
+import PlatformAlertBanner from "@/components/PlatformAlertBanner";
 import OrganizerEventsPage from '@/pages/organizer/Events';
 import OrganizerDashboard from '@/pages/organizer/Dashboard';
 
@@ -103,6 +104,7 @@ const App = () => {
               <Toaster />
               <Sonner />
               <BrowserRouter>
+                <PlatformAlertBanner />
                 <ScrollToTop />
                 <Suspense fallback={<DelayedFallback />}>
                   <Routes>

@@ -456,6 +456,11 @@ export default function AdminDashboard() {
   const [payoutFilter, setPayoutFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [alertMessage, setAlertMessage] = useState("");
+  const [alertType, setAlertType] = useState<'warning' | 'info' | 'error' | 'success'>("info");
+  const [isAlertSubmitting, setIsAlertSubmitting] = useState(false);
+
   const handleCleanupTickets = async () => {
     if (!supabase) return;
     if (!window.confirm("This will permanently delete all tickets that were used more than 24 hours ago. Are you sure?")) return;
@@ -489,6 +494,9 @@ export default function AdminDashboard() {
 
       const { data: bData, error: bError } = await supabase.from('blog_posts').select('*').order('created_at', { ascending: false });
       if (!bError && bData) setBlogPosts(bData);
+
+      const { data: alertData, error: alertError } = await supabase.from('platform_alerts').select('*').order('created_at', { ascending: false });
+      if (!alertError && alertData) setAlerts(alertData);
     } catch (err) {
       console.error("Admin load error:", err);
     } finally {
@@ -607,6 +615,79 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleCreateAlert = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supabase) return;
+    if (!alertMessage.trim()) return toast.error("Alert message is required");
+
+    try {
+      setIsAlertSubmitting(true);
+      const { error } = await supabase
+        .from('platform_alerts')
+        .insert({
+          message: alertMessage.trim(),
+          type: alertType,
+          is_active: false
+        });
+
+      if (error) throw error;
+      toast.success("Alert created successfully!");
+      setAlertMessage("");
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create alert");
+    } finally {
+      setIsAlertSubmitting(false);
+    }
+  };
+
+  const toggleAlertActive = async (id: string, currentStatus: boolean) => {
+    if (!supabase) return;
+    try {
+      if (!currentStatus) {
+        // We are activating this alert. Deactivate all others first.
+        const { error: deactivateError } = await supabase
+          .from('platform_alerts')
+          .update({ is_active: false })
+          .neq('id', id);
+        if (deactivateError) throw deactivateError;
+
+        const { error: activateError } = await supabase
+          .from('platform_alerts')
+          .update({ is_active: true })
+          .eq('id', id);
+        if (activateError) throw activateError;
+      } else {
+        // Just deactivating this alert
+        const { error: deactivateError } = await supabase
+          .from('platform_alerts')
+          .update({ is_active: false })
+          .eq('id', id);
+        if (deactivateError) throw deactivateError;
+      }
+      toast.success("Alert status updated successfully!");
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update alert status");
+    }
+  };
+
+  const deleteAlert = async (id: string) => {
+    if (!supabase) return;
+    if (!window.confirm("Are you sure you want to delete this alert?")) return;
+    try {
+      const { error } = await supabase
+        .from('platform_alerts')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      toast.success("Alert deleted successfully!");
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete alert");
+    }
+  };
+
   if (loading || isInitializing) return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       <div className="mb-8">
@@ -703,6 +784,7 @@ export default function AdminDashboard() {
           <TabsTrigger value="coupons" className="rounded-lg px-6 h-full font-bold">Coupons</TabsTrigger>
           <TabsTrigger value="blog" className="rounded-lg px-6 h-full font-bold">Blog Feed</TabsTrigger>
           <TabsTrigger value="txs" className="rounded-lg px-6 h-full font-bold">Transactions</TabsTrigger>
+          <TabsTrigger value="alerts" className="rounded-lg px-6 h-full font-bold">Alerts</TabsTrigger>
         </TabsList>
 
         <TabsContent value="events" className="space-y-4">
@@ -1004,6 +1086,121 @@ export default function AdminDashboard() {
                 </TableBody>
               </Table>
             )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="alerts" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Create Alert Form */}
+            <div className="lg:col-span-1 bg-card p-6 rounded-2xl border shadow-sm space-y-4">
+              <h3 className="font-bold text-lg text-foreground">Create New Alert</h3>
+              <p className="text-xs text-muted-foreground">Broadcast a sitewide announcement banner at the very top of all pages.</p>
+              
+              <form onSubmit={handleCreateAlert} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold">Message</label>
+                  <Textarea 
+                    required 
+                    className="min-h-[100px]" 
+                    placeholder="Enter broadcast message..." 
+                    value={alertMessage} 
+                    onChange={e => setAlertMessage(e.target.value)} 
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold">Alert Type</label>
+                  <Select value={alertType} onValueChange={(val: any) => setAlertType(val)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="info">Info (Blue)</SelectItem>
+                      <SelectItem value="warning">Warning (Amber)</SelectItem>
+                      <SelectItem value="error">Error (Red)</SelectItem>
+                      <SelectItem value="success">Success (Green)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button 
+                  type="submit" 
+                  className="w-full h-11 text-base font-bold shadow-sm" 
+                  disabled={isAlertSubmitting}
+                  style={{ backgroundColor: BRAND_GREEN }}
+                >
+                  {isAlertSubmitting ? "Creating..." : "Publish Alert"}
+                </Button>
+              </form>
+            </div>
+
+            {/* Existing Alerts List */}
+            <div className="lg:col-span-2 space-y-4">
+              <div className="bg-card p-4 rounded-2xl border shadow-sm flex items-center justify-between">
+                <h3 className="font-bold text-lg text-foreground px-2">{alerts.length} Platform Broadcasts</h3>
+                <p className="text-xs text-muted-foreground italic">Note: Only one alert can be active at a time.</p>
+              </div>
+
+              <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
+                {alerts.length === 0 ? (
+                  <div className="p-20 text-center text-muted-foreground">
+                    <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-10" />
+                    <p>No alerts configured yet. Create one to display it sitewide.</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader className="bg-muted/50">
+                      <TableRow>
+                        <TableHead className="px-6 py-4 font-bold uppercase text-xs tracking-widest">Message</TableHead>
+                        <TableHead className="font-bold uppercase text-xs tracking-widest text-center">Type</TableHead>
+                        <TableHead className="font-bold uppercase text-xs tracking-widest text-center">Active</TableHead>
+                        <TableHead className="font-bold uppercase text-xs tracking-widest">Created At</TableHead>
+                        <TableHead className="text-right px-6">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {alerts.map((alertItem) => (
+                        <TableRow key={alertItem.id} className={`group hover:bg-muted/30 transition-colors ${!alertItem.is_active ? "opacity-60" : ""}`}>
+                          <td className="px-6 py-4 text-sm font-semibold max-w-xs break-words">{alertItem.message}</td>
+                          <td className="text-center font-bold">
+                            {alertItem.type === "warning" && (
+                              <Badge className="bg-amber-100 text-amber-700 border-amber-200">Warning</Badge>
+                            )}
+                            {alertItem.type === "info" && (
+                              <Badge className="bg-blue-100 text-blue-700 border-blue-200">Info</Badge>
+                            )}
+                            {alertItem.type === "error" && (
+                              <Badge className="bg-red-100 text-red-700 border-red-200">Error</Badge>
+                            )}
+                            {alertItem.type === "success" && (
+                              <Badge className="bg-green-100 text-green-700 border-green-200">Success</Badge>
+                            )}
+                          </td>
+                          <td className="text-center">
+                            <Switch 
+                              checked={alertItem.is_active} 
+                              onCheckedChange={() => toggleAlertActive(alertItem.id, alertItem.is_active)} 
+                              className="scale-75" 
+                            />
+                          </td>
+                          <td className="text-xs text-muted-foreground">{formatDate(alertItem.created_at)}</td>
+                          <td className="text-right px-6">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="text-muted-foreground hover:text-destructive h-9 w-9" 
+                              onClick={() => deleteAlert(alertItem.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </td>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+            </div>
           </div>
         </TabsContent>
       </Tabs>
