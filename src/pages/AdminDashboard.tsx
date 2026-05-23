@@ -68,6 +68,14 @@ type BlogPost = {
   created_at: string;
 };
 
+type FeatureFlag = {
+  id: string;
+  key: string;
+  label: string;
+  description: string;
+  is_enabled: boolean;
+};
+
 const BRAND_GREEN = "#1a7a4a";
 
 function AdminAddBlogModal({ onAdded, editPost }: { onAdded: () => void, editPost?: BlogPost }) {
@@ -460,6 +468,7 @@ export default function AdminDashboard() {
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState<'warning' | 'info' | 'error' | 'success'>("info");
   const [isAlertSubmitting, setIsAlertSubmitting] = useState(false);
+  const [featureFlags, setFeatureFlags] = useState<FeatureFlag[]>([]);
 
   const [teamBlastSubject, setTeamBlastSubject] = useState("");
   const [teamBlastMessage, setTeamBlastMessage] = useState("");
@@ -503,6 +512,12 @@ export default function AdminDashboard() {
 
       const { data: alertData, error: alertError } = await supabase.from('platform_alerts').select('*').order('created_at', { ascending: false });
       if (!alertError && alertData) setAlerts(alertData);
+
+      const { data: flagData, error: flagError } = await supabase
+        .from('feature_flags')
+        .select('*')
+        .order('label', { ascending: true });
+      if (!flagError && flagData) setFeatureFlags(flagData);
     } catch (err) {
       console.error("Admin load error:", err);
     } finally {
@@ -752,6 +767,21 @@ export default function AdminDashboard() {
       toast.error(err.message || "Failed to import emails");
     } finally {
       setIsImportingEmails(false);
+    }
+  };
+
+  const toggleFeatureFlag = async (id: string, currentStatus: boolean) => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase
+        .from('feature_flags')
+        .update({ is_enabled: !currentStatus, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+      toast.success(`Feature ${!currentStatus ? 'enabled' : 'disabled'} successfully`);
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update feature flag");
     }
   };
 
@@ -1268,6 +1298,58 @@ export default function AdminDashboard() {
                   </Table>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* Feature Flags */}
+          <div className="space-y-4 mt-8">
+            <div className="bg-card p-4 rounded-2xl border shadow-sm flex items-center justify-between">
+              <div className="px-2">
+                <h3 className="font-bold text-lg text-foreground">Feature Kill Switches</h3>
+                <p className="text-xs text-muted-foreground">Disable specific platform features instantly. Users will see a friendly message instead of a broken experience.</p>
+              </div>
+            </div>
+
+            <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
+              {featureFlags.length === 0 ? (
+                <div className="p-12 text-center text-muted-foreground">No feature flags found.</div>
+              ) : (
+                <Table>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow>
+                      <TableHead className="px-6 py-4 font-bold uppercase text-xs tracking-widest">Feature</TableHead>
+                      <TableHead className="font-bold uppercase text-xs tracking-widest">Description</TableHead>
+                      <TableHead className="font-bold uppercase text-xs tracking-widest text-center">Status</TableHead>
+                      <TableHead className="font-bold uppercase text-xs tracking-widest text-center">Toggle</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {featureFlags.map((flag) => (
+                      <TableRow key={flag.id} className={`group hover:bg-muted/30 transition-colors ${!flag.is_enabled ? "opacity-60" : ""}`}>
+                        <td className="px-6 py-4">
+                          <span className="font-bold text-base">{flag.label}</span>
+                          <p className="text-[10px] font-mono text-muted-foreground uppercase">{flag.key}</p>
+                        </td>
+                        <td className="text-sm text-muted-foreground max-w-xs">{flag.description}</td>
+                        <td className="text-center">
+                          {flag.is_enabled ? (
+                            <Badge className="bg-green-100 text-green-700 border-0">Active</Badge>
+                          ) : (
+                            <Badge className="bg-red-100 text-red-700 border-0">Disabled</Badge>
+                          )}
+                        </td>
+                        <td className="text-center">
+                          <Switch
+                            checked={flag.is_enabled}
+                            onCheckedChange={() => toggleFeatureFlag(flag.id, flag.is_enabled)}
+                            className="scale-75"
+                          />
+                        </td>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </div>
           </div>
         </TabsContent>
