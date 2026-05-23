@@ -5,6 +5,7 @@ import { ChevronLeft, Calendar, User } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import DOMPurify from "dompurify";
 
 type BlogPostDetail = {
   id: string;
@@ -104,7 +105,7 @@ export default function BlogPost() {
         <div 
           className="blog-content text-foreground"
           style={{ fontSize: '16px' }}
-          dangerouslySetInnerHTML={{ __html: post.content }} 
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content) }} 
         />
       </article>
 
