@@ -35,8 +35,40 @@ Deno.serve(async (req) => {
             });
         }
 
-        const { subject, message, recipients } = await req.json();
+        const body = await req.json();
+        const { action, subject, message, recipients } = body;
 
+        // ── ACTION: list_users — return all registered emails ──────────────
+        if (action === "list_users") {
+            const emails: string[] = [];
+            let page = 1;
+            const perPage = 1000;
+
+            // Paginate through all users via admin API
+            while (true) {
+                const { data: { users }, error: listError } = await supabase.auth.admin.listUsers({
+                    page,
+                    perPage,
+                });
+                if (listError) throw listError;
+                if (!users || users.length === 0) break;
+
+                for (const u of users) {
+                    if (u.email) emails.push(u.email.trim());
+                }
+
+                if (users.length < perPage) break;
+                page++;
+            }
+
+            const unique = Array.from(new Set(emails));
+            return new Response(JSON.stringify({ emails: unique }), {
+                status: 200,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+        }
+
+        // ── ACTION: send blast ─────────────────────────────────────────────
         if (!subject || !message || !recipients || recipients.length === 0) {
             return new Response(JSON.stringify({ error: "Missing required fields" }), {
                 status: 400,

@@ -711,14 +711,16 @@ export default function AdminDashboard() {
 
   const handleTeamBlast = async () => {
     if (!supabase) return;
+
+    // Split on commas OR newlines (or any combination), trim whitespace, drop empties
     const recipients = teamBlastRecipients
       .split(/[\n,]+/)
       .map(e => e.trim())
-      .filter(e => e.includes("@"));
+      .filter(e => e.length > 0 && e.includes("@"));
 
     if (!teamBlastSubject.trim()) return toast.error("Subject is required");
     if (!teamBlastMessage.trim()) return toast.error("Message is required");
-    if (recipients.length === 0) return toast.error("No valid recipients found");
+    if (recipients.length === 0) return toast.error("No valid recipients found. Check email format.");
 
     try {
       setIsSendingTeamBlast(true);
@@ -741,28 +743,27 @@ export default function AdminDashboard() {
     if (!supabase) return;
     try {
       setIsImportingEmails(true);
-      const { data, error } = await supabase
-        .from('tickets')
-        .select('guest_email')
-        .eq('status', 'confirmed');
+
+      // Use the edge function with service-role access to read ALL auth.users emails
+      // (not just ticket buyers — includes organizers, attendees, every registered user)
+      const { data, error } = await supabase.functions.invoke('send-team-blast', {
+        body: { action: 'list_users' }
+      });
 
       if (error) throw error;
 
-      if (!data || data.length === 0) {
-        toast.error("No confirmed guest emails found in database");
+      const emails: string[] = (data?.emails ?? []).filter(
+        (e: string) => typeof e === 'string' && e.includes('@')
+      );
+
+      if (emails.length === 0) {
+        toast.error("No registered users found in the database");
         return;
       }
 
-      const uniqueEmails = Array.from(
-        new Set(
-          data
-            .map((t: any) => t.guest_email?.trim())
-            .filter((email: string) => email && email.includes("@"))
-        )
-      );
-
-      setTeamBlastRecipients(uniqueEmails.join("\n"));
-      toast.success(`${uniqueEmails.length} email${uniqueEmails.length !== 1 ? 's' : ''} imported`);
+      // Auto-format as comma-separated — no manual formatting needed
+      setTeamBlastRecipients(emails.join(", "));
+      toast.success(`${emails.length} user email${emails.length !== 1 ? 's' : ''} imported`);
     } catch (err: any) {
       toast.error(err.message || "Failed to import emails");
     } finally {
@@ -1405,7 +1406,7 @@ export default function AdminDashboard() {
                 {teamBlastRecipients
                   .split(/[\n,]+/)
                   .map(e => e.trim())
-                  .filter(e => e.includes("@")).length} recipient(s) detected
+                  .filter(e => e.length > 0 && e.includes("@")).length} recipient(s) detected
               </p>
             </div>
 
