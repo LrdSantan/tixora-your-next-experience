@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CalendarDays, Plus, MapPin, Calendar, Ticket, Share2, Landmark, Check, ChevronsUpDown, Loader2, Trash2, BarChart3, Scan, Lock, Unlock, Settings, EyeOff, Mail, ClipboardList } from "lucide-react";
+import { CalendarDays, Plus, MapPin, Calendar, Ticket, Share2, Landmark, Check, ChevronsUpDown, Loader2, Trash2, BarChart3, Scan, Lock, Unlock, Settings, EyeOff, Mail, ClipboardList, Info } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -518,6 +518,14 @@ function OrganizerEventStats({ event }: { event: OrganizerEvent }) {
               {event.event_type === 'rsvp' ? stats.totalCount : formatPrice(stats.totalRevenue)}
             </span>
           </div>
+          {event.event_type === 'ticketed' && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#2ECC71]/8 border border-[#2ECC71]/20 w-fit">
+              <Info className="w-3 h-3 text-[#2ECC71] shrink-0" />
+              <span className="text-[10px] text-[#2ECC71]/80 leading-none">
+                Payouts are processed 1–2 working days after your event ends.
+              </span>
+            </div>
+          )}
           
           {stats.tiers.length > 0 ? (
             <div className="space-y-2">
@@ -938,8 +946,20 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
              <span className="font-bold text-[#2ECC71]">FREE RSVP</span>
           ) : (
             lowestPrice !== null && (
-              <span className="font-semibold text-primary">
-                {lowestPrice === 0 ? "Free" : `From ${formatPrice(lowestPrice)}`}
+              <span className="flex items-center gap-1.5">
+                <span className="font-semibold text-primary">
+                  {lowestPrice === 0 ? "Free" : `From ${formatPrice(lowestPrice)}`}
+                </span>
+                <span
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[#2ECC71]/10 border border-[#2ECC71]/20 cursor-default group/payout relative"
+                  title="Payouts are processed 1–2 working days after your event ends."
+                >
+                  <Info className="w-2.5 h-2.5 text-[#2ECC71]/70" />
+                  {/* Tooltip on hover */}
+                  <span className="pointer-events-none absolute bottom-full right-0 mb-1.5 w-48 bg-[#080C0A] border border-[#2ECC71]/25 text-[#2ECC71]/80 text-[10px] leading-snug rounded-md px-2.5 py-1.5 opacity-0 group-hover/payout:opacity-100 transition-opacity duration-200 z-10 shadow-lg">
+                    Payouts are processed 1–2 working days after your event ends.
+                  </span>
+                </span>
               </span>
             )
           )}
