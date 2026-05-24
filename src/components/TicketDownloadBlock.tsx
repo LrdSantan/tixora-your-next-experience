@@ -1,4 +1,4 @@
-import { useRef, useState, ReactNode } from "react";
+import { useRef, useState, useEffect, useCallback, ReactNode } from "react";
 import { TicketVisualCard, type TicketVisualModel } from "@/components/TicketVisualCard";
 import { downloadTicketPdfFromElement } from "@/lib/download-ticket-pdf";
 import { isEventDatePassed } from "@/lib/ticket-utils";
@@ -9,14 +9,16 @@ type Props = {
   model: TicketVisualModel;
   className?: string;
   children?: ReactNode;
+  autoDownload?: boolean;
+  autoDownloadDelay?: number;
 };
 
-export function TicketDownloadBlock({ model, className, children }: Props) {
+export function TicketDownloadBlock({ model, className, children, autoDownload, autoDownloadDelay }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
   const expired = isEventDatePassed(model.eventDate);
 
-  const onDownload = async () => {
+  const onDownload = useCallback(async () => {
     if (!ref.current) return;
     setLoading(true);
     try {
@@ -24,7 +26,17 @@ export function TicketDownloadBlock({ model, className, children }: Props) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [model.reference]);
+
+  useEffect(() => {
+    if (autoDownload && !expired) {
+      const delay = autoDownloadDelay ?? 2000;
+      const timer = setTimeout(() => {
+        onDownload();
+      }, delay);
+      return () => clearTimeout(timer);
+    }
+  }, [autoDownload, autoDownloadDelay, expired, onDownload]);
 
   const actionButtonClass = "bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)] text-white hover:bg-[rgba(255,255,255,0.1)] transition-colors h-9 px-4 text-xs font-semibold rounded-lg border";
 
@@ -53,3 +65,4 @@ export function TicketDownloadBlock({ model, className, children }: Props) {
     </div>
   );
 }
+

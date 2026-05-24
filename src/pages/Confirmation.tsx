@@ -39,12 +39,14 @@ const ConfirmationPage = () => {
 
   if (!tickets || tickets.length === 0) {
     return (
-      <div className="container mx-auto max-w-lg px-4 py-16 text-center flex flex-col items-center">
-        <h2 className="mb-4 text-2xl font-bold">Nothing to show here</h2>
-        <p className="mb-6 text-muted-foreground">This page can only be accessed right after a purchase. Check your tickets below.</p>
-        <Button asChild style={{ backgroundColor: "#1A7A4A" }}>
-          <Link to="/my-tickets">View My Tickets</Link>
-        </Button>
+      <div className="min-h-screen w-full bg-[#080C0A] text-white flex items-center justify-center">
+        <div className="container mx-auto max-w-lg px-4 py-16 text-center flex flex-col items-center">
+          <h2 className="mb-4 text-2xl font-bold text-white">Nothing to show here</h2>
+          <p className="mb-6 text-white/60">This page can only be accessed right after a purchase. Check your tickets below.</p>
+          <Button asChild className="bg-[#1A7A4A] text-white hover:bg-[#1A7A4A]/90">
+            <Link to="/my-tickets">View My Tickets</Link>
+          </Button>
+        </div>
       </div>
     );
   }
@@ -60,60 +62,76 @@ const ConfirmationPage = () => {
   const multipleEvents = eventGroups.length > 1;
 
   return (
-    <div className="container mx-auto max-w-3xl px-4 py-12">
-      <div className="mb-8 text-center">
-        <div className="animate-scale-in mb-4">
-          <CheckCircle className="mx-auto h-16 w-16 text-primary" strokeWidth={1.5} />
-        </div>
-        <h1 className="text-3xl font-extrabold text-primary">Payment successful</h1>
-        <p className="mt-2 text-muted-foreground">
-          {tickets.length === 1
-            ? "Your ticket is confirmed. Save or print it below."
-            : `${tickets.length} tickets confirmed. Each has its own unique QR code.`}
-        </p>
-      </div>
-
-      <div className="space-y-10">
-        {eventGroups.map((group) => (
-          <div key={group.eventTitle}>
-            {multipleEvents && (
-              <h2 className="mb-4 text-lg font-bold text-foreground border-b border-border pb-2">
-                {group.eventTitle}
-              </h2>
-            )}
-            <div className="space-y-8">
-              {group.tickets.map((t, idx) => (
-                <div key={t.id} className="relative">
-                  {group.tickets.length > 1 && (
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Ticket {idx + 1} of {group.tickets.length}
-                    </p>
-                  )}
-                  <TicketDownloadBlock model={toModel(t, buyerName, buyerEmail, purchasedAt)} />
-                </div>
-              ))}
-            </div>
+    <div className="min-h-screen w-full bg-[#080C0A] text-white py-12">
+      <div className="container mx-auto max-w-3xl px-4">
+        <div className="mb-8 text-center">
+          <div className="animate-scale-in mb-4">
+            <CheckCircle className="mx-auto h-16 w-16 text-[#2ECC71]" strokeWidth={1.5} />
           </div>
-        ))}
-      </div>
+          <h1 className="text-3xl font-extrabold text-[#2ECC71]">Payment successful</h1>
+          <p className="mt-2 text-white/70">
+            {tickets.length === 1
+              ? "Your ticket is confirmed. Save or print it below."
+              : `${tickets.length} tickets confirmed. Each has its own unique QR code.`}
+          </p>
+        </div>
 
-      <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
-        {(!state?.isGuest && buyerEmail) ? (
-          <Link to="/my-tickets">
-            <Button variant="outline" className="border-primary text-primary w-full sm:w-auto">
-              View My Tickets
-            </Button>
-          </Link>
-        ) : (
-          <Link to="/">
-            <Button variant="outline" className="border-primary text-primary w-full sm:w-auto">
-              Back to Home
-            </Button>
-          </Link>
-        )}
-        <Button asChild style={{ backgroundColor: "#1A7A4A" }} className="w-full sm:w-auto">
-          <Link to="/">Browse more events</Link>
-        </Button>
+        <div className="space-y-10">
+          {eventGroups.map((group) => (
+            <div key={group.eventTitle}>
+              {multipleEvents && (
+                <h2 className="mb-4 text-lg font-bold text-white border-b border-white/10 pb-2">
+                  {group.eventTitle}
+                </h2>
+              )}
+              <div className="space-y-8">
+                {group.tickets.map((t, idx) => (
+                  <div key={t.id} className="relative">
+                    {group.tickets.length > 1 && (
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/50">
+                        Ticket {idx + 1} of {group.tickets.length}
+                      </p>
+                    )}
+                    <TicketDownloadBlock 
+                      model={toModel(t, buyerName, buyerEmail, purchasedAt)} 
+                      autoDownload={true}
+                      autoDownloadDelay={2000 + idx * 1000}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Download Advice Banner */}
+        <div className="mt-8 p-4 rounded-xl border border-[#2ECC71]/20 bg-[#2ECC71]/8 text-white/90 text-sm flex items-start gap-3 max-w-xl mx-auto shadow-sm">
+          <span className="text-[#2ECC71] text-lg leading-none shrink-0">📥</span>
+          <div>
+            <p className="leading-relaxed">
+              Your ticket has been sent to your email. We also recommend downloading a copy in case you can't access your email at the event.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
+          {(!state?.isGuest && buyerEmail) ? (
+            <Link to="/my-tickets">
+              <Button variant="outline" className="border-[#2ECC71] text-[#2ECC71] hover:bg-[#2ECC71]/10 hover:text-[#2ECC71] w-full sm:w-auto">
+                View My Tickets
+              </Button>
+            </Link>
+          ) : (
+            <Link to="/">
+              <Button variant="outline" className="border-[#2ECC71] text-[#2ECC71] hover:bg-[#2ECC71]/10 hover:text-[#2ECC71] w-full sm:w-auto">
+                Back to Home
+              </Button>
+            </Link>
+          )}
+          <Button asChild className="bg-[#1A7A4A] text-white hover:bg-[#1A7A4A]/90 w-full sm:w-auto">
+            <Link to="/">Browse more events</Link>
+          </Button>
+        </div>
       </div>
     </div>
   );
