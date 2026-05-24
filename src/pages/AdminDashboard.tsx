@@ -752,9 +752,14 @@ export default function AdminDashboard() {
 
       if (error) throw error;
 
-      const emails: string[] = (data?.emails ?? []).filter(
-        (e: string) => typeof e === 'string' && e.includes('@')
-      );
+      const rawEmails = data?.emails;
+      const emails: string[] = (
+        Array.isArray(rawEmails)
+          ? rawEmails
+          : typeof rawEmails === 'string'
+          ? rawEmails.split(/[\n,]+/)
+          : []
+      ).map((e: string) => e.trim()).filter((e: string) => e.length > 0 && e.includes('@'));
 
       if (emails.length === 0) {
         toast.error("No registered users found in the database");
