@@ -60,6 +60,12 @@ type OrganizerEvent = {
     total_quantity: number;
     remaining_quantity: number;
   }>;
+  tickets?: Array<{
+    id: string;
+    tier_id: string;
+    quantity: number;
+    status: string;
+  }>;
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -212,33 +218,54 @@ function OrganizerTiersEditor({ event, onSaved }: { event: OrganizerEvent, onSav
     async function loadTiers() {
       if (!supabase) return;
       setIsLoading(true);
-      const { data, error } = await supabase
-        .from('ticket_tiers')
-        .select('id, event_id, name, description, price, total_quantity, remaining_quantity, waitlist_enabled')
-        .eq('event_id', event.id)
-        .order('price', { ascending: true });
-        
-      if (!error && data && isMounted) {
-        setTiers(data.map(t => ({
-          ...t,
-          tickets_sold: t.total_quantity - t.remaining_quantity,
-          isFree: Number(t.price) === 0,
-          waitlist_enabled: t.waitlist_enabled ?? false,
-        })));
+      try {
+        const { data: tiersData, error: tiersError } = await supabase
+          .from('ticket_tiers')
+          .select('id, event_id, name, description, price, total_quantity, remaining_quantity, waitlist_enabled')
+          .eq('event_id', event.id)
+          .order('price', { ascending: true });
+          
+        if (tiersError) throw tiersError;
 
-        // Load waitlist counts
-        const counts: Record<string, number> = {};
-        await Promise.all(data.map(async (t) => {
-          const { count } = await supabase!
-            .from('waitlist')
-            .select('*', { count: 'exact', head: true })
-            .eq('tier_id', t.id)
-            .eq('status', 'waiting');
-          counts[t.id] = count ?? 0;
-        }));
-        if (isMounted) setWaitlistCounts(counts);
+        const { data: ticketsData, error: ticketsError } = await supabase
+          .from('tickets')
+          .select('tier_id, quantity')
+          .eq('event_id', event.id)
+          .eq('status', 'confirmed');
+          
+        if (ticketsError) throw ticketsError;
+
+        if (isMounted && tiersData) {
+          const soldCounts: Record<string, number> = {};
+          (ticketsData || []).forEach((t: any) => {
+            soldCounts[t.tier_id] = (soldCounts[t.tier_id] || 0) + (t.quantity || 0);
+          });
+
+          setTiers(tiersData.map(t => ({
+            ...t,
+            tickets_sold: soldCounts[t.id] || 0,
+            isFree: Number(t.price) === 0,
+            waitlist_enabled: t.waitlist_enabled ?? false,
+          })));
+
+          // Load waitlist counts
+          const counts: Record<string, number> = {};
+          await Promise.all(tiersData.map(async (t) => {
+            const { count } = await supabase!
+              .from('waitlist')
+              .select('*', { count: 'exact', head: true })
+              .eq('tier_id', t.id)
+              .eq('status', 'waiting');
+            counts[t.id] = count ?? 0;
+          }));
+          if (isMounted) setWaitlistCounts(counts);
+        }
+      } catch (err: any) {
+        console.error(err);
+        toast.error("Failed to load ticket tiers or sales stats");
+      } finally {
+        if (isMounted) setIsLoading(false);
       }
-      if (isMounted) setIsLoading(false);
     }
     loadTiers();
     return () => { isMounted = false; };
@@ -860,8 +887,9 @@ function OrganizerEventCard({ event, onUpdate, onShare, onDelete, isPast }: { ev
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const supabase = getSupabaseClient();
   
-  const totalSold = event.ticket_tiers.reduce(
-    (sum, t) => sum + (t.total_quantity - t.remaining_quantity),
+  const confirmedTickets = (event.tickets || []).filter((t: any) => t.status === 'confirmed');
+  const totalSold = confirmedTickets.reduce(
+    (sum, t) => sum + t.quantity,
     0
   );
 
@@ -1182,7 +1210,8 @@ export default function OrganizerEventsPage() {
         `id, title, date, time, venue, city, category, cover_image_url, status, created_at,
          bank_name, account_number, account_name, is_multi_day, event_days, scanner_mode, scanner_mode_locked, is_private,
          event_type, rsvp_limit,
-         ticket_tiers ( id, name, price, total_quantity, remaining_quantity )`
+         ticket_tiers ( id, name, price, total_quantity, remaining_quantity ),
+         tickets ( id, tier_id, quantity, status )`
       )
       .eq("organizer_id", user.id)
       .neq("status", "deleted")

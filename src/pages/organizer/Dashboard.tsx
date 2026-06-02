@@ -72,7 +72,7 @@ export default function OrganizerDashboard() {
           id, title, date, status, organizer_id, is_multi_day, event_days,
           event_type, rsvp_limit,
           ticket_tiers ( id, name, price, total_quantity, remaining_quantity ),
-          tickets ( id, tier_id, amount_paid, quantity )
+          tickets ( id, tier_id, amount_paid, quantity, status )
         `)
         .eq("organizer_id", user.id)
         .order("date", { ascending: false });
@@ -81,7 +81,7 @@ export default function OrganizerDashboard() {
 
       const processed: EventAnalytics[] = (eventsData || []).map(event => {
         const tiers = (event.ticket_tiers || []).map(tier => {
-          const tierTickets = (event.tickets || []).filter(t => t.tier_id === tier.id);
+          const tierTickets = (event.tickets || []).filter(t => t.tier_id === tier.id && t.status === 'confirmed');
           const sold_count = tierTickets.reduce((sum, t) => sum + t.quantity, 0);
           const revenue = tierTickets.reduce((sum, t) => sum + ((t.amount_paid || 0) / 100), 0);
           return { ...tier, sold_count, revenue };

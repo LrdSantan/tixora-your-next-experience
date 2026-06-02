@@ -501,7 +501,7 @@ export default function AdminDashboard() {
       const { data: txData, error: txError } = await supabase.rpc("get_recent_transactions");
       if (!txError && txData) setTransactions(txData);
 
-      const { data: tData, error: tError } = await supabase.from('tickets').select('amount_paid, quantity, event_id');
+      const { data: tData, error: tError } = await supabase.from('tickets').select('amount_paid, quantity, event_id').eq('status', 'confirmed');
       if (!tError && tData) setTicketsData(tData);
 
       const { data: cData, error: cError } = await supabase.from('coupons').select('id, code, discount_type, discount_value, max_uses, uses_count, expires_at, is_active').order('created_at', { ascending: false });
