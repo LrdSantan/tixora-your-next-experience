@@ -52,6 +52,8 @@ type Coupon = {
   uses_count: number;
   expires_at: string | null;
   is_active: boolean;
+  event_id: string | null;
+  allowed_tiers: string[] | null;
   created_at: string;
 };
 
@@ -260,13 +262,38 @@ function AdminAddBlogModal({ onAdded, editPost }: { onAdded: () => void, editPos
   );
 }
 
-function AdminAddCouponModal({ onAdded }: { onAdded: () => void }) {
+function AdminAddCouponModal({ onAdded, events }: { onAdded: () => void; events: Event[] }) {
   const [open, setOpen] = useState(false);
   const supabase = getSupabaseClient();
   const [formData, setFormData] = useState({
-    code: "", discount_type: "percentage" as "percentage" | "fixed", discount_value: "", max_uses: "", expires_at: ""
+    code: "",
+    discount_type: "percentage" as "percentage" | "fixed",
+    discount_value: "",
+    max_uses: "",
+    expires_at: "",
+    event_id: "global",
+    allowed_tiers: [] as string[],
+    all_tiers: true
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setFormData({
+        code: "",
+        discount_type: "percentage",
+        discount_value: "",
+        max_uses: "",
+        expires_at: "",
+        event_id: "global",
+        allowed_tiers: [],
+        all_tiers: true
+      });
+    }
+  }, [open]);
+
+  const selectedEvent = events.find(e => e.id === formData.event_id);
+  const availableTiers = selectedEvent?.ticket_tiers ?? [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -280,7 +307,9 @@ function AdminAddCouponModal({ onAdded }: { onAdded: () => void }) {
         discount_value: Number(formData.discount_value),
         max_uses: formData.max_uses ? parseInt(formData.max_uses) : null,
         expires_at: formData.expires_at || null,
-        is_active: true
+        is_active: true,
+        event_id: formData.event_id === "global" ? null : formData.event_id,
+        allowed_tiers: formData.all_tiers || formData.event_id === "global" || formData.allowed_tiers.length === 0 ? null : formData.allowed_tiers
       });
       if (error) throw error;
       toast.success("Coupon created successfully!");
@@ -300,10 +329,91 @@ function AdminAddCouponModal({ onAdded }: { onAdded: () => void }) {
           <Plus className="w-4 h-4 mr-2" /> Add Coupon
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Create New Coupon</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input required placeholder="CODE (e.g. SUMMER20)" value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value.toUpperCase() })} />
+          
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground font-medium">Event Scope</label>
+            <Select 
+              value={formData.event_id} 
+              onValueChange={(val: string) => {
+                setFormData(prev => ({ 
+                  ...prev, 
+                  event_id: val, 
+                  allowed_tiers: [], 
+                  all_tiers: true 
+                }));
+              }}
+            >
+              <SelectTrigger><SelectValue placeholder="Select Event Scope" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="global">Global (All Events)</SelectItem>
+                {events.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {formData.event_id !== "global" && (
+            <div className="space-y-2">
+              <label className="text-xs text-muted-foreground font-medium">Allowed Tiers</label>
+              <div className="p-3 border rounded-lg max-h-40 overflow-y-auto space-y-2 bg-muted/20">
+                <label className="flex items-center gap-2 cursor-pointer font-semibold border-b pb-1.5 mb-1.5">
+                  <input
+                    type="checkbox"
+                    className="rounded border-border text-primary focus:ring-primary h-4 w-4"
+                    checked={formData.all_tiers}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setFormData(f => ({
+                        ...f,
+                        all_tiers: checked,
+                        allowed_tiers: []
+                      }));
+                    }}
+                  />
+                  <span className="text-sm text-neutral-800">All Tiers</span>
+                </label>
+
+                {availableTiers.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No tiers found for this event</p>
+                ) : (
+                  availableTiers.map((tier) => (
+                    <label key={tier.id} className="flex items-center gap-2 cursor-pointer group pl-2">
+                      <input
+                        type="checkbox"
+                        className="rounded border-border text-primary focus:ring-primary h-4 w-4"
+                        checked={formData.allowed_tiers.includes(tier.name)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setFormData(f => {
+                            const nextTiers = checked
+                              ? [...f.allowed_tiers, tier.name]
+                              : f.allowed_tiers.filter(t => t !== tier.name);
+                            return {
+                              ...f,
+                              allowed_tiers: nextTiers,
+                              all_tiers: nextTiers.length === 0
+                            };
+                          });
+                        }}
+                      />
+                      <span className="text-sm text-neutral-700 group-hover:text-foreground transition-colors">
+                        {tier.name} ({formatPrice(tier.price)})
+                      </span>
+                    </label>
+                  ))
+                )}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                If "All Tiers" is selected, the coupon will apply to all tiers for this event.
+              </p>
+            </div>
+          )}
+
           <Select value={formData.discount_type} onValueChange={(val: any) => setFormData({ ...formData, discount_type: val })}>
             <SelectTrigger><SelectValue placeholder="Discount Type" /></SelectTrigger>
             <SelectContent>
@@ -504,7 +614,7 @@ export default function AdminDashboard() {
       const { data: tData, error: tError } = await supabase.from('tickets').select('amount_paid, quantity, event_id').eq('status', 'confirmed');
       if (!tError && tData) setTicketsData(tData);
 
-      const { data: cData, error: cError } = await supabase.from('coupons').select('id, code, discount_type, discount_value, max_uses, uses_count, expires_at, is_active').order('created_at', { ascending: false });
+      const { data: cData, error: cError } = await supabase.from('coupons').select('id, code, discount_type, discount_value, max_uses, uses_count, expires_at, is_active, event_id, allowed_tiers').order('created_at', { ascending: false });
       if (!cError && cData) setCoupons(cData);
 
       const { data: bData, error: bError } = await supabase.from('blog_posts').select('*').order('created_at', { ascending: false });
@@ -1047,7 +1157,7 @@ export default function AdminDashboard() {
         <TabsContent value="coupons" className="space-y-4">
           <div className="flex justify-between items-center bg-card p-4 rounded-2xl border shadow-sm">
              <h3 className="font-bold text-lg text-foreground px-2">{coupons.length} Active Coupons</h3>
-             <AdminAddCouponModal onAdded={loadData} />
+             <AdminAddCouponModal onAdded={loadData} events={events} />
           </div>
           <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
             {coupons.length === 0 ? (
@@ -1070,9 +1180,33 @@ export default function AdminDashboard() {
                 <TableBody>
                   {coupons.map(c => (
                     <tr key={c.id} className={`group hover:bg-muted/30 transition-colors ${!c.is_active ? "opacity-60" : ""}`}>
-                      <td className="px-6 py-4 font-black text-primary text-base" style={{ color: BRAND_GREEN }}>{c.code}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                          <span className="font-black text-primary text-base" style={{ color: BRAND_GREEN }}>{c.code}</span>
+                          {c.event_id ? (
+                            <span className="text-[10px] text-muted-foreground font-medium uppercase truncate max-w-[200px]" title={events.find(e => e.id === c.event_id)?.title || "Unknown Event"}>
+                              Event: {events.find(e => e.id === c.event_id)?.title || "Unknown Event"}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-amber-600 font-bold uppercase">
+                              Global Coupon
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="text-center font-bold">
-                        {c.discount_type === 'percentage' ? `${c.discount_value}%` : formatPrice(c.discount_value)}
+                        <div className="flex flex-col items-center">
+                          <span>{c.discount_type === 'percentage' ? `${c.discount_value}%` : formatPrice(c.discount_value)}</span>
+                          {c.allowed_tiers && c.allowed_tiers.length > 0 ? (
+                            <span className="text-[10px] text-muted-foreground truncate max-w-[150px]" title={c.allowed_tiers.join(", ")}>
+                              Tiers: {c.allowed_tiers.join(", ")}
+                            </span>
+                          ) : c.event_id ? (
+                            <span className="text-[10px] text-muted-foreground italic">
+                              All Tiers
+                            </span>
+                          ) : null}
+                        </div>
                       </td>
                       <td className="text-center text-sm font-medium">
                         <span className="text-foreground">{c.uses_count}</span>
