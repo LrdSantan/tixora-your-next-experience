@@ -477,7 +477,7 @@ function OrganizerTiersEditor({ event, onSaved }: { event: OrganizerEvent, onSav
 function OrganizerEventStats({ event }: { event: OrganizerEvent }) {
   const supabase = getSupabaseClient();
   const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState<{ totalCount: number; totalRevenue: number; tiers: { name: string; count: number; revenue: number }[] } | null>(null);
+  const [stats, setStats] = useState<{ totalCount: number; totalRevenue: number; totalGrossValue: number; tiers: { name: string; count: number; revenue: number; gross_value: number }[] } | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -487,7 +487,7 @@ function OrganizerEventStats({ event }: { event: OrganizerEvent }) {
       
       const { data, error } = await supabase
         .from('tickets')
-        .select('amount_paid, tier_id, ticket_tiers(name)')
+        .select('amount_paid, face_value, tier_id, ticket_tiers(name)')
         .eq('event_id', event.id)
         .eq('status', 'confirmed');
         
@@ -499,21 +499,26 @@ function OrganizerEventStats({ event }: { event: OrganizerEvent }) {
 
       if (data && isMounted) {
         let totalRevenue = 0;
-        const tierMap = new Map<string, { count: number; revenue: number }>();
+        let totalGrossValue = 0;
+        const tierMap = new Map<string, { count: number; revenue: number; gross_value: number }>();
         
         data.forEach((ticket: any) => {
           const amount = (ticket.amount_paid || 0) / 100;
+          // face_value falls back to amount_paid for pre-migration tickets
+          const faceAmt = (ticket.face_value ?? ticket.amount_paid ?? 0) / 100;
           const tierName = ticket.ticket_tiers?.name || 'Unknown Tier';
           
           totalRevenue += amount;
+          totalGrossValue += faceAmt;
           
           if (!tierMap.has(tierName)) {
-            tierMap.set(tierName, { count: 0, revenue: 0 });
+            tierMap.set(tierName, { count: 0, revenue: 0, gross_value: 0 });
           }
           
           const tierStat = tierMap.get(tierName)!;
           tierStat.count += 1;
           tierStat.revenue += amount;
+          tierStat.gross_value += faceAmt;
         });
 
         const tiers = Array.from(tierMap.entries()).map(([name, stat]) => ({
@@ -521,7 +526,7 @@ function OrganizerEventStats({ event }: { event: OrganizerEvent }) {
           ...stat
         }));
         
-        setStats({ totalCount: data.length, totalRevenue, tiers });
+        setStats({ totalCount: data.length, totalRevenue, totalGrossValue, tiers });
       }
       if (isMounted) setIsLoading(false);
     }
@@ -540,11 +545,17 @@ function OrganizerEventStats({ event }: { event: OrganizerEvent }) {
       ) : stats ? (
         <div className="space-y-4">
           <div className="flex items-center justify-between bg-background border border-border rounded-md p-3">
-            <span className="text-sm font-medium text-muted-foreground">{event.event_type === 'rsvp' ? 'Total RSVPs' : 'Total Revenue'}</span>
+            <span className="text-sm font-medium text-muted-foreground">{event.event_type === 'rsvp' ? 'Total RSVPs' : 'Cash Collected'}</span>
             <span className={cn("text-lg font-bold", event.event_type === 'rsvp' ? "text-primary" : "text-green-600")}>
               {event.event_type === 'rsvp' ? stats.totalCount : formatPrice(stats.totalRevenue)}
             </span>
           </div>
+          {event.event_type === 'ticketed' && stats.totalGrossValue > stats.totalRevenue && (
+            <div className="flex items-center justify-between bg-violet-50 border border-violet-200 rounded-md p-3">
+              <span className="text-sm font-medium text-violet-700">Gross Face Value</span>
+              <span className="text-lg font-bold text-violet-600">{formatPrice(stats.totalGrossValue)}</span>
+            </div>
+          )}
           {event.event_type === 'ticketed' && (
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#2ECC71]/8 border border-[#2ECC71]/20 w-fit">
               <Info className="w-3 h-3 text-[#2ECC71] shrink-0" />
@@ -563,7 +574,8 @@ function OrganizerEventStats({ event }: { event: OrganizerEvent }) {
                     <tr>
                       <th className="text-left font-medium p-2">Tier / Type</th>
                       <th className="text-right font-medium p-2">{event.event_type === 'rsvp' ? 'Registrations' : 'Sold'}</th>
-                      {event.event_type === 'ticketed' && <th className="text-right font-medium p-2">Revenue</th>}
+                      {event.event_type === 'ticketed' && <th className="text-right font-medium p-2">Cash Collected</th>}
+                      {event.event_type === 'ticketed' && <th className="text-right font-medium p-2 text-violet-600">Gross Value</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -572,6 +584,11 @@ function OrganizerEventStats({ event }: { event: OrganizerEvent }) {
                         <td className="p-2 font-medium">{tier.name}</td>
                         <td className="p-2 text-right text-muted-foreground">{tier.count}</td>
                         {event.event_type === 'ticketed' && <td className="p-2 text-right text-green-600 font-medium">{formatPrice(tier.revenue)}</td>}
+                        {event.event_type === 'ticketed' && (
+                          <td className="p-2 text-right font-medium text-violet-600">
+                            {tier.gross_value > tier.revenue ? formatPrice(tier.gross_value) : <span className="text-muted-foreground text-xs">—</span>}
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>

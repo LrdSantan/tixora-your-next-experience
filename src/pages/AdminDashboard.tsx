@@ -611,7 +611,7 @@ export default function AdminDashboard() {
       const { data: txData, error: txError } = await supabase.rpc("get_recent_transactions");
       if (!txError && txData) setTransactions(txData);
 
-      const { data: tData, error: tError } = await supabase.from('tickets').select('amount_paid, quantity, event_id').eq('status', 'confirmed');
+      const { data: tData, error: tError } = await supabase.from('tickets').select('amount_paid, face_value, quantity, event_id').eq('status', 'confirmed');
       if (!tError && tData) setTicketsData(tData);
 
       const { data: cData, error: cError } = await supabase.from('coupons').select('id, code, discount_type, discount_value, max_uses, uses_count, expires_at, is_active, event_id, allowed_tiers').order('created_at', { ascending: false });
@@ -643,21 +643,25 @@ export default function AdminDashboard() {
     }
   }, [user, loading, supabase]);
 
-  const { totalTicketsSold, totalRevenue, eventStats, totalUnpaidRevenue } = useMemo(() => {
+  const { totalTicketsSold, totalRevenue, totalGrossValue, eventStats, totalUnpaidRevenue } = useMemo(() => {
     let sold = 0;
     let rev = 0;
+    let gross = 0;
     let unpaidRev = 0;
-    const map: Record<string, { tickets_sold: number; revenue: number }> = {};
+    const map: Record<string, { tickets_sold: number; revenue: number; gross_value: number }> = {};
 
     ticketsData.forEach(t => {
       sold += t.quantity;
       rev += t.amount_paid;
+      // face_value falls back to amount_paid for tickets created before the migration
+      gross += (t.face_value ?? t.amount_paid);
       const eventId = t.event_id;
       if (!map[eventId]) {
-        map[eventId] = { tickets_sold: 0, revenue: 0 };
+        map[eventId] = { tickets_sold: 0, revenue: 0, gross_value: 0 };
       }
       map[eventId].tickets_sold += t.quantity;
       map[eventId].revenue += t.amount_paid;
+      map[eventId].gross_value += (t.face_value ?? t.amount_paid);
     });
 
     // Calculate unpaid revenue
@@ -670,6 +674,7 @@ export default function AdminDashboard() {
     return {
       totalTicketsSold: sold,
       totalRevenue: rev,
+      totalGrossValue: gross,
       eventStats: map,
       totalUnpaidRevenue: unpaidRev
     };
@@ -953,14 +958,23 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
         <div className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col gap-2 group hover:border-primary/50 transition-colors">
           <div className="flex justify-between items-center">
-            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Total Revenue</h3>
+            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Cash Collected</h3>
             <div className="p-2 bg-primary/10 rounded-lg"><Landmark className="w-4 h-4 text-primary" /></div>
           </div>
           <p className="text-3xl font-black">{formatPrice(totalRevenue / 100)}</p>
-          <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">Gross Platform Earnings</div>
+          <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">Actual Revenue After Discounts</div>
+        </div>
+
+        <div className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col gap-2 group hover:border-violet-500/50 transition-colors">
+          <div className="flex justify-between items-center">
+            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Gross Face Value</h3>
+            <div className="p-2 bg-violet-500/10 rounded-lg"><Ticket className="w-4 h-4 text-violet-500" /></div>
+          </div>
+          <p className="text-3xl font-black text-violet-600">{formatPrice(totalGrossValue / 100)}</p>
+          <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">Total Sales Value Before Discounts</div>
         </div>
         
         <div className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col gap-2 group hover:border-primary/50 transition-colors">
@@ -1051,7 +1065,8 @@ export default function AdminDashboard() {
                   <TableHead className="font-bold uppercase text-xs tracking-widest px-6 py-4">Event Details</TableHead>
                   <TableHead className="font-bold uppercase text-xs tracking-widest">Date</TableHead>
                   <TableHead className="font-bold uppercase text-xs tracking-widest text-center">Tickets Sold</TableHead>
-                  <TableHead className="font-bold uppercase text-xs tracking-widest text-right">Revenue</TableHead>
+                  <TableHead className="font-bold uppercase text-xs tracking-widest text-right">Cash Collected</TableHead>
+                  <TableHead className="font-bold uppercase text-xs tracking-widest text-right">Gross Value</TableHead>
                   <TableHead className="font-bold uppercase text-xs tracking-widest text-center px-6">Payout Status</TableHead>
                   <TableHead className="text-right px-6">Actions</TableHead>
                 </TableRow>
@@ -1059,7 +1074,7 @@ export default function AdminDashboard() {
               <TableBody>
                 {filteredEvents.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-60 text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="h-60 text-center text-muted-foreground">
                       <div className="flex flex-col items-center gap-2">
                         <AlertCircle className="w-10 h-10 opacity-20" />
                         <p className="font-medium text-lg">No events found matching your criteria</p>
@@ -1068,7 +1083,7 @@ export default function AdminDashboard() {
                   </TableRow>
                 ) : (
                   filteredEvents.map(e => {
-                    const stats = eventStats[e.id] || { tickets_sold: 0, revenue: 0 };
+                    const stats = eventStats[e.id] || { tickets_sold: 0, revenue: 0, gross_value: 0 };
                     return (
                       <TableRow key={e.id} className="group hover:bg-muted/30 transition-colors">
                         <TableCell className="px-6 py-4">
@@ -1102,6 +1117,14 @@ export default function AdminDashboard() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="font-black text-base">{formatPrice(stats.revenue / 100)}</div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="font-black text-base text-violet-600">{formatPrice(stats.gross_value / 100)}</div>
+                          {stats.gross_value > stats.revenue && (
+                            <div className="text-[9px] text-muted-foreground font-bold uppercase tracking-tighter">
+                              ₦{((stats.gross_value - stats.revenue) / 100).toLocaleString()} discounted
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell className="text-center px-6">
                           {e.payout_status === 'paid' ? (

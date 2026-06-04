@@ -33,6 +33,7 @@ type Tier = {
   remaining_quantity: number;
   sold_count: number;
   revenue: number;
+  gross_value: number;
 };
 
 type EventAnalytics = {
@@ -44,6 +45,7 @@ type EventAnalytics = {
   event_days: string[];
   total_sold: number;
   total_revenue: number;
+  total_gross_value: number;
   event_type: 'ticketed' | 'rsvp';
   rsvp_limit: number | null;
   tiers: Tier[];
@@ -72,7 +74,7 @@ export default function OrganizerDashboard() {
           id, title, date, status, organizer_id, is_multi_day, event_days,
           event_type, rsvp_limit,
           ticket_tiers ( id, name, price, total_quantity, remaining_quantity ),
-          tickets ( id, tier_id, amount_paid, quantity, status )
+          tickets ( id, tier_id, amount_paid, face_value, quantity, status )
         `)
         .eq("organizer_id", user.id)
         .order("date", { ascending: false });
@@ -84,11 +86,14 @@ export default function OrganizerDashboard() {
           const tierTickets = (event.tickets || []).filter(t => t.tier_id === tier.id && t.status === 'confirmed');
           const sold_count = tierTickets.reduce((sum, t) => sum + t.quantity, 0);
           const revenue = tierTickets.reduce((sum, t) => sum + ((t.amount_paid || 0) / 100), 0);
-          return { ...tier, sold_count, revenue };
+          // face_value falls back to amount_paid for pre-migration tickets
+          const gross_value = tierTickets.reduce((sum, t) => sum + ((t.face_value ?? t.amount_paid ?? 0) / 100), 0);
+          return { ...tier, sold_count, revenue, gross_value };
         });
 
         const total_sold = tiers.reduce((sum, t) => sum + t.sold_count, 0);
         const total_revenue = tiers.reduce((sum, t) => sum + t.revenue, 0);
+        const total_gross_value = tiers.reduce((sum, t) => sum + t.gross_value, 0);
         
         // Find top selling tier
         const top_tier = tiers.length > 0 
@@ -104,6 +109,7 @@ export default function OrganizerDashboard() {
           event_days: event.event_days || [],
           total_sold,
           total_revenue,
+          total_gross_value,
           event_type: event.event_type || 'ticketed',
           rsvp_limit: event.rsvp_limit,
           tiers,
@@ -134,6 +140,7 @@ export default function OrganizerDashboard() {
 
   // Derived Summary Stats
   const totalRevenue = analytics.reduce((sum, e) => sum + e.total_revenue, 0);
+  const totalGrossValue = analytics.reduce((sum, e) => sum + e.total_gross_value, 0);
   const totalSold = analytics.reduce((sum, e) => sum + e.total_sold, 0);
   const totalEvents = analytics.length;
   const activeEvents = analytics.filter(e => e.status === 'active' && new Date(e.date) >= new Date()).length;
@@ -186,16 +193,17 @@ export default function OrganizerDashboard() {
       {/* Summary Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
         <StatCard 
-          title="Total Revenue" 
+          title="Cash Collected" 
           value={formatPrice(totalRevenue)} 
           icon={<TrendingUp className="w-5 h-5" />}
-          description="Gross earnings across all events"
+          description="Actual revenue after discounts"
         />
         <StatCard 
-          title="Tickets Sold" 
-          value={totalSold.toLocaleString()} 
+          title="Gross Face Value" 
+          value={formatPrice(totalGrossValue)} 
           icon={<Ticket className="w-5 h-5" />}
-          description="Total attendees confirmed"
+          description="Total ticket value before discounts"
+          violet
         />
         <StatCard 
           title="Total Events" 
@@ -245,7 +253,8 @@ export default function OrganizerDashboard() {
                   <th className="px-6 py-4 font-semibold">Event Details</th>
                   <th className="px-6 py-4 font-semibold text-center">Date</th>
                   <th className="px-6 py-4 font-semibold min-w-[150px]">Attendance</th>
-                  <th className="px-6 py-4 font-semibold text-right">Revenue / Fee</th>
+                  <th className="px-6 py-4 font-semibold text-right">Cash Collected</th>
+                  <th className="px-6 py-4 font-semibold text-right">Gross Value</th>
                   <th className="px-6 py-4 font-semibold text-center">Top Tier</th>
                 </tr>
               </thead>
@@ -295,6 +304,20 @@ export default function OrganizerDashboard() {
                             <span className="text-[#2ECC71] text-xs font-black">FREE RSVP</span>
                           ) : formatPrice(event.total_revenue)}
                         </td>
+                        <td className="px-6 py-5 text-right tabular-nums">
+                          {event.event_type === 'rsvp' ? (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          ) : (
+                            <div>
+                              <span className="font-bold text-violet-600">{formatPrice(event.total_gross_value)}</span>
+                              {event.total_gross_value > event.total_revenue && (
+                                <div className="text-[9px] text-muted-foreground font-semibold">
+                                  ₦{(event.total_gross_value - event.total_revenue).toLocaleString(undefined, {maximumFractionDigits:0})} discounted
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </td>
                         <td className="px-6 py-5 text-center">
                           {event.top_tier ? (
                             <Badge className="bg-[#1a7a4a]/10 text-[#1a7a4a] border-none font-bold text-[10px] px-2 py-0.5 whitespace-nowrap">
@@ -334,6 +357,11 @@ export default function OrganizerDashboard() {
                                           )}
                                         </div>
                                         <div className="text-xs text-muted-foreground font-medium mt-0.5">{formatPrice(tier.price)} per ticket</div>
+                                        {tier.gross_value > tier.revenue && (
+                                          <div className="text-[10px] text-violet-500 font-semibold mt-0.5">
+                                            Face: {formatPrice(tier.gross_value)}
+                                          </div>
+                                        )}
                                       </div>
                                       <div className="text-right">
                                         <div className="text-sm font-bold text-foreground">{tier.sold_count} SOLD</div>
@@ -386,30 +414,32 @@ function StatCard({
   value, 
   icon, 
   description, 
-  highlight = false 
+  highlight = false,
+  violet = false
 }: { 
   title: string; 
   value: string; 
   icon: React.ReactNode; 
   description: string;
   highlight?: boolean;
+  violet?: boolean;
 }) {
   return (
     <Card className={cn(
       "border-none shadow-sm transition-all duration-300 hover:shadow-md overflow-hidden relative group",
-      highlight ? "bg-card ring-1 ring-[#1a7a4a]/30" : "bg-card"
+      highlight ? "bg-card ring-1 ring-[#1a7a4a]/30" : violet ? "bg-card ring-1 ring-violet-500/20" : "bg-card"
     )}>
       {/* Background Accent */}
       <div className={cn(
         "absolute -right-4 -top-4 w-20 h-20 rounded-full opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-500",
-        highlight ? "bg-[#1a7a4a]" : "bg-primary"
+        highlight ? "bg-[#1a7a4a]" : violet ? "bg-violet-500" : "bg-primary"
       )} />
       
       <CardHeader className="flex flex-row items-center justify-between pb-3 space-y-0 relative z-10">
         <CardTitle className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">{title}</CardTitle>
         <div className={cn(
           "p-2.5 rounded-xl transition-all duration-300 group-hover:scale-110",
-          highlight ? "bg-[#1a7a4a]/10 text-[#1a7a4a]" : "bg-primary/10 text-primary"
+          highlight ? "bg-[#1a7a4a]/10 text-[#1a7a4a]" : violet ? "bg-violet-500/10 text-violet-500" : "bg-primary/10 text-primary"
         )}>
           {icon}
         </div>
@@ -417,7 +447,7 @@ function StatCard({
       <CardContent className="relative z-10">
         <div className={cn(
           "text-3xl font-bold tracking-tight tabular-nums",
-          highlight ? "text-[#1a7a4a]" : "text-foreground"
+          highlight ? "text-[#1a7a4a]" : violet ? "text-violet-600" : "text-foreground"
         )}>
           {value}
         </div>
